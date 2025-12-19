@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ant Manager | Privacy-First Productivity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4B5563;
+            /* Matches your theme seed color */
+            --primary-light: #9CA3AF;
+            --primary-dark: #1F2937;
+            --accent: #6366F1;
+            --bg: #FFFFFF;
+            --surface: #F8FAFC;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text-main);
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+        }
+
+        .brand img {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 10rem 1.5rem 6rem;
+            max-width: 1100px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.04em;
+            margin-bottom: 1.5rem;
+            color: var(--primary-dark);
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: var(--primary-dark);
+            color: white;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            gap: 0.75rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Features Grid */
+        .section {
+            padding: 6rem 1.5rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            padding: 2.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--primary-light);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Privacy Banner */
+        .privacy-box {
+            background: #F1F5F9;
+            border-radius: var(--radius-lg);
+            padding: 4rem;
+            text-align: center;
+            margin-top: 4rem;
+        }
+
+        .privacy-box h2 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .privacy-box p {
+            max-width: 600px;
+            margin: 0 auto;
+            color: var(--text-muted);
+        }
+
+        /* Footer */
+        footer {
+            padding: 4rem 1.5rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 640px) {
+            .hero {
+                padding-top: 8rem;
+            }
+
+            .privacy-box {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <div class="nav-content">
+            <a href="#" class="brand">
+                <img src="assets/logo.png" alt="Ant Manager">
+                Ant Manager
+            </a>
+            <a href="#" class="btn" style="padding: 0.6rem 1.2rem; font-size: 0.875rem;">Download</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <span class="badge">100% Local-First Productivity</span>
+        <h1>Focus on what<br>actually matters.</h1>
+        <p>Ant Manager unifies your git activity, manual notes, and daily wins into a single private timeline. No cloud,
+            no tracking, just progress.</p>
+        <div class="hero-actions">
+            <a href="#" class="btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                Download for macOS
+            </a>
+        </div>
+    </header>
+
+    <section class="section">
+        <div class="section-header">
+            <h2>Everything stays with you.</h2>
+            <p style="color: var(--text-muted)">Built for developers who value their privacy and their time.</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon">🏗️</div>
+                <h3>Git Integration</h3>
+                <p>Automatically ingest your commit history from local repositories. No API keys needed, no data leaves
+                    your machine.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🧠</div>
+                <h3>Local AI Analysis</h3>
+                <p>Uses local Large Language Models to summarize your day and identify key achievements without sending
+                    a single byte to the cloud.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">📊</div>
+                <h3>Visual Timeline</h3>
+                <p>A unified view of your activity. Combine coding milestones with personal notes to see the full
+                    narrative of your growth.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <h3>Quick Ingestion</h3>
+                <p>A lightning-fast interface to add notes and wins throughout the day. Minimal friction, maximum focus.
+                </p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🗄️</div>
+                <h3>SQLite Storage</h3>
+                <p>Your data is stored in a standard SQLite database on your disk. You own it, you control it, you can
+                    export it anytime.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🔒</div>
+                <h3>Zero Tracking</h3>
+                <p>No analytics, no telemetry, no accounts. Ant Manager is a tool for you, not a product that sells you.
+                </p>
+            </div>
+        </div>
+
+        <div class="privacy-box">
+            <h2>Your data, your machine.</h2>
+            <p>We believe productivity tools shouldn't come at the cost of your privacy. Ant Manager is designed from
+                the ground up to be completely offline and private.</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 Ant Manager. Designed for privacy-conscious developers.</p>
+    </footer>
+</body>
+
+</html>

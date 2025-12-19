@@ -17,7 +17,7 @@ class AntManagerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AntManager',
+      title: 'Ant Manager',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4B5563)),
         useMaterial3: true,

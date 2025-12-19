@@ -20,6 +20,12 @@
             "type": "dart",
             "program": "app/lib/main.dart",
             "flutterMode": "release"
+        },
+        {
+            "name": "Website",
+            "type": "chrome",
+            "request": "launch",
+            "file": "${workspaceFolder}/web/index.html"
         }
     ]
 }
