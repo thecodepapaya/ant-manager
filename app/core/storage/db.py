@@ -1,0 +1,321 @@
+from __future__ import annotations
+
+import os
+import sqlite3
+from contextlib import contextmanager
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+from core.storage.schema import SCHEMA_SQL
+from core.utils import data_dir, json_dumps, new_id, sha256_text, utc_now_iso
+
+
+def db_path() -> str:
+    return os.path.join(data_dir(), "ant_manager.db")
+
+
+@contextmanager
+def connect() -> Iterable[sqlite3.Connection]:
+    conn = sqlite3.connect(db_path())
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def init_db() -> None:
+    with connect() as conn:
+        conn.executescript(SCHEMA_SQL)
+        conn.commit()
+
+
+def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
+    return {k: row[k] for k in row.keys()}
+
+
+def upsert_event(
+    *,
+    event_id: str,
+    timestamp_start: str,
+    timestamp_end: Optional[str],
+    type: str,
+    source: str,
+    source_id: Optional[str],
+    confidence_score: float,
+) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO events (id,timestamp_start,timestamp_end,type,source,source_id,confidence_score,created_at)
+            VALUES (?,?,?,?,?,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET
+              timestamp_start=excluded.timestamp_start,
+              timestamp_end=excluded.timestamp_end,
+              type=excluded.type,
+              source=excluded.source,
+              source_id=excluded.source_id,
+              confidence_score=excluded.confidence_score
+            """,
+            (
+                event_id,
+                timestamp_start,
+                timestamp_end,
+                type,
+                source,
+                source_id,
+                confidence_score,
+                utc_now_iso(),
+            ),
+        )
+        conn.commit()
+
+
+def insert_event_if_missing(
+    *,
+    timestamp_start: str,
+    timestamp_end: Optional[str],
+    type: str,
+    source: str,
+    source_id: Optional[str],
+    confidence_score: float = 1.0,
+) -> str:
+    init_db()
+    if source_id is not None:
+        with connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM events WHERE source=? AND source_id=?",
+                (source, source_id),
+            ).fetchone()
+            if row:
+                return str(row["id"])
+
+    event_id = new_id()
+    upsert_event(
+        event_id=event_id,
+        timestamp_start=timestamp_start,
+        timestamp_end=timestamp_end,
+        type=type,
+        source=source,
+        source_id=source_id,
+        confidence_score=confidence_score,
+    )
+    return event_id
+
+
+def insert_artifact(
+    *,
+    event_id: str,
+    kind: str,
+    content: str,
+    source_id: Optional[str] = None,
+) -> str:
+    init_db()
+    artifact_id = new_id()
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO artifacts (id,event_id,kind,content,hash,source_id,created_at)
+            VALUES (?,?,?,?,?,?,?)
+            """,
+            (
+                artifact_id,
+                event_id,
+                kind,
+                content,
+                sha256_text(content),
+                source_id,
+                utc_now_iso(),
+            ),
+        )
+        conn.commit()
+    return artifact_id
+
+
+def add_note(content: str, timestamp: Optional[str] = None) -> str:
+    init_db()
+    note_id = new_id()
+    ts = timestamp or utc_now_iso()
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO notes (id,timestamp,content,created_at) VALUES (?,?,?,?)",
+            (note_id, ts, content, utc_now_iso()),
+        )
+        conn.commit()
+    return note_id
+
+
+def list_notes(days: int = 30) -> List[Dict[str, Any]]:
+    init_db()
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM notes
+            WHERE timestamp >= datetime('now', ?)
+            ORDER BY timestamp DESC
+            """,
+            (f"-{days} days",),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def list_events(days: int = 7) -> List[Dict[str, Any]]:
+    init_db()
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM events
+            WHERE timestamp_start >= datetime('now', ?)
+            ORDER BY timestamp_start DESC
+            """,
+            (f"-{days} days",),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def list_events_between(start_iso: str, end_iso: str) -> List[Dict[str, Any]]:
+    init_db()
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM events
+            WHERE timestamp_start >= ? AND timestamp_start < ?
+            ORDER BY timestamp_start ASC
+            """,
+            (start_iso, end_iso),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def list_artifacts_between(start_iso: str, end_iso: str) -> List[Dict[str, Any]]:
+    init_db()
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT a.* FROM artifacts a
+            JOIN events e ON e.id = a.event_id
+            WHERE e.timestamp_start >= ? AND e.timestamp_start < ?
+            ORDER BY e.timestamp_start ASC, a.created_at ASC
+            """,
+            (start_iso, end_iso),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def artifacts_for_event(event_id: str) -> List[Dict[str, Any]]:
+    init_db()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM artifacts WHERE event_id=? ORDER BY created_at ASC",
+            (event_id,),
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def get_event(event_id: str) -> Optional[Dict[str, Any]]:
+    init_db()
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM events WHERE id=?", (event_id,)).fetchone()
+        return _row_to_dict(row) if row else None
+
+
+def upsert_narrative(
+    *,
+    period_start: str,
+    period_end: str,
+    purpose: str,
+    text: str,
+    evidence_ids: List[str],
+    locked: bool = False,
+) -> str:
+    init_db()
+    now = utc_now_iso()
+    nar_id = new_id()
+    with connect() as conn:
+        # Update if exists for period+purpose
+        existing = conn.execute(
+            """
+            SELECT id, locked FROM narratives
+            WHERE period_start=? AND period_end=? AND purpose=?
+            """,
+            (period_start, period_end, purpose),
+        ).fetchone()
+        if existing:
+            if int(existing["locked"]) == 1:
+                return str(existing["id"])
+            conn.execute(
+                """
+                UPDATE narratives
+                SET text=?, evidence_ids=?, updated_at=?, locked=?
+                WHERE id=?
+                """,
+                (text, json_dumps(evidence_ids), now, 1 if locked else 0, str(existing["id"])),
+            )
+            conn.commit()
+            return str(existing["id"])
+
+        conn.execute(
+            """
+            INSERT INTO narratives (id,period_start,period_end,purpose,text,evidence_ids,locked,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                nar_id,
+                period_start,
+                period_end,
+                purpose,
+                text,
+                json_dumps(evidence_ids),
+                1 if locked else 0,
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+        return nar_id
+
+
+def get_narrative(period_start: str, period_end: str, purpose: str) -> Optional[Dict[str, Any]]:
+    init_db()
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM narratives
+            WHERE period_start=? AND period_end=? AND purpose=?
+            """,
+            (period_start, period_end, purpose),
+        ).fetchone()
+        return _row_to_dict(row) if row else None
+
+
+def update_narrative_text(narrative_id: str, text: str) -> bool:
+    init_db()
+    now = utc_now_iso()
+    with connect() as conn:
+        row = conn.execute("SELECT locked FROM narratives WHERE id=?", (narrative_id,)).fetchone()
+        if not row:
+            return False
+        if int(row["locked"]) == 1:
+            return False
+        conn.execute(
+            "UPDATE narratives SET text=?, updated_at=? WHERE id=?",
+            (text, now, narrative_id),
+        )
+        conn.commit()
+        return True
+
+
+def lock_narrative(narrative_id: str) -> bool:
+    init_db()
+    now = utc_now_iso()
+    with connect() as conn:
+        row = conn.execute("SELECT id FROM narratives WHERE id=?", (narrative_id,)).fetchone()
+        if not row:
+            return False
+        conn.execute(
+            "UPDATE narratives SET locked=1, updated_at=? WHERE id=?",
+            (now, narrative_id),
+        )
+        conn.commit()
+        return True
+
+

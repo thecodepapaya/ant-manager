@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Ant Manager",
+            "request": "launch",
+            "type": "dart",
+            "program": "app/lib/main.dart",
+        },
+        {
+            "name": "Ant Manager (Profile)",
+            "request": "launch",
+            "type": "dart",
+            "program": "app/lib/main.dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "Ant Manager (Release)",
+            "request": "launch",
+            "type": "dart",
+            "program": "app/lib/main.dart",
+            "flutterMode": "release"
+        }
+    ]
+}
