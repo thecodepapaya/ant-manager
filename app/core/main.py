@@ -31,7 +31,13 @@ def build_parser() -> argparse.ArgumentParser:
     set_model = sub.add_parser("config-set-model")
     set_model.add_argument("model")
 
+    set_user = sub.add_parser("config-set-user-name")
+    set_user.add_argument("name")
+
     sub.add_parser("init-db")
+
+    detect_user = sub.add_parser("detect-git-user")
+    detect_user.add_argument("path")
 
     daily = sub.add_parser("daily-summary")
     daily.add_argument("--date", default=None, help="ISO date (YYYY-MM-DD) in local time")
@@ -86,9 +92,20 @@ def main(argv: list[str]) -> int:
         _print_json({"ok": True, "llm_model": cfg.llm_model})
         return 0
 
+    if args.cmd == "config-set-user-name":
+        cfg = config.set_user_name(args.name)
+        _print_json({"ok": True, "user_name": cfg.user_name})
+        return 0
+
     if args.cmd == "init-db":
         db.init_db()
         _print_json({"ok": True, "db_path": db.db_path()})
+        return 0
+
+    if args.cmd == "detect-git-user":
+        from core.ingestion.git_ingestion import get_git_user
+        name = get_git_user(args.path)
+        _print_json({"ok": True, "name": name})
         return 0
 
     if args.cmd == "add-note":
@@ -135,7 +152,11 @@ def main(argv: list[str]) -> int:
 
     if args.cmd == "ingest-git":
         cfg = config.load_config()
-        totals = ingest_repos(cfg.repo_paths, since_days=int(args.days))
+        totals = ingest_repos(
+            cfg.repo_paths,
+            since_days=int(args.days),
+            author_filter=cfg.user_name or None,
+        )
         _print_json({"ok": True, **totals})
         return 0
 
@@ -151,13 +172,21 @@ def main(argv: list[str]) -> int:
     if args.cmd == "daily-summary":
         # v0: auto-ingest recent git so daily view always has something.
         cfg = config.load_config()
-        ingest_repos(cfg.repo_paths, since_days=2)
+        ingest_repos(
+            cfg.repo_paths,
+            since_days=2,
+            author_filter=cfg.user_name or None,
+        )
         _print_json(generate_daily())
         return 0
 
     if args.cmd == "wins":
         cfg = config.load_config()
-        ingest_repos(cfg.repo_paths, since_days=40)
+        ingest_repos(
+            cfg.repo_paths,
+            since_days=40,
+            author_filter=cfg.user_name or None,
+        )
         _print_json(generate_wins(period=str(args.period)))
         return 0
 

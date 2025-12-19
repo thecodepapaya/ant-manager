@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../services/python_service.dart';
 
@@ -127,55 +128,139 @@ class _TimelineScreenState extends State<TimelineScreen> {
             .toList();
 
         return Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Expanded(child: Text('Timeline — last 7 days', style: theme.textTheme.headlineMedium)),
-                  IconButton(onPressed: _refresh, tooltip: 'Refresh', icon: const Icon(Icons.refresh)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'History & Events',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Timeline',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: IconButton(
+                      tooltip: 'Refresh',
+                      onPressed: _refresh,
+                      icon: Icon(LucideIcons.refreshCw, color: Colors.grey.shade700, size: 20),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
+              const SizedBox(height: 24),
+              Row(
                 children: [
-                  ChoiceChip(
-                    label: const Text('All'),
-                    selected: _filter == TimelineFilter.all,
-                    onSelected: (_) => setState(() => _filter = TimelineFilter.all),
+                  Text(
+                    'Filter by:',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  ChoiceChip(
-                    label: const Text('Code'),
-                    selected: _filter == TimelineFilter.code,
-                    onSelected: (_) => setState(() => _filter = TimelineFilter.code),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Notes'),
-                    selected: _filter == TimelineFilter.notes,
-                    onSelected: (_) => setState(() => _filter = TimelineFilter.notes),
+                  const SizedBox(width: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _FilterChip(
+                        label: 'All',
+                        isSelected: _filter == TimelineFilter.all,
+                        onSelected: () => setState(() => _filter = TimelineFilter.all),
+                      ),
+                      _FilterChip(
+                        label: 'Code',
+                        isSelected: _filter == TimelineFilter.code,
+                        onSelected: () => setState(() => _filter = TimelineFilter.code),
+                      ),
+                      _FilterChip(
+                        label: 'Notes',
+                        isSelected: _filter == TimelineFilter.notes,
+                        onSelected: () => setState(() => _filter = TimelineFilter.notes),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
               Expanded(
                 child: ListView.separated(
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  padding: const EdgeInsets.only(bottom: 24),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, idx) {
                     final item = filtered[idx];
                     final kind = (item['kind'] ?? '').toString();
                     final ts = (item['timestamp'] ?? '').toString();
-                    final title = kind == 'note' ? 'Note' : (item['type'] ?? 'Event').toString();
+                    final type = (item['type'] ?? 'Event').toString();
+                    final title = kind == 'note' ? 'Manual Note' : type;
                     final subtitle = kind == 'note'
                         ? (item['content'] ?? '').toString()
                         : (item['source_id'] ?? '').toString();
-                    return ListTile(
-                      title: Text(title),
-                      subtitle: Text('$ts\n$subtitle', maxLines: 2, overflow: TextOverflow.ellipsis),
-                      isThreeLine: true,
-                      onTap: () => _openItem(item),
+                    
+                    final icon = kind == 'note' 
+                      ? LucideIcons.stickyNote 
+                      : (type.startsWith('code.') ? LucideIcons.code : LucideIcons.calendarClock);
+                    
+                    return Card(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(icon, color: theme.colorScheme.primary, size: 18),
+                        ),
+                        title: Text(
+                          title,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                ts,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        onTap: () => _openItem(item),
+                        trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                      ),
                     );
                   },
                 ),
@@ -184,6 +269,39 @@ class _TimelineScreenState extends State<TimelineScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.grey.shade700,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 13,
+      ),
+      selectedColor: theme.colorScheme.primary,
+      backgroundColor: Colors.white,
+      side: BorderSide(
+        color: isSelected ? theme.colorScheme.primary : Colors.grey.shade200,
+      ),
+      showCheckmark: false,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../services/python_service.dart';
 
@@ -116,69 +117,158 @@ class _TodayScreenState extends State<TodayScreen> {
           }
 
           body = Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
-                      child: Text(
-                        date.isEmpty ? 'Today' : 'Today — $date',
-                        style: theme.textTheme.headlineMedium,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily Narrative',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            date.isEmpty ? 'Today' : date,
+                            style: theme.textTheme.headlineMedium,
+                          ),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Refresh',
-                      onPressed: _refresh,
-                      icon: const Icon(Icons.refresh),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: IconButton(
+                        tooltip: 'Refresh',
+                        onPressed: _refresh,
+                        icon: Icon(LucideIcons.refreshCw, color: Colors.grey.shade700, size: 20),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 32),
                 Expanded(
-                  child: _isEditing
-                      ? TextField(
-                          controller: _controller,
-                          expands: true,
-                          maxLines: null,
-                          minLines: null,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText:
-                                'Edit today’s narrative (keep it factual).',
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(LucideIcons.text,
+                                  size: 18, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Summary',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (narrativeId.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary
+                                        .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'AI Generated',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                        )
-                      : SingleChildScrollView(
-                          child: SelectableText(
-                            text.isEmpty ? '(empty)' : text,
-                            style: theme.textTheme.bodyMedium,
+                          const SizedBox(height: 20),
+                          Expanded(
+                            child: _isEditing
+                                ? TextField(
+                                    controller: _controller,
+                                    expands: true,
+                                    maxLines: null,
+                                    minLines: null,
+                                    textAlignVertical: TextAlignVertical.top,
+                                    decoration: const InputDecoration(
+                                      hintText:
+                                          'Edit today’s narrative (keep it factual).',
+                                      filled: false,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                    ),
+                                  )
+                                : SingleChildScrollView(
+                                    child: SelectableText(
+                                      text.isEmpty ? 'No narrative generated yet.' : text,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontSize: 16,
+                                        height: 1.6,
+                                      ),
+                                    ),
+                                  ),
                           ),
-                        ),
-                ),
-                const SizedBox(height: 12),
-                if (evidenceIds.isNotEmpty) ...[
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final id in evidenceIds.take(12))
-                        Chip(
-                          label: Text(
-                            'Evidence ${id.toString().substring(0, 8)}',
-                          ),
-                        ),
-                    ],
+                          if (evidenceIds.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            const Divider(),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Sources & Evidence',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final id in evidenceIds.take(12))
+                                  Tooltip(
+                                    message: id.toString(),
+                                    child: Chip(
+                                      visualDensity: VisualDensity.compact,
+                                      label: Text(
+                                        '#${id.toString().substring(0, 6)}',
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                ],
+                ),
+                const SizedBox(height: 24),
                 Row(
                   children: [
-                    FilledButton(
-                      onPressed: narrativeId.isEmpty
-                          ? null
-                          : () async {
-                              if (_isEditing) {
+                    if (_isEditing) ...[
+                      FilledButton.icon(
+                        onPressed: narrativeId.isEmpty
+                            ? null
+                            : () async {
                                 await widget.python.updateNarrative(
                                   narrativeId: narrativeId,
                                   text: _controller.text,
@@ -186,41 +276,16 @@ class _TodayScreenState extends State<TodayScreen> {
                                 setState(() => _isEditing = false);
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Saved.')),
+                                    const SnackBar(content: Text('Changes saved')),
                                   );
                                 }
                                 await _refresh();
-                              } else {
-                                setState(() => _isEditing = true);
-                              }
-                            },
-                      child: Text(_isEditing ? 'Save' : 'Edit'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      onPressed: narrativeId.isEmpty
-                          ? null
-                          : () async {
-                              await widget.python.lockNarrative(narrativeId);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Approved (locked).'),
-                                  ),
-                                );
-                              }
-                              await _refresh();
-                            },
-                      child: const Text('Approve'),
-                    ),
-                    const SizedBox(width: 12),
-                    TextButton(
-                      onPressed: _addNote,
-                      child: const Text('+ Add note'),
-                    ),
-                    const Spacer(),
-                    if (_isEditing)
-                      TextButton(
+                              },
+                        icon: const Icon(LucideIcons.check, size: 18),
+                        label: const Text('Save Changes'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton(
                         onPressed: () {
                           setState(() {
                             _isEditing = false;
@@ -229,6 +294,42 @@ class _TodayScreenState extends State<TodayScreen> {
                         },
                         child: const Text('Cancel'),
                       ),
+                    ] else ...[
+                      FilledButton.icon(
+                        onPressed: narrativeId.isEmpty
+                            ? null
+                            : () => setState(() => _isEditing = true),
+                        icon: const Icon(LucideIcons.pencil, size: 18),
+                        label: const Text('Edit Narrative'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: narrativeId.isEmpty
+                            ? null
+                            : () async {
+                                await widget.python.lockNarrative(narrativeId);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Narrative approved & locked'),
+                                    ),
+                                  );
+                                }
+                                await _refresh();
+                              },
+                        icon: const Icon(LucideIcons.lock, size: 18),
+                        label: const Text('Approve & Lock'),
+                      ),
+                    ],
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _addNote,
+                      icon: const Icon(LucideIcons.messageSquarePlus, size: 18),
+                      label: const Text('Add Observation'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.colorScheme.primary,
+                      ),
+                    ),
                   ],
                 ),
               ],

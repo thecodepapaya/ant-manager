@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../services/python_service.dart';
 
@@ -76,95 +77,191 @@ class _WinsScreenState extends State<WinsScreen> {
         }
 
         return Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Expanded(child: Text('Wins', style: theme.textTheme.headlineMedium)),
-                  DropdownButton<String>(
-                    value: _period,
-                    items: const [
-                      DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                      DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                    ],
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() {
-                        _period = v;
-                        _future = _load();
-                      });
-                    },
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Achievements & Milestones',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Wins',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(onPressed: _refresh, tooltip: 'Refresh', icon: const Icon(Icons.refresh)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _period,
+                        icon: const Icon(LucideIcons.chevronDown, size: 18),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade800,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'weekly', child: Text('Weekly')),
+                          DropdownMenuItem(
+                              value: 'monthly', child: Text('Monthly')),
+                        ],
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() {
+                            _period = v;
+                            _future = _load();
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: IconButton(
+                      tooltip: 'Refresh',
+                      onPressed: _refresh,
+                      icon: Icon(LucideIcons.refreshCw, color: Colors.grey.shade700, size: 20),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 32),
               Expanded(
-                child: _isEditing
-                    ? TextField(
-                        controller: _controller,
-                        expands: true,
-                        maxLines: null,
-                        minLines: null,
-                        decoration: const InputDecoration(border: OutlineInputBorder()),
-                      )
-                    : SingleChildScrollView(
-                        child: SelectableText(
-                          text.isEmpty ? '(empty)' : text,
-                          style: theme.textTheme.bodyMedium,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(LucideIcons.trophy,
+                                size: 18, color: Colors.amber.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Highlights',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 20),
+                        Expanded(
+                          child: _isEditing
+                              ? TextField(
+                                  controller: _controller,
+                                  expands: true,
+                                  maxLines: null,
+                                  minLines: null,
+                                  textAlignVertical: TextAlignVertical.top,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Describe your wins...',
+                                    filled: false,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                  ),
+                                )
+                              : SingleChildScrollView(
+                                  child: SelectableText(
+                                    text.isEmpty ? 'No wins recorded for this period.' : text,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontSize: 16,
+                                      height: 1.6,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
               Row(
                 children: [
-                  FilledButton(
-                    onPressed: narrativeId.isEmpty
-                        ? null
-                        : () async {
-                            if (_isEditing) {
+                  if (_isEditing) ...[
+                    FilledButton.icon(
+                      onPressed: narrativeId.isEmpty
+                          ? null
+                          : () async {
                               await widget.python.updateNarrative(
                                 narrativeId: narrativeId,
                                 text: _controller.text,
                               );
                               setState(() => _isEditing = false);
                               if (mounted) {
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(const SnackBar(content: Text('Saved.')));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Wins updated')),
+                                );
                               }
                               await _refresh();
-                            } else {
-                              setState(() => _isEditing = true);
-                            }
-                          },
-                    child: Text(_isEditing ? 'Save' : 'Edit'),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton(
-                    onPressed: text.trim().isEmpty
-                        ? null
-                        : () async {
-                            await Clipboard.setData(ClipboardData(text: text));
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Copied to clipboard.')),
-                              );
-                            }
-                          },
-                    child: const Text('Copy'),
-                  ),
-                  const Spacer(),
-                  if (_isEditing)
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _isEditing = false;
-                        _controller.text = text;
-                      }),
+                            },
+                      icon: const Icon(LucideIcons.check, size: 18),
+                      label: const Text('Save Changes'),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _isEditing = false;
+                          _controller.text = text;
+                        });
+                      },
                       child: const Text('Cancel'),
                     ),
+                  ] else ...[
+                    FilledButton.icon(
+                      onPressed: narrativeId.isEmpty
+                          ? null
+                          : () => setState(() => _isEditing = true),
+                      icon: const Icon(LucideIcons.pencil, size: 18),
+                      label: const Text('Edit Wins'),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: text.trim().isEmpty
+                          ? null
+                          : () async {
+                              await Clipboard.setData(ClipboardData(text: text));
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Copied to clipboard')),
+                                );
+                              }
+                            },
+                      icon: const Icon(LucideIcons.copy, size: 18),
+                      label: const Text('Copy to Clipboard'),
+                    ),
+                  ],
                 ],
               ),
             ],

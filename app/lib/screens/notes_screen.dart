@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../services/python_service.dart';
 
@@ -101,34 +102,124 @@ class _NotesScreenState extends State<NotesScreen> {
             .toList();
 
         return Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Expanded(child: Text('Notes — last 30 days', style: theme.textTheme.headlineMedium)),
-                  IconButton(onPressed: _refresh, tooltip: 'Refresh', icon: const Icon(Icons.refresh)),
-                  const SizedBox(width: 4),
-                  FilledButton(onPressed: _addNote, child: const Text('+ New note')),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Personal Context & Logs',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Notes',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: IconButton(
+                      tooltip: 'Refresh',
+                      onPressed: _refresh,
+                      icon: Icon(LucideIcons.refreshCw, color: Colors.grey.shade700, size: 20),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: _addNote,
+                    icon: const Icon(LucideIcons.plus, size: 18),
+                    label: const Text('New Note'),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 32),
               Expanded(
-                child: ListView.separated(
-                  itemCount: typed.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, idx) {
-                    final n = typed[idx];
-                    final ts = (n['timestamp'] ?? '').toString();
-                    final content = (n['content'] ?? '').toString();
-                    return ListTile(
-                      title: Text(content, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(ts),
-                      onTap: () => _openNote(n),
-                    );
-                  },
-                ),
+                child: typed.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(LucideIcons.stickyNote,
+                                size: 64, color: Colors.grey.shade300),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No notes yet',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _addNote,
+                              child: const Text('Add your first note'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 400,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          mainAxisExtent: 160,
+                        ),
+                        itemCount: typed.length,
+                        itemBuilder: (context, idx) {
+                          final n = typed[idx];
+                          final ts = (n['timestamp'] ?? '').toString();
+                          final content = (n['content'] ?? '').toString();
+                          return Card(
+                            child: InkWell(
+                              onTap: () => _openNote(n),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      ts,
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Expanded(
+                                      child: Text(
+                                        content,
+                                        maxLines: 4,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontSize: 14,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),

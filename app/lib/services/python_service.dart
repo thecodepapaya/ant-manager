@@ -23,7 +23,12 @@ class PythonService {
 
     final entry = await _resolveCoreEntry();
     final coreDir = p.dirname(entry);
-    final venvDir = p.join(coreDir, '.venv');
+
+    // Use Application Support for the venv to avoid read-only bundle issues on macOS
+    final supportDir = await getApplicationSupportDirectory();
+    final venvDir = p.normalize(
+      p.join(supportDir.path, 'ant_manager_python_venv'),
+    );
     final setupMarker = p.join(venvDir, '.setup_done');
 
     final pythonExec = Platform.isWindows
@@ -36,14 +41,20 @@ class PythonService {
 
     // 1. If venv doesn't exist or setup isn't finished, set it up
     if (!Directory(venvDir).existsSync() || !File(setupMarker).existsSync()) {
-      print('Setting up Python virtual environment in $coreDir...');
+      print('Setting up Python virtual environment in $venvDir...');
 
-      // Create venv
+      if (!Directory(venvDir).existsSync()) {
+        await Directory(venvDir).create(recursive: true);
+      }
+
+      // Create venv - note we don't use coreDir as workingDirectory
+      // because it might be read-only in the app bundle.
       final venvResult = await Process.run('python3', [
         '-m',
         'venv',
-        '.venv',
-      ], workingDirectory: coreDir);
+        venvDir,
+      ], workingDirectory: supportDir.path);
+
       if (venvResult.exitCode != 0) {
         throw PythonServiceError('Failed to create venv: ${venvResult.stderr}');
       }
@@ -51,12 +62,12 @@ class PythonService {
       // Install requirements
       final reqFile = p.join(coreDir, 'requirements.txt');
       if (File(reqFile).existsSync()) {
-        print('Installing requirements...');
+        print('Installing requirements from $reqFile...');
         final pipResult = await Process.run(pipExec, [
           'install',
           '-r',
-          'requirements.txt',
-        ], workingDirectory: coreDir);
+          reqFile,
+        ], workingDirectory: venvDir);
         if (pipResult.exitCode != 0) {
           throw PythonServiceError(
             'Failed to install requirements: ${pipResult.stderr}',
@@ -204,6 +215,14 @@ class PythonService {
 
   Future<Map<String, dynamic>> setModel(String model) =>
       runJson(['config-set-model', model]);
+
+  Future<Map<String, dynamic>> setUserName(String name) =>
+      runJson(['config-set-user-name', name]);
+
+  Future<String?> detectGitUser(String path) async {
+    final res = await runJson(['detect-git-user', path]);
+    return res['name'] as String?;
+  }
 
   Future<Map<String, dynamic>> ingestGit({int days = 7}) =>
       runJson(['ingest-git', '--days=$days']);

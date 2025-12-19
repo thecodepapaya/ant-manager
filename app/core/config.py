@@ -26,6 +26,7 @@ def config_path() -> str:
 class AppConfig:
     repo_paths: List[str] = field(default_factory=list)
     llm_model: str = "llama3.1:8b"
+    user_name: str = ""
 
 
 def load_config() -> AppConfig:
@@ -46,6 +47,7 @@ def load_config() -> AppConfig:
     return AppConfig(
         repo_paths=list(raw.get("repo_paths", []) or []),
         llm_model=str(raw.get("llm_model") or "llama3.1:8b"),
+        user_name=str(raw.get("user_name") or ""),
     )
 
 
@@ -55,7 +57,11 @@ def save_config(cfg: AppConfig) -> None:
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(
-            {"repo_paths": cfg.repo_paths, "llm_model": cfg.llm_model},
+            {
+                "repo_paths": cfg.repo_paths,
+                "llm_model": cfg.llm_model,
+                "user_name": cfg.user_name,
+            },
             f,
             ensure_ascii=False,
             indent=2,
@@ -86,8 +92,21 @@ def set_model(model: str) -> AppConfig:
     return cfg
 
 
+def set_user_name(name: str) -> AppConfig:
+    cfg = load_config()
+    cfg.user_name = name
+    save_config(cfg)
+    return cfg
+
+
 def config_as_json() -> str:
     cfg = load_config()
-    return json_dumps({"repo_paths": cfg.repo_paths, "llm_model": cfg.llm_model})
+    return json_dumps(
+        {
+            "repo_paths": cfg.repo_paths,
+            "llm_model": cfg.llm_model,
+            "user_name": cfg.user_name,
+        }
+    )
 
 

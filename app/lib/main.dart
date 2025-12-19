@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import 'screens/today_screen.dart';
 import 'screens/timeline_screen.dart';
@@ -16,11 +18,103 @@ class AntManagerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF6366F1),
+      primary: const Color(0xFF6366F1),
+      surface: Colors.white,
+      surfaceContainerHighest: const Color(0xFFF3F4F6),
+    );
+
     return MaterialApp(
       title: 'Ant Manager',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4B5563)),
         useMaterial3: true,
+        colorScheme: colorScheme,
+        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+        textTheme: GoogleFonts.plusJakartaSansTextTheme().copyWith(
+          headlineMedium: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF111827),
+          ),
+          bodyMedium: GoogleFonts.plusJakartaSans(
+            color: const Color(0xFF374151),
+            fontSize: 15,
+            height: 1.5,
+          ),
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
+          color: Colors.white,
+        ),
+        navigationRailTheme: NavigationRailThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: colorScheme.primary.withOpacity(0.1),
+          selectedIconTheme: IconThemeData(color: colorScheme.primary),
+          unselectedIconTheme: IconThemeData(color: Colors.grey.shade400),
+          selectedLabelTextStyle: GoogleFonts.plusJakartaSans(
+            color: colorScheme.primary,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+          unselectedLabelTextStyle: GoogleFonts.plusJakartaSans(
+            color: Colors.grey.shade500,
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            side: BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: Colors.grey.shade100,
+          side: BorderSide.none,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+          ),
+          contentPadding: const EdgeInsets.all(16),
+        ),
       ),
       home: const AppShell(),
     );
@@ -42,6 +136,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final page = switch (_section) {
       AppSection.today => TodayScreen(python: _python),
       AppSection.timeline => TimelineScreen(python: _python),
@@ -53,43 +148,87 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: Row(
         children: [
-          NavigationRail(
-            selectedIndex: _section.index,
-            onDestinationSelected: (idx) => setState(() => _section = AppSection.values[idx]),
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(icon: Icon(Icons.today_outlined), selectedIcon: Icon(Icons.today), label: Text('Today')),
-              NavigationRailDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: Text('Timeline')),
-              NavigationRailDestination(icon: Icon(Icons.emoji_events_outlined), selectedIcon: Icon(Icons.emoji_events), label: Text('Wins')),
-              NavigationRailDestination(icon: Icon(Icons.note_alt_outlined), selectedIcon: Icon(Icons.note_alt), label: Text('Notes')),
-              NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: Text('Settings')),
-            ],
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(right: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 24),
+                // App Logo
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Image.asset('assets/logo.webp', width: 40, height: 40),
+                ),
+                const SizedBox(height: 32),
+                Expanded(
+                  child: NavigationRail(
+                    selectedIndex: _section.index,
+                    onDestinationSelected: (idx) =>
+                        setState(() => _section = AppSection.values[idx]),
+                    labelType: NavigationRailLabelType.all,
+                    destinations: const [
+                      NavigationRailDestination(
+                        icon: Icon(LucideIcons.calendar),
+                        selectedIcon: Icon(LucideIcons.calendar),
+                        label: Text('Today'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(LucideIcons.history),
+                        selectedIcon: Icon(LucideIcons.history),
+                        label: Text('Timeline'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(LucideIcons.trophy),
+                        selectedIcon: Icon(LucideIcons.trophy),
+                        label: Text('Wins'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(LucideIcons.stickyNote),
+                        selectedIcon: Icon(LucideIcons.stickyNote),
+                        label: Text('Notes'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(LucideIcons.settings),
+                        selectedIcon: Icon(LucideIcons.settings),
+                        label: Text('Settings'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      LucideIcons.user,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const VerticalDivider(width: 1),
-          Expanded(child: page),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 12),
-          Text(
-            'Wiring this screen next...',
-            style: Theme.of(context).textTheme.bodyMedium,
+          Expanded(
+            child: ClipRRect(
+              // Add a subtle rounding to the content area
+              child: page,
+            ),
           ),
         ],
       ),
