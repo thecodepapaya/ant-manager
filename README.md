@@ -87,6 +87,55 @@ Sources:       Ingestors:          Processing:        Storage:
 - **Configuration**: A JSON file located at `~/.ant_manager/config.json` stores user preferences, repository paths, and API keys.
 - **LLM Prompts**: Default prompts are built-in but can be customized via the settings UI, allowing users to tune how narratives are generated.
 
+## 📊 Data Model
+
+AntManager uses a relational SQLite schema designed for flexibility across different work sources.
+
+### Event vs. Evidence
+While often used interchangeably in the UI, they have distinct technical meanings:
+- **Evidence**: A conceptual term for *any* data used for narratives. **Evidence = Events + Notes**.
+- **Event**: A specific technical record from a structured source (Git, Calendar) with a start time and artifacts.
+
+### Entity Relationships
+
+```text
+  +-------+        1:N        +-----------+
+  | Event | ----------------> | Artifact  |
+  +---+---+                   +-----------+
+      |
+      | N:N (Virtual)
+      v
+  +-----------+               +-------+
+  | Narrative |               | Note  |
+  +-----------+               +-------+
+```
+
+### Key Entities
+
+#### 1. Event (`events` table)
+The central unit of work evidence.
+- **Properties**: `id`, `timestamp_start`, `type` (e.g., `code.commit`, `calendar.event`), `title`, `author`, `source` (e.g., `git`, `google_calendar`), `source_id` (original ID from source).
+- **Interactions**: Serves as the primary anchor for AI summarization.
+
+#### 2. Artifact (`artifacts` table)
+Supplementary data attached to an event.
+- **Properties**: `id`, `event_id` (FK), `kind` (e.g., `git.diff`, `ai.summary`, `calendar.details`), `content` (raw text or JSON), `hash`.
+- **Interactions**: Provides the "raw evidence" that LLMs use to generate narratives.
+
+#### 3. Narrative (`narratives` table)
+AI-generated summaries for a specific period.
+- **Properties**: `id`, `period_start`, `period_end`, `purpose` (e.g., `daily`, `wins.weekly`), `text`, `evidence_ids` (JSON list of Event/Note IDs used), `locked` (prevents regeneration).
+- **Interactions**: Links multiple events and notes into a cohesive human-readable story.
+
+#### 4. Note (`notes` table)
+Lightweight manual entries.
+- **Properties**: `id`, `timestamp`, `content`.
+- **Interactions**: Independent entries that can be included as evidence in Narratives.
+
+#### 5. Blocker (`blockers` table)
+Tracks friction points identified in the workflow.
+- **Properties**: `id`, `related_event_ids`, `category`, `description`.
+
 ## 🛠 Tech Stack
 
 - **UI**: Flutter (Dart)
