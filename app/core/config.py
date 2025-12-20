@@ -27,6 +27,9 @@ class AppConfig:
     repo_paths: List[str] = field(default_factory=list)
     llm_model: str = "llama3.1:8b"
     user_name: str = ""
+    google_calendar_token: Optional[str] = None
+    google_client_id: str = ""
+    google_client_secret: str = ""
 
 
 def load_config() -> AppConfig:
@@ -48,6 +51,9 @@ def load_config() -> AppConfig:
         repo_paths=list(raw.get("repo_paths", []) or []),
         llm_model=str(raw.get("llm_model") or "llama3.1:8b"),
         user_name=str(raw.get("user_name") or ""),
+        google_calendar_token=raw.get("google_calendar_token"),
+        google_client_id=str(raw.get("google_client_id") or ""),
+        google_client_secret=str(raw.get("google_client_secret") or ""),
     )
 
 
@@ -61,6 +67,9 @@ def save_config(cfg: AppConfig) -> None:
                 "repo_paths": cfg.repo_paths,
                 "llm_model": cfg.llm_model,
                 "user_name": cfg.user_name,
+                "google_calendar_token": cfg.google_calendar_token,
+                "google_client_id": cfg.google_client_id,
+                "google_client_secret": cfg.google_client_secret,
             },
             f,
             ensure_ascii=False,
@@ -99,6 +108,21 @@ def set_user_name(name: str) -> AppConfig:
     return cfg
 
 
+def set_google_token(token_json: Optional[str]) -> AppConfig:
+    cfg = load_config()
+    cfg.google_calendar_token = token_json
+    save_config(cfg)
+    return cfg
+
+
+def set_google_secrets(client_id: str, client_secret: str) -> AppConfig:
+    cfg = load_config()
+    cfg.google_client_id = client_id
+    cfg.google_client_secret = client_secret
+    save_config(cfg)
+    return cfg
+
+
 def config_as_json() -> str:
     cfg = load_config()
     return json_dumps(
@@ -106,6 +130,9 @@ def config_as_json() -> str:
             "repo_paths": cfg.repo_paths,
             "llm_model": cfg.llm_model,
             "user_name": cfg.user_name,
+            "google_calendar_token": cfg.google_calendar_token,
+            "google_client_id": cfg.google_client_id,
+            "google_client_secret": cfg.google_client_secret,
         }
     )
 

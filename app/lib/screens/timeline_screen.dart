@@ -1,48 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-
+import '../utils/date_filter_header.dart';
+import '../utils/formatters.dart';
+import '../utils/event_details_dialog.dart';
 import '../services/python_service.dart';
+import '../services/date_filter_provider.dart';
+import '../services/data_providers.dart';
 
-enum TimelineFilter { all, code, notes }
+enum TimelineFilter { all, code, calendar, notes }
 
-class TimelineScreen extends StatefulWidget {
+class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key, required this.python});
 
   final PythonService python;
 
   @override
-  State<TimelineScreen> createState() => _TimelineScreenState();
+  ConsumerState<TimelineScreen> createState() => _TimelineScreenState();
 }
 
-class _TimelineScreenState extends State<TimelineScreen> {
-  late Future<Map<String, dynamic>> _future;
+class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   TimelineFilter _filter = TimelineFilter.all;
 
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-  }
-
-  Future<Map<String, dynamic>> _load() async {
-    await widget.python.initDb();
-    return widget.python.getTimeline(days: 7);
-  }
-
   Future<void> _refresh() async {
-    setState(() {
-      _future = _load();
-    });
+    ref.invalidate(timelineProvider);
+  }
+
+  Color _getIconColor(String type, ThemeData theme) {
+    if (type == 'calendar.event') {
+      return Colors.blue;
+    } else if (type.startsWith('code.')) {
+      return Colors.green;
+    } else {
+      return theme.colorScheme.primary;
+    }
+  }
+
+  IconData _getSubtitleIcon(String type) {
+    if (type == 'calendar.event') {
+      return LucideIcons.clock;
+    } else if (type.startsWith('code.')) {
+      return LucideIcons.gitBranch;
+    } else {
+      return LucideIcons.info;
+    }
   }
 
   bool _matchesFilter(Map<String, dynamic> item) {
+    if (_filter == TimelineFilter.all) {
+      return true;
+    }
+
+    final kind = (item['kind'] ?? '').toString().trim().toLowerCase();
+    final type = (item['type'] ?? '').toString().trim().toLowerCase();
+
     switch (_filter) {
       case TimelineFilter.all:
         return true;
       case TimelineFilter.code:
-        return (item['kind'] == 'event') && ((item['type'] ?? '').toString().startsWith('code.'));
+        return kind == 'event' && type.startsWith('code.');
+      case TimelineFilter.calendar:
+        return kind == 'event' && type == 'calendar.event';
       case TimelineFilter.notes:
-        return item['kind'] == 'note';
+        return kind == 'note';
     }
   }
 
@@ -54,42 +74,35 @@ class _TimelineScreenState extends State<TimelineScreen> {
         builder: (ctx) => AlertDialog(
           title: const Text('Note'),
           content: SelectableText((item['content'] ?? '').toString()),
-          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+          ],
         ),
       );
       return;
     }
 
     final eventId = (item['id'] ?? '').toString();
+    final type = (item['type'] ?? '').toString();
+    final source = (item['source'] ?? '').toString();
+    final timestamp = (item['timestamp'] ?? '').toString();
+    final isCalendarEvent = type == 'calendar.event';
+
     if (eventId.isEmpty) return;
-    final details = await widget.python.getEventDetails(eventId);
-    final artifacts = (details['artifacts'] as List?)?.cast<dynamic>() ?? const [];
 
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text((item['type'] ?? 'Event').toString()),
-        content: SizedBox(
-          width: 700,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('When: ${(item['timestamp'] ?? '').toString()}'),
-                const SizedBox(height: 12),
-                if (artifacts.isEmpty)
-                  const Text('No artifacts.')
-                else
-                  for (final a in artifacts)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: SelectableText((a['content'] ?? '').toString()),
-                    ),
-              ],
-            ),
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close'))],
+      builder: (ctx) => EventDetailsDialog(
+        eventId: eventId,
+        item: item,
+        source: source,
+        timestamp: timestamp,
+        isCalendarEvent: isCalendarEvent,
+        python: widget.python,
+        onRefresh: _refresh,
       ),
     );
   }
@@ -97,114 +110,164 @@ class _TimelineScreenState extends State<TimelineScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final filter = ref.watch(dateFilterProvider);
+    final timelineAsync = ref.watch(timelineProvider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DateFilterHeader(
+            title: 'Timeline',
+            view: filter.view,
+            selectedDate: filter.selectedDate,
+            selectedRange: filter.selectedRange,
+            onViewChanged: (newView) {
+              ref.read(dateFilterProvider.notifier).updateView(newView);
+            },
+            onDateChanged: (newDate) {
+              if (newDate == null) {
+                ref.read(dateFilterProvider.notifier).clearFilters();
+              } else {
+                ref.read(dateFilterProvider.notifier).updateDate(newDate);
+              }
+            },
+            onRangeChanged: (newRange) {
+              ref.read(dateFilterProvider.notifier).updateRange(newRange);
+            },
+            onRefresh: _refresh,
+            defaultSubtitle: 'Last 7 days',
+          ),
+          const SizedBox(height: 16),
+          // Filter chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                Text('Timeline', style: theme.textTheme.headlineMedium),
-                const SizedBox(height: 12),
-                Text('Failed to load timeline.\n\n${snapshot.error}'),
-                const SizedBox(height: 12),
-                FilledButton(onPressed: _refresh, child: const Text('Retry')),
+                _FilterChip(
+                  label: 'All',
+                  selected: _filter == TimelineFilter.all,
+                  onSelected: () =>
+                      setState(() => _filter = TimelineFilter.all),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Code',
+                  selected: _filter == TimelineFilter.code,
+                  onSelected: () =>
+                      setState(() => _filter = TimelineFilter.code),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Calendar',
+                  selected: _filter == TimelineFilter.calendar,
+                  onSelected: () =>
+                      setState(() => _filter = TimelineFilter.calendar),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Notes',
+                  selected: _filter == TimelineFilter.notes,
+                  onSelected: () =>
+                      setState(() => _filter = TimelineFilter.notes),
+                ),
               ],
             ),
-          );
-        }
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: timelineAsync.when(
+              loading: () => const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading timeline data...'),
+                  ],
+                ),
+              ),
+              error: (error, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      LucideIcons.alertCircle,
+                      size: 48,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to load timeline',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      error.toString(),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: _refresh,
+                      icon: const Icon(LucideIcons.refreshCw, size: 16),
+                      label: const Text('Try Again'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (data) {
+                final itemsRaw = data['items'];
+                final items = (itemsRaw is List) ? itemsRaw : const [];
 
-        final data = snapshot.data ?? const <String, dynamic>{};
-        final items = (data['items'] as List?)?.cast<dynamic>() ?? const [];
-        final filtered = items
-            .whereType<Map>()
-            .map((e) => e.cast<String, dynamic>())
-            .where(_matchesFilter)
-            .toList();
+                final filtered = items
+                    .whereType<Map>()
+                    .map((e) => e.cast<String, dynamic>())
+                    .where(_matchesFilter)
+                    .toList();
 
-        return Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
+                if (filtered.isEmpty) {
+                  return Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        Icon(
+                          _filter == TimelineFilter.code
+                              ? LucideIcons.gitCommit
+                              : _filter == TimelineFilter.calendar
+                              ? LucideIcons.calendar
+                              : _filter == TimelineFilter.notes
+                              ? LucideIcons.stickyNote
+                              : LucideIcons.inbox,
+                          size: 64,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 16),
                         Text(
-                          'History & Events',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                          _filter == TimelineFilter.all
+                              ? 'No items found'
+                              : 'No ${_filter.name} items found',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.grey.shade500,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Timeline',
-                          style: theme.textTheme.headlineMedium,
-                        ),
+                        if (_filter != TimelineFilter.all) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _filter = TimelineFilter.all),
+                            child: const Text('Show all items'),
+                          ),
+                        ],
                       ],
                     ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: IconButton(
-                      tooltip: 'Refresh',
-                      onPressed: _refresh,
-                      icon: Icon(LucideIcons.refreshCw, color: Colors.grey.shade700, size: 20),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Text(
-                    'Filter by:',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _FilterChip(
-                        label: 'All',
-                        isSelected: _filter == TimelineFilter.all,
-                        onSelected: () => setState(() => _filter = TimelineFilter.all),
-                      ),
-                      _FilterChip(
-                        label: 'Code',
-                        isSelected: _filter == TimelineFilter.code,
-                        onSelected: () => setState(() => _filter = TimelineFilter.code),
-                      ),
-                      _FilterChip(
-                        label: 'Notes',
-                        isSelected: _filter == TimelineFilter.notes,
-                        onSelected: () => setState(() => _filter = TimelineFilter.notes),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: ListView.separated(
+                  );
+                }
+
+                return ListView.separated(
                   itemCount: filtered.length,
                   padding: const EdgeInsets.only(bottom: 24),
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -213,62 +276,127 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     final kind = (item['kind'] ?? '').toString();
                     final ts = (item['timestamp'] ?? '').toString();
                     final type = (item['type'] ?? 'Event').toString();
-                    final title = kind == 'note' ? 'Manual Note' : type;
+                    final title = kind == 'note'
+                        ? 'Manual Note'
+                        : (item['title'] ??
+                                  (type == 'calendar.event' ? 'Meeting' : type))
+                              .toString();
                     final subtitle = kind == 'note'
                         ? (item['content'] ?? '').toString()
-                        : (item['source_id'] ?? '').toString();
-                    
-                    final icon = kind == 'note' 
-                      ? LucideIcons.stickyNote 
-                      : (type.startsWith('code.') ? LucideIcons.code : LucideIcons.calendarClock);
-                    
+                        : (type == 'calendar.event'
+                              ? '${item['duration']} mins'
+                              : (item['source_id'] ?? '').toString());
+
+                    final icon = kind == 'note'
+                        ? LucideIcons.stickyNote
+                        : (type.startsWith('code.')
+                              ? LucideIcons.code
+                              : (type == 'calendar.event'
+                                    ? LucideIcons.calendar
+                                    : LucideIcons.calendarClock));
+
                     return Card(
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(icon, color: theme.colorScheme.primary, size: 18),
-                        ),
-                        title: Text(
-                          title,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Column(
+                      margin: EdgeInsets.zero,
+                      child: InkWell(
+                        onTap: () => _openItem(item),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                ts,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: Colors.grey.shade500,
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: _getIconColor(
+                                    type,
+                                    theme,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  icon,
+                                  color: _getIconColor(type, theme),
+                                  size: 20,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      title,
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 15,
+                                          ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          LucideIcons.clock,
+                                          size: 12,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          AppFormatters.formatDateTime(ts),
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 12,
+                                              ),
+                                        ),
+                                        if (subtitle.isNotEmpty) ...[
+                                          const SizedBox(width: 12),
+                                          Icon(
+                                            _getSubtitleIcon(type),
+                                            size: 12,
+                                            color: Colors.grey.shade500,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              subtitle,
+                                              style: theme.textTheme.labelSmall
+                                                  ?.copyWith(
+                                                    color: Colors.grey.shade600,
+                                                    fontSize: 12,
+                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(
+                                LucideIcons.chevronRight,
+                                size: 18,
+                                color: Colors.grey.shade400,
                               ),
                             ],
                           ),
                         ),
-                        onTap: () => _openItem(item),
-                        trailing: const Icon(LucideIcons.chevronRight, size: 18),
                       ),
                     );
                   },
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -276,12 +404,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
-    required this.isSelected,
+    required this.selected,
     required this.onSelected,
   });
 
   final String label;
-  final bool isSelected;
+  final bool selected;
   final VoidCallback onSelected;
 
   @override
@@ -289,21 +417,21 @@ class _FilterChip extends StatelessWidget {
     final theme = Theme.of(context);
     return ChoiceChip(
       label: Text(label),
-      selected: isSelected,
+      selected: selected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.grey.shade700,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: selected ? theme.colorScheme.primary : Colors.grey.shade700,
+        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
         fontSize: 13,
       ),
-      selectedColor: theme.colorScheme.primary,
+      selectedColor: theme.colorScheme.primary.withOpacity(0.15),
       backgroundColor: Colors.white,
       side: BorderSide(
-        color: isSelected ? theme.colorScheme.primary : Colors.grey.shade200,
+        color: selected ? theme.colorScheme.primary : Colors.grey.shade300,
+        width: selected ? 1.5 : 1,
       ),
-      showCheckmark: false,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }
-
-

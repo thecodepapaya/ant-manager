@@ -81,18 +81,36 @@ def _git_log_commits(
 
 def _git_show_compact(repo_path: str, sha: str) -> str:
     # Compact, readable evidence snippet (not full diff).
+    # Use --shortstat to save context space in the LLM prompt.
+    # --no-patch ensures we don't send raw code diffs to the model.
     return run_cmd(
         [
             "git",
             "-C",
             repo_path,
             "show",
-            "--stat",
+            "--shortstat",
             "--oneline",
+            "--no-patch",
             "--no-color",
             sha,
         ]
     ).strip()
+
+
+def get_commits(
+    repo_paths: List[str], since_days: int = 7, author_filter: Optional[str] = None
+) -> List[GitCommit]:
+    all_commits: List[GitCommit] = []
+    for path in repo_paths:
+        if not _git_is_repo(path):
+            continue
+        all_commits.extend(
+            _git_log_commits(path, since_days=since_days, author_filter=author_filter)
+        )
+    # Sort by date descending
+    all_commits.sort(key=lambda x: x.date_iso, reverse=True)
+    return all_commits
 
 
 def ingest_repo(
@@ -112,6 +130,7 @@ def ingest_repo(
             timestamp_start=c.date_iso,
             timestamp_end=None,
             type="code.commit",
+            author=c.author,
             source="git",
             source_id=f"{c.repo_path}:{c.sha}",
             confidence_score=1.0,

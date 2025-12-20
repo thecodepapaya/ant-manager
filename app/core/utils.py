@@ -60,3 +60,33 @@ def run_cmd(args: List[str]) -> str:
     )
     return result.stdout
 
+
+def log_generation(purpose: str, prompt: str, output: str, evidence: str = "", notes: str = "") -> None:
+    """Logs the LLM generation process to a text file for debugging."""
+    ld = os.path.join(data_dir(), "logs")
+    ensure_dir(ld)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = os.path.join(ld, f"gen_{purpose}_{timestamp}_{uuid.uuid4().hex[:6]}.txt")
+    
+    with open(log_file, "w", encoding="utf-8") as f:
+        f.write(f"PURPOSE: {purpose}\n")
+        f.write(f"TIMESTAMP: {datetime.now(timezone.utc).isoformat()}\n")
+        f.write("="*80 + "\n")
+        f.write("EVIDENCE SNIPPETS:\n")
+        f.write(evidence + "\n")
+        f.write("="*80 + "\n")
+        f.write("USER NOTES:\n")
+        f.write(notes + "\n")
+        f.write("="*80 + "\n")
+        f.write("PROMPT USED:\n")
+        f.write(prompt + "\n")
+        f.write("="*80 + "\n")
+        f.write("LLM OUTPUT:\n")
+        f.write(output + "\n")
+        f.write("="*80 + "\n")
+    
+    import sys
+    sys.stderr.write(f"\nLOG_FILE: {log_file}\n")
+    sys.stderr.flush()
+

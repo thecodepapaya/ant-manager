@@ -15,12 +15,20 @@ def generate_text(
     prompt: str,
     base_url: str = "http://localhost:11434",
     timeout_s: int = 120,
+    num_ctx: int = 8192,
 ) -> str:
     url = f"{base_url.rstrip('/')}/api/generate"
     try:
         resp = requests.post(
             url,
-            json={"model": model, "prompt": prompt, "stream": False},
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "num_ctx": num_ctx,
+                },
+            },
             timeout=timeout_s,
         )
     except requests.RequestException as e:

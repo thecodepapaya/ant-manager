@@ -1,29 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-
+import '../utils/date_filter_header.dart';
 import '../services/python_service.dart';
+import '../services/date_filter_provider.dart';
+import '../services/data_providers.dart';
 
-class WinsScreen extends StatefulWidget {
-  const WinsScreen({super.key, required this.python});
+class WinsScreen extends ConsumerStatefulWidget {
+  const WinsScreen({
+    super.key,
+    required this.python,
+  });
 
   final PythonService python;
 
   @override
-  State<WinsScreen> createState() => _WinsScreenState();
+  ConsumerState<WinsScreen> createState() => _WinsScreenState();
 }
 
-class _WinsScreenState extends State<WinsScreen> {
-  String _period = 'weekly';
-  late Future<Map<String, dynamic>> _future;
+class _WinsScreenState extends ConsumerState<WinsScreen> {
   bool _isEditing = false;
   final TextEditingController _controller = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-  }
 
   @override
   void dispose() {
@@ -31,238 +29,231 @@ class _WinsScreenState extends State<WinsScreen> {
     super.dispose();
   }
 
-  Future<Map<String, dynamic>> _load() async {
-    await widget.python.initDb();
-    return widget.python.getWins(period: _period);
-  }
-
   Future<void> _refresh() async {
     setState(() {
       _isEditing = false;
-      _future = _load();
     });
+    ref.invalidate(winsProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Wins', style: theme.textTheme.headlineMedium),
-                const SizedBox(height: 12),
-                Text('Failed to load wins.\n\n${snapshot.error}'),
-                const SizedBox(height: 12),
-                FilledButton(onPressed: _refresh, child: const Text('Retry')),
-              ],
-            ),
-          );
-        }
+    final filter = ref.watch(dateFilterProvider);
+    final winsAsync = ref.watch(winsProvider);
 
-        final data = snapshot.data ?? const <String, dynamic>{};
-        final text = (data['text'] ?? '').toString();
-        final narrativeId = (data['narrative_id'] ?? '').toString();
-
-        if (!_isEditing) {
-          _controller.text = text;
-        }
-
+    return LayoutBuilder(
+      builder: (context, constraints) {
         return Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Achievements & Milestones',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Wins',
-                          style: theme.textTheme.headlineMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _period,
-                        icon: const Icon(LucideIcons.chevronDown, size: 18),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade800,
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'weekly', child: Text('Weekly')),
-                          DropdownMenuItem(
-                              value: 'monthly', child: Text('Monthly')),
-                        ],
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            _period = v;
-                            _future = _load();
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: IconButton(
-                      tooltip: 'Refresh',
-                      onPressed: _refresh,
-                      icon: Icon(LucideIcons.refreshCw, color: Colors.grey.shade700, size: 20),
-                    ),
-                  ),
-                ],
+              DateFilterHeader(
+                title: 'Wins',
+                view: filter.view,
+                selectedDate: filter.selectedDate,
+                selectedRange: filter.selectedRange,
+                onViewChanged: (newView) {
+                  ref.read(dateFilterProvider.notifier).updateView(newView);
+                },
+                onDateChanged: (newDate) {
+                  if (newDate == null) {
+                    ref.read(dateFilterProvider.notifier).clearFilters();
+                  } else {
+                    ref.read(dateFilterProvider.notifier).updateDate(newDate);
+                  }
+                },
+                onRangeChanged: (newRange) {
+                  ref.read(dateFilterProvider.notifier).updateRange(newRange);
+                },
+                onRefresh: _refresh,
+                defaultSubtitle: 'Achievements & Milestones',
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               Expanded(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                child: winsAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => SingleChildScrollView(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(LucideIcons.trophy,
-                                size: 18, color: Colors.amber.shade700),
-                            const SizedBox(width: 8),
+                            const Icon(
+                              LucideIcons.alertCircle,
+                              size: 48,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(height: 16),
                             Text(
-                              'Highlights',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              'Failed to load wins',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            SelectableText(
+                              error.toString(),
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton(
+                              onPressed: _refresh,
+                              child: const Text('Retry'),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        Expanded(
-                          child: _isEditing
-                              ? TextField(
-                                  controller: _controller,
-                                  expands: true,
-                                  maxLines: null,
-                                  minLines: null,
-                                  textAlignVertical: TextAlignVertical.top,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Describe your wins...',
-                                    filled: false,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                  ),
-                                )
-                              : SingleChildScrollView(
-                                  child: SelectableText(
-                                    text.isEmpty ? 'No wins recorded for this period.' : text,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontSize: 16,
-                                      height: 1.6,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
+                  data: (data) {
+                    final text = (data['text'] ?? '').toString();
+                    final narrativeId = (data['narrative_id'] ?? '').toString();
+
+                    if (!_isEditing) {
+                      _controller.text = text;
+                    }
+
+                    return SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        LucideIcons.trophy,
+                                        size: 18,
+                                        color: Colors.amber.shade700,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Highlights',
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _isEditing
+                                      ? TextField(
+                                          controller: _controller,
+                                          maxLines: null,
+                                          minLines: 10,
+                                          textAlignVertical:
+                                              TextAlignVertical.top,
+                                          decoration: const InputDecoration(
+                                            hintText: 'Describe your wins...',
+                                            filled: false,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                          ),
+                                        )
+                                      : SelectableText(
+                                          text.isEmpty
+                                              ? 'No wins recorded for this period.'
+                                              : text,
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            fontSize: 16,
+                                            height: 1.6,
+                                          ),
+                                        ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              if (_isEditing) ...[
+                                FilledButton.icon(
+                                  onPressed: narrativeId.isEmpty
+                                      ? null
+                                      : () async {
+                                          await widget.python.updateNarrative(
+                                            narrativeId: narrativeId,
+                                            text: _controller.text,
+                                          );
+                                          setState(() => _isEditing = false);
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Wins updated'),
+                                              ),
+                                            );
+                                          }
+                                          await _refresh();
+                                        },
+                                  icon: const Icon(LucideIcons.check, size: 18),
+                                  label: const Text('Save Changes'),
+                                ),
+                                const SizedBox(width: 12),
+                                OutlinedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isEditing = false;
+                                      _controller.text = text;
+                                    });
+                                  },
+                                  child: const Text('Cancel'),
+                                ),
+                              ] else ...[
+                                FilledButton.icon(
+                                  onPressed: narrativeId.isEmpty
+                                      ? null
+                                      : () => setState(() => _isEditing = true),
+                                  icon: const Icon(
+                                    LucideIcons.pencil,
+                                    size: 18,
+                                  ),
+                                  label: const Text('Edit Wins'),
+                                ),
+                                const SizedBox(width: 12),
+                                OutlinedButton.icon(
+                                  onPressed: text.trim().isEmpty
+                                      ? null
+                                      : () async {
+                                          await Clipboard.setData(
+                                            ClipboardData(text: text),
+                                          );
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Copied to clipboard',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                  icon: const Icon(LucideIcons.copy, size: 18),
+                                  label: const Text('Copy to Clipboard'),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  if (_isEditing) ...[
-                    FilledButton.icon(
-                      onPressed: narrativeId.isEmpty
-                          ? null
-                          : () async {
-                              await widget.python.updateNarrative(
-                                narrativeId: narrativeId,
-                                text: _controller.text,
-                              );
-                              setState(() => _isEditing = false);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Wins updated')),
-                                );
-                              }
-                              await _refresh();
-                            },
-                      icon: const Icon(LucideIcons.check, size: 18),
-                      label: const Text('Save Changes'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          _isEditing = false;
-                          _controller.text = text;
-                        });
-                      },
-                      child: const Text('Cancel'),
-                    ),
-                  ] else ...[
-                    FilledButton.icon(
-                      onPressed: narrativeId.isEmpty
-                          ? null
-                          : () => setState(() => _isEditing = true),
-                      icon: const Icon(LucideIcons.pencil, size: 18),
-                      label: const Text('Edit Wins'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      onPressed: text.trim().isEmpty
-                          ? null
-                          : () async {
-                              await Clipboard.setData(ClipboardData(text: text));
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Copied to clipboard')),
-                                );
-                              }
-                            },
-                      icon: const Icon(LucideIcons.copy, size: 18),
-                      label: const Text('Copy to Clipboard'),
-                    ),
-                  ],
-                ],
               ),
             ],
           ),
@@ -271,5 +262,3 @@ class _WinsScreenState extends State<WinsScreen> {
     );
   }
 }
-
-

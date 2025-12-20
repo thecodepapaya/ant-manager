@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS events (
   timestamp_start TEXT NOT NULL,
   timestamp_end TEXT,
   type TEXT NOT NULL,
+  author TEXT,
   source TEXT NOT NULL,
   source_id TEXT,
   confidence_score REAL NOT NULL DEFAULT 1.0,

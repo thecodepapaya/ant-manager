@@ -40,7 +40,24 @@ class PythonService {
         : p.join(venvDir, 'bin', 'pip');
 
     // 1. If venv doesn't exist or setup isn't finished, set it up
-    if (!Directory(venvDir).existsSync() || !File(setupMarker).existsSync()) {
+    final reqFile = p.join(coreDir, 'requirements.txt');
+    final reqFileExists = File(reqFile).existsSync();
+    final reqFileModified = reqFileExists
+        ? await File(reqFile).lastModified()
+        : DateTime.fromMillisecondsSinceEpoch(0);
+
+    // Check if setup marker exists and if requirements.txt is newer
+    final setupMarkerExists = File(setupMarker).existsSync();
+    final setupMarkerModified = setupMarkerExists
+        ? await File(setupMarker).lastModified()
+        : DateTime.fromMillisecondsSinceEpoch(0);
+
+    final needsSetup =
+        !Directory(venvDir).existsSync() ||
+        !setupMarkerExists ||
+        (reqFileExists && reqFileModified.isAfter(setupMarkerModified));
+
+    if (needsSetup) {
       print('Setting up Python virtual environment in $venvDir...');
 
       if (!Directory(venvDir).existsSync()) {
@@ -49,22 +66,26 @@ class PythonService {
 
       // Create venv - note we don't use coreDir as workingDirectory
       // because it might be read-only in the app bundle.
-      final venvResult = await Process.run('python3', [
-        '-m',
-        'venv',
-        venvDir,
-      ], workingDirectory: supportDir.path);
+      if (!File(pythonExec).existsSync()) {
+        final venvResult = await Process.run('python3', [
+          '-m',
+          'venv',
+          venvDir,
+        ], workingDirectory: supportDir.path);
 
-      if (venvResult.exitCode != 0) {
-        throw PythonServiceError('Failed to create venv: ${venvResult.stderr}');
+        if (venvResult.exitCode != 0) {
+          throw PythonServiceError(
+            'Failed to create venv: ${venvResult.stderr}',
+          );
+        }
       }
 
-      // Install requirements
-      final reqFile = p.join(coreDir, 'requirements.txt');
-      if (File(reqFile).existsSync()) {
+      // Install/upgrade requirements
+      if (reqFileExists) {
         print('Installing requirements from $reqFile...');
         final pipResult = await Process.run(pipExec, [
           'install',
+          '--upgrade',
           '-r',
           reqFile,
         ], workingDirectory: venvDir);
@@ -73,10 +94,11 @@ class PythonService {
             'Failed to install requirements: ${pipResult.stderr}',
           );
         }
+        print('Requirements installed successfully.');
       }
 
-      // Create marker file
-      await File(setupMarker).create();
+      // Create/update marker file
+      await File(setupMarker).writeAsString(reqFileModified.toIso8601String());
       print('Python environment ready.');
     }
 
@@ -159,6 +181,12 @@ class PythonService {
     }
 
     final stdoutStr = (result.stdout as String).trim();
+    final stderrStr = (result.stderr as String).trim();
+
+    // Print Python's debug output to the Dart console
+    if (stderrStr.isNotEmpty) {
+      print('Python stderr:\n$stderrStr');
+    }
     if (stdoutStr.isEmpty) {
       throw PythonServiceError(
         'Python returned empty stdout for args: ${args.join(' ')}',
@@ -176,22 +204,86 @@ class PythonService {
     await runJson(['init-db']);
   }
 
-  Future<Map<String, dynamic>> getDailySummary() => runJson(['daily-summary']);
+  Future<Map<String, dynamic>> getDailySummary({
+    String? date,
+    bool regenerate = false,
+    int days = 1,
+    String period = 'daily',
+    String? startDate,
+    String? endDate,
+  }) {
+    final args = ['daily-summary'];
+    if (date != null) args.add('--date=$date');
+    if (regenerate) args.add('--regenerate');
+    args.add('--days=$days');
+    args.add('--period=$period');
+    if (startDate != null) args.add('--start-date=$startDate');
+    if (endDate != null) args.add('--end-date=$endDate');
+    return runJson(args);
+  }
 
-  Future<Map<String, dynamic>> getTimeline({int days = 7}) =>
-      runJson(['timeline', '--days=$days']);
+  Future<Map<String, dynamic>> getTimeline({
+    int days = 7,
+    String? date,
+    String? startDate,
+    String? endDate,
+  }) {
+    final args = ['timeline', '--days=$days'];
+    if (date != null) args.add('--date=$date');
+    if (startDate != null) args.add('--start-date=$startDate');
+    if (endDate != null) args.add('--end-date=$endDate');
+    return runJson(args);
+  }
 
-  Future<Map<String, dynamic>> getEventDetails(String eventId) =>
-      runJson(['event-details', eventId]);
+  Future<Map<String, dynamic>> getEventDetails(
+    String eventId, {
+    String? source,
+    String? timestamp,
+    bool regenerate = false,
+    bool skipLlm = false,
+  }) {
+    final args = ['event-details', eventId];
+    if (source != null) args.add('--source=$source');
+    if (timestamp != null) args.add('--timestamp=$timestamp');
+    if (regenerate) args.add('--regenerate');
+    if (skipLlm) args.add('--skip-llm');
+    return runJson(args);
+  }
 
-  Future<Map<String, dynamic>> getWins({String period = 'weekly'}) =>
-      runJson(['wins', '--period=$period']);
+  Future<Map<String, dynamic>> getWins({
+    String period = 'weekly',
+    String? date,
+    String? startDate,
+    String? endDate,
+  }) {
+    final args = ['wins', '--period=$period'];
+    if (date != null) args.add('--date=$date');
+    if (startDate != null) args.add('--start-date=$startDate');
+    if (endDate != null) args.add('--end-date=$endDate');
+    return runJson(args);
+  }
 
   Future<void> updateNarrative({
     required String narrativeId,
     required String text,
   }) async {
     await runJson(['update-narrative', narrativeId, text]);
+  }
+
+  Future<Map<String, dynamic>> addEventArtifact({
+    required String eventId,
+    required String kind,
+    required String content,
+  }) async {
+    return runJson(['add-event-artifact', eventId, kind, content]);
+  }
+
+  Future<Map<String, dynamic>> updateEventArtifact({
+    required String eventId,
+    required String kind,
+    required String content,
+  }) async {
+    return runJson(['update-event-artifact', eventId, kind, content]);
   }
 
   Future<void> lockNarrative(String narrativeId) async {
@@ -202,8 +294,18 @@ class PythonService {
     await runJson(['add-note', content]);
   }
 
-  Future<Map<String, dynamic>> listNotes({int days = 30}) =>
-      runJson(['notes', '--days=$days']);
+  Future<Map<String, dynamic>> listNotes({
+    int days = 30,
+    String? date,
+    String? startDate,
+    String? endDate,
+  }) {
+    final args = ['notes', '--days=$days'];
+    if (date != null) args.add('--date=$date');
+    if (startDate != null) args.add('--start-date=$startDate');
+    if (endDate != null) args.add('--end-date=$endDate');
+    return runJson(args);
+  }
 
   Future<Map<String, dynamic>> getConfig() => runJson(['config-get']);
 
@@ -222,6 +324,30 @@ class PythonService {
   Future<String?> detectGitUser(String path) async {
     final res = await runJson(['detect-git-user', path]);
     return res['name'] as String?;
+  }
+
+  Future<String?> getGoogleAuthUrl() async {
+    final res = await runJson(['google-calendar-auth-url']);
+    if (res['ok'] == true) return res['url'] as String?;
+    throw PythonServiceError(res['error'] ?? 'Failed to get auth URL');
+  }
+
+  Future<void> setGoogleToken(String code) async {
+    final res = await runJson(['google-calendar-set-token', code]);
+    if (res['ok'] != true) {
+      throw PythonServiceError(res['error'] ?? 'Failed to set token');
+    }
+  }
+
+  Future<void> setGoogleSecrets(String clientId, String clientSecret) async {
+    final res = await runJson([
+      'google-calendar-set-secrets',
+      clientId,
+      clientSecret,
+    ]);
+    if (res['ok'] != true) {
+      throw PythonServiceError(res['error'] ?? 'Failed to set secrets');
+    }
   }
 
   Future<Map<String, dynamic>> ingestGit({int days = 7}) =>

@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-import 'screens/today_screen.dart';
+import 'firebase_options.dart';
+import 'screens/narrative_screen.dart';
 import 'screens/timeline_screen.dart';
 import 'screens/wins_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/python_service.dart';
 
-void main() {
-  runApp(const AntManagerApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  runApp(const ProviderScope(child: AntManagerApp()));
 }
 
 class AntManagerApp extends StatelessWidget {
@@ -93,10 +99,14 @@ class AntManagerApp extends StatelessWidget {
           ),
         ),
         chipTheme: ChipThemeData(
-          backgroundColor: Colors.grey.shade100,
-          side: BorderSide.none,
+          backgroundColor: const Color(0xFFEEF2FF),
+          side: const BorderSide(color: Color(0xFFC7D2FE)),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          labelStyle: GoogleFonts.plusJakartaSans(fontSize: 12),
+          labelStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            color: const Color(0xFF4338CA),
+            fontWeight: FontWeight.w600,
+          ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -121,7 +131,7 @@ class AntManagerApp extends StatelessWidget {
   }
 }
 
-enum AppSection { today, timeline, wins, notes, settings }
+enum AppSection { narrative, timeline, wins, notes, settings }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -131,17 +141,27 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  AppSection _section = AppSection.today;
+  AppSection _section = AppSection.narrative;
   final PythonService _python = PythonService();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final page = switch (_section) {
-      AppSection.today => TodayScreen(python: _python),
-      AppSection.timeline => TimelineScreen(python: _python),
-      AppSection.wins => WinsScreen(python: _python),
-      AppSection.notes => NotesScreen(python: _python),
+      AppSection.narrative => NarrativeScreen(
+        python: _python,
+        onNavigateToSettings: () =>
+            setState(() => _section = AppSection.settings),
+      ),
+      AppSection.timeline => TimelineScreen(
+        python: _python,
+      ),
+      AppSection.wins => WinsScreen(
+        python: _python,
+      ),
+      AppSection.notes => NotesScreen(
+        python: _python,
+      ),
       AppSection.settings => SettingsScreen(python: _python),
     };
 
@@ -158,9 +178,10 @@ class _AppShellState extends State<AppShell> {
                 const SizedBox(height: 24),
                 // App Logo
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 48,
+                  height: 48,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -170,7 +191,7 @@ class _AppShellState extends State<AppShell> {
                       ),
                     ],
                   ),
-                  child: Image.asset('assets/logo.webp', width: 40, height: 40),
+                  child: Image.asset('assets/logo.webp', fit: BoxFit.cover),
                 ),
                 const SizedBox(height: 32),
                 Expanded(
@@ -181,9 +202,9 @@ class _AppShellState extends State<AppShell> {
                     labelType: NavigationRailLabelType.all,
                     destinations: const [
                       NavigationRailDestination(
-                        icon: Icon(LucideIcons.calendar),
-                        selectedIcon: Icon(LucideIcons.calendar),
-                        label: Text('Today'),
+                        icon: Icon(LucideIcons.scrollText),
+                        selectedIcon: Icon(LucideIcons.scrollText),
+                        label: Text('Narrative'),
                       ),
                       NavigationRailDestination(
                         icon: Icon(LucideIcons.history),
