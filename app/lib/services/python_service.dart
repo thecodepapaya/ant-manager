@@ -167,16 +167,25 @@ class PythonService {
         ? coreParentDir
         : '$coreParentDir${Platform.isWindows ? ';' : ':'}$existingPythonPath';
 
-    final result = await Process.run(
-      pythonPath,
-      [entry, ...args],
-      environment: env,
-      runInShell: false,
-    );
+    final result =
+        await Process.run(
+          pythonPath,
+          [entry, ...args],
+          environment: env,
+          runInShell: false,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw PythonServiceError(
+            'Backend request timed out after 30 seconds',
+          ),
+        );
 
     if (result.exitCode != 0) {
+      final stderr = (result.stderr as String).trim();
+      final stdout = (result.stdout as String).trim();
       throw PythonServiceError(
-        'Python exited ${result.exitCode}. stderr: ${result.stderr}\nstdout: ${result.stdout}',
+        'Backend Error (Code ${result.exitCode})\n\n'
+        '${stderr.isNotEmpty ? "Details:\n$stderr" : "Stdout:\n$stdout"}',
       );
     }
 
@@ -255,11 +264,13 @@ class PythonService {
     String? date,
     String? startDate,
     String? endDate,
+    bool regenerate = false,
   }) {
     final args = ['wins', '--period=$period'];
     if (date != null) args.add('--date=$date');
     if (startDate != null) args.add('--start-date=$startDate');
     if (endDate != null) args.add('--end-date=$endDate');
+    if (regenerate) args.add('--regenerate');
     return runJson(args);
   }
 
@@ -274,8 +285,17 @@ class PythonService {
     required String eventId,
     required String kind,
     required String content,
+    String? title,
+    String? timestamp,
+    String? source,
+    String? type,
   }) async {
-    return runJson(['add-event-artifact', eventId, kind, content]);
+    final args = ['add-event-artifact', eventId, kind, content];
+    if (title != null) args.add('--title=$title');
+    if (timestamp != null) args.add('--timestamp=$timestamp');
+    if (source != null) args.add('--source=$source');
+    if (type != null) args.add('--type=$type');
+    return runJson(args);
   }
 
   Future<Map<String, dynamic>> updateEventArtifact({
@@ -290,8 +310,32 @@ class PythonService {
     await runJson(['lock-narrative', narrativeId]);
   }
 
-  Future<void> addNote(String content) async {
-    await runJson(['add-note', content]);
+  Future<void> addNote(String content, {String? timestamp}) async {
+    final args = ['add-note', content];
+    if (timestamp != null) {
+      args.add('--timestamp=$timestamp');
+    }
+    await runJson(args);
+  }
+
+  Future<void> updateNote(
+    String noteId,
+    String content, {
+    String? timestamp,
+  }) async {
+    final args = ['update-note', noteId, content];
+    if (timestamp != null) {
+      args.add('--timestamp=$timestamp');
+    }
+    await runJson(args);
+  }
+
+  Future<void> deleteNote(String noteId) async {
+    await runJson(['delete-note', noteId]);
+  }
+
+  Future<void> deleteEvent(String eventId) async {
+    await runJson(['delete-event', eventId]);
   }
 
   Future<Map<String, dynamic>> listNotes({
@@ -309,6 +353,9 @@ class PythonService {
 
   Future<Map<String, dynamic>> getConfig() => runJson(['config-get']);
 
+  Future<Map<String, dynamic>> getDefaultPrompts() =>
+      runJson(['config-get-default-prompts']);
+
   Future<Map<String, dynamic>> addRepo(String path) =>
       runJson(['config-add-repo', path]);
 
@@ -318,8 +365,51 @@ class PythonService {
   Future<Map<String, dynamic>> setModel(String model) =>
       runJson(['config-set-model', model]);
 
+  Future<Map<String, dynamic>> setLLMConfig({
+    String? provider,
+    String? model,
+    String? geminiKey,
+    String? openaiKey,
+  }) {
+    final args = ['config-set-llm'];
+    if (provider != null) args.add('--provider=$provider');
+    if (model != null) args.add('--model=$model');
+    if (geminiKey != null) args.add('--gemini-key=$geminiKey');
+    if (openaiKey != null) args.add('--openai-key=$openaiKey');
+    return runJson(args);
+  }
+
+  Future<List<String>> listModels({
+    required String provider,
+    String? apiKey,
+  }) async {
+    final args = ['llm-list-models', '--provider=$provider'];
+    if (apiKey != null && apiKey.isNotEmpty) {
+      args.add('--api-key=$apiKey');
+    }
+    final res = await runJson(args);
+    if (res['ok'] == true) {
+      return (res['models'] as List?)?.cast<String>() ?? [];
+    }
+    return [];
+  }
+
   Future<Map<String, dynamic>> setUserName(String name) =>
       runJson(['config-set-user-name', name]);
+
+  Future<Map<String, dynamic>> setPrompts({
+    String? systemRules,
+    String? dailySummary,
+    String? winsList,
+    String? commitSummary,
+  }) {
+    final args = ['config-set-prompts'];
+    if (systemRules != null) args.add('--system-rules=$systemRules');
+    if (dailySummary != null) args.add('--daily-summary=$dailySummary');
+    if (winsList != null) args.add('--wins-list=$winsList');
+    if (commitSummary != null) args.add('--commit-summary=$commitSummary');
+    return runJson(args);
+  }
 
   Future<String?> detectGitUser(String path) async {
     final res = await runJson(['detect-git-user', path]);

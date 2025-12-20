@@ -6,6 +6,16 @@ import '../utils/date_utils.dart' as app_utils;
 
 final pythonServiceProvider = Provider((ref) => PythonService());
 
+final backendHealthProvider = FutureProvider.autoDispose((ref) async {
+  final python = ref.watch(pythonServiceProvider);
+  try {
+    await python.initDb();
+    return true;
+  } catch (e) {
+    rethrow;
+  }
+});
+
 final dailySummaryProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, bool>((ref, regenerate) async {
   final filter = ref.watch(dateFilterProvider);
   final python = ref.watch(pythonServiceProvider);
@@ -70,7 +80,7 @@ final timelineProvider = FutureProvider.autoDispose((ref) async {
   );
 });
 
-final winsProvider = FutureProvider.autoDispose((ref) async {
+final winsProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, bool>((ref, regenerate) async {
   final filter = ref.watch(dateFilterProvider);
   final python = ref.watch(pythonServiceProvider);
   await python.initDb();
@@ -104,6 +114,7 @@ final winsProvider = FutureProvider.autoDispose((ref) async {
     date: dateStr,
     startDate: startDateStr,
     endDate: endDateStr,
+    regenerate: regenerate,
   );
 });
 

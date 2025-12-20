@@ -84,7 +84,7 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
     super.dispose();
   }
 
-  Future<bool> _uploadTranscript() async {
+  Future<bool> _uploadTranscript(Map<String, dynamic> event) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
@@ -96,10 +96,20 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
         final content = await file.readAsString();
         final fileName = result.files.single.name;
 
+        final timestamp =
+            (event['timestamp'] ?? event['timestamp_start'] ?? '').toString();
+        final title = (event['title'] ?? 'Event').toString();
+        final source = (event['source'] ?? '').toString();
+        final type = (event['type'] ?? '').toString();
+
         await widget.python.addEventArtifact(
           eventId: widget.eventId,
           kind: 'calendar.transcript',
           content: content,
+          title: title,
+          timestamp: timestamp,
+          source: source,
+          type: type,
         );
 
         if (mounted) {
@@ -116,7 +126,7 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error uploading transcript: $e'),
+            content: SelectableText('Error uploading transcript: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -125,12 +135,16 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
     return false;
   }
 
-  Future<bool> _addNoteToEvent() async {
+  Future<bool> _addNoteToEvent(Map<String, dynamic> event) async {
     final theme = Theme.of(context);
     final note = await showDialog<String>(
       context: context,
       builder: (ctx) {
         final c = TextEditingController();
+        final timestamp = (event['timestamp'] ?? event['timestamp_start'] ?? '')
+            .toString();
+        final title = (event['title'] ?? 'Event').toString();
+
         return AlertDialog(
           title: const Text('Add Note'),
           content: Column(
@@ -149,16 +163,14 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      (widget.item?['title'] ?? 'Event').toString(),
+                      title,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      AppFormatters.formatDateTime(
-                        (widget.item?['timestamp'] ?? '').toString(),
-                      ),
+                      AppFormatters.formatDateTime(timestamp),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: Colors.grey.shade600,
                       ),
@@ -195,10 +207,20 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
 
     if (note != null && note.isNotEmpty) {
       try {
+        final timestamp =
+            (event['timestamp'] ?? event['timestamp_start'] ?? '').toString();
+        final title = (event['title'] ?? 'Event').toString();
+        final source = (event['source'] ?? '').toString();
+        final type = (event['type'] ?? '').toString();
+
         await widget.python.addEventArtifact(
           eventId: widget.eventId,
           kind: 'calendar.note',
           content: note,
+          title: title,
+          timestamp: timestamp,
+          source: source,
+          type: type,
         );
 
         if (mounted) {
@@ -212,7 +234,7 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error adding note: $e'),
+              content: SelectableText('Error adding note: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -220,6 +242,113 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
       }
     }
     return false;
+  }
+
+  Future<bool?> _showEditNoteDialog(
+    BuildContext context,
+    String noteId,
+    String initialContent,
+    DateTime initialTime,
+  ) async {
+    final controller = TextEditingController(text: initialContent);
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        DateTime selectedTime = initialTime;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit Note'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: controller,
+                    maxLines: 5,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter your note content...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.clock, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Time: ${AppFormatters.formatDateTime(selectedTime.toIso8601String())}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedTime,
+                            firstDate: DateTime.now()
+                                .subtract(const Duration(days: 365)),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 1)),
+                          );
+                          if (date != null) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(selectedTime),
+                            );
+                            if (time != null) {
+                              setState(() {
+                                selectedTime = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    try {
+                      await widget.python.updateNote(
+                        noteId,
+                        controller.text.trim(),
+                        timestamp: selectedTime.toUtc().toIso8601String(),
+                      );
+                      if (context.mounted) Navigator.pop(context, true);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to update note: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -244,200 +373,305 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
       ),
       content: SizedBox(
         width: 700,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Basic Info - Always Visible
-              Row(
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _detailsFuture,
+          builder: (context, snapshot) {
+            final isLoading =
+                snapshot.connectionState == ConnectionState.waiting;
+            if (snapshot.hasError) {
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: SelectableText('Error loading metadata: ${snapshot.error}'),
+              );
+            }
+
+            final details = snapshot.data ?? {};
+            final event = details['event'] ?? widget.item ?? {};
+            final isNote = (event['type'] == 'note');
+            final timestamp =
+                (event['timestamp'] ?? event['timestamp_start'] ?? '')
+                    .toString();
+            final artifacts =
+                (details['artifacts'] as List?)?.cast<dynamic>() ?? const [];
+
+            final transcripts = artifacts
+                .where((a) => a['kind'] == 'calendar.transcript')
+                .toList();
+            final notes = artifacts
+                .where((a) => a['kind'] == 'calendar.note')
+                .toList();
+            final aiSummaryArtifact = artifacts
+                .where((a) => a['kind'] == 'ai.summary')
+                .firstOrNull;
+            final otherArtifacts = artifacts
+                .where(
+                  (a) =>
+                      a['kind'] != 'calendar.transcript' &&
+                      a['kind'] != 'calendar.note' &&
+                      a['kind'] != 'ai.summary',
+                )
+                .toList();
+
+            // Auto-trigger summary generation if missing
+            if (!isLoading &&
+                aiSummaryArtifact == null &&
+                _summaryFuture == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _generateSummary();
+              });
+            }
+
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'When: ${AppFormatters.formatDateTime((widget.item?['timestamp'] ?? '').toString())}',
-                    style: theme.textTheme.bodySmall,
+                  // Basic Info - Always Visible
+                  Row(
+                    children: [
+                      Text(
+                        'When: ${AppFormatters.formatDateTime(timestamp)}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      const Spacer(),
+                      if (isNote) ...[
+                        IconButton(
+                          icon: const Icon(LucideIcons.pencil, size: 16),
+                          tooltip: 'Edit Note',
+                          onPressed: () async {
+                            final result = await _showEditNoteDialog(
+                              context,
+                              event['id'].toString(),
+                              artifacts[0]['content'].toString(),
+                              DateTime.parse(timestamp),
+                            );
+                            if (result == true) {
+                              _loadMetadata();
+                              widget.onRefresh();
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(LucideIcons.trash2,
+                              size: 16, color: Colors.red),
+                          tooltip: 'Delete Note',
+                          onPressed: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Delete Note'),
+                                content: const Text(
+                                    'Are you sure you want to delete this note?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed == true) {
+                              try {
+                                await widget.python
+                                    .deleteNote(event['id'].toString());
+                                if (mounted) {
+                                  Navigator.of(context).pop();
+                                  widget.onRefresh();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to delete: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                      if (!isNote && event['created_at'] != null) ...[
+                        IconButton(
+                          icon: const Icon(LucideIcons.trash2,
+                              size: 16, color: Colors.red),
+                          tooltip: 'Delete Evidence',
+                          onPressed: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Delete Evidence'),
+                                content: const Text(
+                                    'Are you sure you want to delete this event\'s evidence (notes, transcripts, and AI summaries) from the database? This will not affect the original source.'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed == true) {
+                              try {
+                                await widget.python.deleteEvent(widget.eventId);
+                                if (mounted) {
+                                  Navigator.of(context).pop();
+                                  widget.onRefresh();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to delete: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          'ID: ${widget.eventId.length > 8 ? widget.eventId.substring(0, 8) : widget.eventId}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontFamily: 'monospace',
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
+                  if ((widget.isCalendarEvent ||
+                          event['type'] == 'calendar.event') &&
+                      event['duration'] != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Duration: ${event['duration']} minutes',
+                      style: theme.textTheme.bodySmall,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.grey.shade300),
+                  ],
+                  const SizedBox(height: 16),
+
+                  // Sub-actions visible immediately if we know it's a calendar event
+                  if (widget.isCalendarEvent ||
+                      (event['type'] == 'calendar.event')) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _uploadTranscript(event),
+                            icon: const Icon(LucideIcons.upload, size: 18),
+                            label: const Text('Upload Transcript'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () => _addNoteToEvent(event),
+                            icon: const Icon(LucideIcons.stickyNote, size: 18),
+                            label: const Text('Add Note'),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      'ID: ${widget.eventId.length > 8 ? widget.eventId.substring(0, 8) : widget.eventId}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontFamily: 'monospace',
+                    const SizedBox(height: 16),
+                  ],
+
+                  // AI Summary Section
+                  _buildSummarySection(theme, aiSummaryArtifact),
+
+                  // Metadata/Artifacts loader (subtle)
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: LinearProgressIndicator(minHeight: 2),
+                    ),
+
+                  if (transcripts.isNotEmpty) ...[
+                    Text(
+                      'Transcripts',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
                         color: Colors.grey.shade700,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    for (final t in transcripts)
+                      ArtifactBox(
+                        content: t['content'].toString(),
+                        color: Colors.blue,
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (notes.isNotEmpty) ...[
+                    Text(
+                      'Notes',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final n in notes)
+                      ArtifactBox(
+                        content: n['content'].toString(),
+                        color: Colors.amber,
+                        icon: LucideIcons.stickyNote,
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (otherArtifacts.isNotEmpty)
+                    for (final a in otherArtifacts) ...[
+                      Text(
+                        a['kind'] == 'git.commit' ? 'Changes' : 'Details',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ArtifactBox(
+                        content: a['content'].toString(),
+                        color: Colors.grey,
+                        isMonospace: true,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  if (!isLoading && artifacts.isEmpty && _summaryFuture == null)
+                    const Text('No details available.'),
                 ],
               ),
-              if (widget.isCalendarEvent &&
-                  widget.item != null &&
-                  widget.item!['duration'] != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Duration: ${widget.item!['duration']} minutes',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 16),
-
-              FutureBuilder<Map<String, dynamic>>(
-                future: _detailsFuture,
-                builder: (context, snapshot) {
-                  // Metadata/Artifacts are still loading
-                  final isLoading =
-                      snapshot.connectionState == ConnectionState.waiting;
-                  if (snapshot.hasError) {
-                    return Text('Error loading metadata: ${snapshot.error}');
-                  }
-
-                  final details = snapshot.data ?? {};
-                  final artifacts =
-                      (details['artifacts'] as List?)?.cast<dynamic>() ??
-                          const [];
-
-                  final transcripts = artifacts
-                      .where((a) => a['kind'] == 'calendar.transcript')
-                      .toList();
-                  final notes = artifacts
-                      .where((a) => a['kind'] == 'calendar.note')
-                      .toList();
-                  final aiSummaryArtifact = artifacts
-                      .where((a) => a['kind'] == 'ai.summary')
-                      .firstOrNull;
-                  final otherArtifacts = artifacts
-                      .where(
-                        (a) =>
-                            a['kind'] != 'calendar.transcript' &&
-                            a['kind'] != 'calendar.note' &&
-                            a['kind'] != 'ai.summary',
-                      )
-                      .toList();
-
-                  // Auto-trigger summary generation if missing
-                  if (!isLoading &&
-                      aiSummaryArtifact == null &&
-                      _summaryFuture == null) {
-                    final isGit = (widget.item?['title'] ?? '')
-                            .toString()
-                            .contains('Git') ||
-                        (details['event']?['type'] ?? '') == 'code.commit';
-
-                    if (isGit || !widget.isCalendarEvent) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _generateSummary();
-                      });
-                    }
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Sub-actions visible immediately if we know it's a calendar event
-                      if (widget.isCalendarEvent ||
-                          (details['event']?['type'] == 'calendar.event')) ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _uploadTranscript,
-                                icon: const Icon(LucideIcons.upload, size: 18),
-                                label: const Text('Upload Transcript'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: _addNoteToEvent,
-                                icon: const Icon(
-                                  LucideIcons.stickyNote,
-                                  size: 18,
-                                ),
-                                label: const Text('Add Note'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // AI Summary Section
-                      _buildSummarySection(theme, aiSummaryArtifact),
-
-                      // Metadata/Artifacts loader (subtle)
-                      if (isLoading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: LinearProgressIndicator(minHeight: 2),
-                        ),
-
-                      if (transcripts.isNotEmpty) ...[
-                        Text(
-                          'Transcripts',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        for (final t in transcripts)
-                          ArtifactBox(
-                            content: t['content'].toString(),
-                            color: Colors.blue,
-                          ),
-                        const SizedBox(height: 16),
-                      ],
-                      if (notes.isNotEmpty) ...[
-                        Text(
-                          'Notes',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        for (final n in notes)
-                          ArtifactBox(
-                            content: n['content'].toString(),
-                            color: Colors.amber,
-                            icon: LucideIcons.stickyNote,
-                          ),
-                        const SizedBox(height: 16),
-                      ],
-                      if (otherArtifacts.isNotEmpty)
-                        for (final a in otherArtifacts) ...[
-                          Text(
-                            a['kind'] == 'git.commit' ? 'Changes' : 'Details',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ArtifactBox(
-                            content: a['content'].toString(),
-                            color: Colors.grey,
-                            isMonospace: true,
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      if (!isLoading &&
-                          artifacts.isEmpty &&
-                          _summaryFuture == null)
-                        const Text('No details available.'),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
       actions: [
@@ -474,13 +708,24 @@ class _EventDetailsDialogState extends State<EventDetailsDialog>
               ),
               TextButton(
                 onPressed: () async {
-                  await widget.python.updateEventArtifact(
-                    eventId: widget.eventId,
-                    kind: 'ai.summary',
-                    content: _summaryController.text,
-                  );
-                  setState(() => _isEditingSummary = false);
-                  _loadMetadata();
+                  try {
+                    await widget.python.updateEventArtifact(
+                      eventId: widget.eventId,
+                      kind: 'ai.summary',
+                      content: _summaryController.text,
+                    );
+                    setState(() => _isEditingSummary = false);
+                    _loadMetadata();
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to save: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 },
                 child: const Text('Save'),
               ),

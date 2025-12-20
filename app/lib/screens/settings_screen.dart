@@ -26,7 +26,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       TextEditingController();
   final TextEditingController _googleClientSecretController =
       TextEditingController();
+  final TextEditingController _geminiKeyController = TextEditingController();
+  final TextEditingController _openaiKeyController = TextEditingController();
+  final TextEditingController _systemRulesController = TextEditingController();
+  final TextEditingController _dailyPromptController = TextEditingController();
+  final TextEditingController _winsPromptController = TextEditingController();
+  final TextEditingController _commitPromptController = TextEditingController();
+
+  String _selectedProvider = 'ollama';
   bool _showManualOAuth = false;
+  List<String> _availableModels = [];
+  bool _isLoadingModels = false;
 
   @override
   void initState() {
@@ -59,6 +69,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _userController.dispose();
     _googleClientIdController.dispose();
     _googleClientSecretController.dispose();
+    _geminiKeyController.dispose();
+    _openaiKeyController.dispose();
+    _systemRulesController.dispose();
+    _dailyPromptController.dispose();
+    _winsPromptController.dispose();
+    _commitPromptController.dispose();
     super.dispose();
   }
 
@@ -71,9 +87,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final clientSecret = config['google_client_secret'] as String? ?? '';
       _googleClientIdController.text = clientId;
       _googleClientSecretController.text = clientSecret;
+
+      _selectedProvider = config['llm_provider'] as String? ?? 'ollama';
+      _modelController.text = config['llm_model'] as String? ?? '';
+      _geminiKeyController.text = config['gemini_api_key'] as String? ?? '';
+      _openaiKeyController.text = config['openai_api_key'] as String? ?? '';
+
+      _systemRulesController.text =
+          config['prompt_system_rules'] as String? ?? '';
+      _dailyPromptController.text =
+          config['prompt_daily_summary'] as String? ?? '';
+      _winsPromptController.text = config['prompt_wins_list'] as String? ?? '';
+      _commitPromptController.text =
+          config['prompt_commit_summary'] as String? ?? '';
+
+      _fetchModels();
     }
 
     return config;
+  }
+
+  Future<void> _fetchModels() async {
+    setState(() {
+      _isLoadingModels = true;
+    });
+    try {
+      final apiKey = _selectedProvider == 'gemini'
+          ? _geminiKeyController.text.trim()
+          : _selectedProvider == 'openai'
+          ? _openaiKeyController.text.trim()
+          : null;
+
+      final models = await widget.python.listModels(
+        provider: _selectedProvider,
+        apiKey: apiKey,
+      );
+      if (mounted) {
+        setState(() {
+          _availableModels = models;
+          _isLoadingModels = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _availableModels = [];
+          _isLoadingModels = false;
+        });
+      }
+    }
   }
 
   Future<void> _refresh() async {
@@ -179,11 +241,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final data = snapshot.data ?? const <String, dynamic>{};
         final repos =
             (data['repo_paths'] as List?)?.cast<dynamic>() ?? const [];
-        final llmModel = (data['llm_model'] ?? 'llama3.1:8b').toString();
         final userName = (data['user_name'] ?? '').toString();
         final isGoogleConnected = data['google_calendar_token'] != null;
 
-        _modelController.text = llmModel;
         _userController.text = userName;
 
         return Padding(
@@ -493,56 +553,317 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'LLM Provider',
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        DropdownButtonFormField<String>(
+                                          value: _selectedProvider,
+                                          decoration: const InputDecoration(
+                                            border: OutlineInputBorder(),
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 8,
+                                                ),
+                                          ),
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: 'ollama',
+                                              child: Text('Ollama (Local)'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'gemini',
+                                              child: Text('Google Gemini'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'openai',
+                                              child: Text('OpenAI'),
+                                            ),
+                                          ],
+                                          onChanged: (val) {
+                                            if (val != null) {
+                                              setState(() {
+                                                _selectedProvider = val;
+                                                _modelController.clear();
+                                                _availableModels = [];
+                                              });
+                                              _fetchModels();
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (_isLoadingModels)
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              else if (_availableModels.isNotEmpty)
+                                DropdownButtonFormField<String>(
+                                  value:
+                                      _availableModels.contains(
+                                        _modelController.text,
+                                      )
+                                      ? _modelController.text
+                                      : null,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Select Model',
+                                    border: OutlineInputBorder(),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items: _availableModels
+                                      .map(
+                                        (m) => DropdownMenuItem(
+                                          value: m,
+                                          child: Text(
+                                            m,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _modelController.text = val;
+                                      });
+                                    }
+                                  },
+                                )
+                              else
+                                TextField(
+                                  controller: _modelController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Model Name',
+                                    hintText:
+                                        'e.g. llama3.1:8b, gemini-1.5-flash',
+                                    helperText:
+                                        (_selectedProvider != 'ollama' &&
+                                            ((_selectedProvider == 'gemini' &&
+                                                    _geminiKeyController
+                                                        .text
+                                                        .isEmpty) ||
+                                                (_selectedProvider ==
+                                                        'openai' &&
+                                                    _openaiKeyController
+                                                        .text
+                                                        .isEmpty)))
+                                        ? 'Enter API key to enable model dropdown'
+                                        : null,
+                                    border: const OutlineInputBorder(),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                ),
+                              if (_selectedProvider == 'gemini') ...[
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _geminiKeyController,
+                                  onChanged: (val) {
+                                    _fetchModels();
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Gemini API Key',
+                                    hintText: 'Enter your Google AI API key',
+                                    border: OutlineInputBorder(),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  obscureText: true,
+                                ),
+                              ],
+                              if (_selectedProvider == 'openai') ...[
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _openaiKeyController,
+                                  onChanged: (val) {
+                                    _fetchModels();
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'OpenAI API Key',
+                                    hintText: 'sk-...',
+                                    border: OutlineInputBorder(),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  obscureText: true,
+                                ),
+                              ],
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: () async {
+                                    final model = _modelController.text.trim();
+                                    final geminiKey = _geminiKeyController.text
+                                        .trim();
+                                    final openaiKey = _openaiKeyController.text
+                                        .trim();
+
+                                    await widget.python.setLLMConfig(
+                                      provider: _selectedProvider,
+                                      model: model,
+                                      geminiKey: geminiKey,
+                                      openaiKey: openaiKey,
+                                    );
+
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('AI settings updated'),
+                                        ),
+                                      );
+                                    }
+                                    _refresh();
+                                  },
+                                  child: const Text('Save AI Settings'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                               Text(
-                                'Local LLM (via Ollama)',
+                                _selectedProvider == 'ollama'
+                                    ? 'Summaries are processed locally on your machine via Ollama.'
+                                    : 'Summaries are processed via cloud APIs. Your API key is stored locally.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // PROMPTS SECTION
+                    _SettingsGroup(
+                      title: 'Prompts Configuration',
+                      icon: LucideIcons.messageSquare,
+                      children: [
+                        _SettingsCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Customize AI Prompts',
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _modelController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Model Name',
-                                        hintText: 'llama3.1:8b',
-                                        border: OutlineInputBorder(),
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  FilledButton(
-                                    onPressed: () async {
-                                      final model = _modelController.text
-                                          .trim();
-                                      if (model.isEmpty) return;
-                                      await widget.python.setModel(model);
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('AI model updated'),
-                                          ),
-                                        );
-                                      }
-                                      _refresh();
-                                    },
-                                    child: const Text('Save'),
-                                  ),
-                                ],
-                              ),
                               const SizedBox(height: 8),
                               Text(
-                                'Summaries are processed locally on your machine.',
+                                'Leave blank to use default prompts.',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              _PromptTextField(
+                                controller: _systemRulesController,
+                                label: 'System Rules',
+                                hint:
+                                    'You are a local, privacy-first assistant...',
+                                helper: 'Global rules applied to all prompts.',
+                              ),
+                              const SizedBox(height: 20),
+                              _PromptTextField(
+                                controller: _dailyPromptController,
+                                label: 'Daily Summary Template',
+                                hint: 'Task: Produce a daily summary...',
+                                helper:
+                                    'Variables: {evidence_snippets}, {notes}',
+                              ),
+                              const SizedBox(height: 20),
+                              _PromptTextField(
+                                controller: _winsPromptController,
+                                label: 'Wins List Template',
+                                hint:
+                                    'Task: Produce a {period_label} wins list...',
+                                helper:
+                                    'Variables: {period_label}, {evidence_snippets}, {notes}',
+                              ),
+                              const SizedBox(height: 20),
+                              _PromptTextField(
+                                controller: _commitPromptController,
+                                label: 'Commit Summary Template',
+                                hint:
+                                    'Task: Summarize this git commit briefly...',
+                                helper: 'Variables: {details}',
+                              ),
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: () async {
+                                    await widget.python.setPrompts(
+                                      systemRules: _systemRulesController.text
+                                          .trim(),
+                                      dailySummary: _dailyPromptController.text
+                                          .trim(),
+                                      winsList: _winsPromptController.text
+                                          .trim(),
+                                      commitSummary: _commitPromptController
+                                          .text
+                                          .trim(),
+                                    );
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Prompts updated'),
+                                        ),
+                                      );
+                                    }
+                                    _refresh();
+                                  },
+                                  child: const Text('Save Prompts'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: _resetPrompts,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor:
+                                        theme.colorScheme.secondary,
+                                  ),
+                                  child: const Text('Reset to Defaults'),
                                 ),
                               ),
                             ],
@@ -624,6 +945,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _resetPrompts() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Prompts?'),
+        content: const Text(
+          'This will restore all AI prompts to their original default values. Your current customizations will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final defaults = await widget.python.getDefaultPrompts();
+        if (mounted) {
+          setState(() {
+            _systemRulesController.text = defaults['system_rules'] ?? '';
+            _dailyPromptController.text = defaults['daily_summary'] ?? '';
+            _winsPromptController.text = defaults['wins_list'] ?? '';
+            _commitPromptController.text = defaults['commit_summary'] ?? '';
+          });
+
+          await widget.python.setPrompts(
+            systemRules: _systemRulesController.text,
+            dailySummary: _dailyPromptController.text,
+            winsList: _winsPromptController.text,
+            commitSummary: _commitPromptController.text,
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Prompts reset to defaults')),
+            );
+          }
+          _refresh();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error resetting: $e')));
+        }
+      }
+    }
+  }
+
   Future<void> _disconnectGoogle() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -682,9 +1059,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: SelectableText('Error: ${e.toString()}')),
+        );
       }
     }
   }
@@ -1004,6 +1381,47 @@ class _HeaderButton extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       ),
+    );
+  }
+}
+
+class _PromptTextField extends StatelessWidget {
+  const _PromptTextField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.helper,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final String helper;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          maxLines: 5,
+          minLines: 2,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            alignLabelWithHint: true,
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.all(12),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          helper,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      ],
     );
   }
 }

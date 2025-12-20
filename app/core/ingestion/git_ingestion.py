@@ -46,12 +46,14 @@ def _git_log_commits(
 ) -> List[GitCommit]:
     since = (datetime.now(timezone.utc) - timedelta(days=since_days)).isoformat()
     # Use ISO strict for stable parsing; delimiter is ASCII Unit Separator.
+    # %H: commit hash, %an: author name, %ad: author date (ISO strict), %s: subject
     fmt = "%H\x1f%an\x1f%ad\x1f%s"
     cmd = [
         "git",
         "-C",
         repo_path,
         "log",
+        "--all",        # All branches
         f"--since={since}",
         "--date=iso-strict",
         f"--pretty=format:{fmt}",
@@ -98,6 +100,21 @@ def _git_show_compact(repo_path: str, sha: str) -> str:
     ).strip()
 
 
+def _git_show_full(repo_path: str, sha: str) -> str:
+    """Returns the full commit message and code diff."""
+    return run_cmd(
+        [
+            "git",
+            "-C",
+            repo_path,
+            "show",
+            "--pretty=fuller",
+            "--no-color",
+            sha,
+        ]
+    ).strip()
+
+
 def get_commits(
     repo_paths: List[str], since_days: int = 7, author_filter: Optional[str] = None
 ) -> List[GitCommit]:
@@ -125,32 +142,47 @@ def ingest_repo(
     artifacts_created = 0
 
     for c in commits:
-        # Use source_id=commit sha so ingestion is idempotent.
+        # Use source_id=repo:sha so ingestion is idempotent per-repo.
+        # Use event_id=sha so we deduplicate the same commit across repos.
         event_id = db.insert_event_if_missing(
+            event_id=c.sha,
             timestamp_start=c.date_iso,
             timestamp_end=None,
             type="code.commit",
+            title=c.subject,
             author=c.author,
             source="git",
             source_id=f"{c.repo_path}:{c.sha}",
             confidence_score=1.0,
         )
 
-        # If event already existed, insert_event_if_missing returns existing id.
-        # We still ensure at least one artifact exists for evidence.
+        # If event already existed, check if we need to add diff artifact
         artifacts = db.artifacts_for_event(event_id)
-        if artifacts:
-            continue
+        has_commit = any(a["kind"] == "git.commit" for a in artifacts)
+        has_diff = any(a["kind"] == "git.diff" for a in artifacts)
 
-        compact = _git_show_compact(repo_path=c.repo_path, sha=c.sha)
-        db.insert_artifact(
-            event_id=event_id,
-            kind="git.commit",
-            content=compact,
-            source_id=c.sha,
-        )
-        artifacts_created += 1
-        events_created += 1
+        if not has_commit:
+            compact = _git_show_compact(repo_path=c.repo_path, sha=c.sha)
+            db.insert_artifact(
+                event_id=event_id,
+                kind="git.commit",
+                content=compact,
+                source_id=c.sha,
+            )
+            artifacts_created += 1
+
+        if not has_diff:
+            full_diff = _git_show_full(repo_path=c.repo_path, sha=c.sha)
+            db.insert_artifact(
+                event_id=event_id,
+                kind="git.diff",
+                content=full_diff,
+                source_id=f"{c.sha}:diff",
+            )
+            artifacts_created += 1
+
+        if not artifacts:
+            events_created += 1
 
     return {"events_created": events_created, "artifacts_created": artifacts_created}
 

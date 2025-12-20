@@ -22,37 +22,151 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   }
 
   Future<void> _addNote() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final result = await _showNoteDialog();
+    if (result != null && (result['content'] as String).isNotEmpty) {
+      await widget.python.addNote(
+        result['content'] as String,
+        timestamp: result['timestamp'] as String,
+      );
+      _refresh();
+    }
+  }
+
+  Future<void> _editNote(Map<String, dynamic> note) async {
+    final noteId = note['id'].toString();
+    final result = await _showNoteDialog(
+      initialContent: note['content'].toString(),
+      initialTime: DateTime.parse(note['timestamp'].toString()),
+    );
+    if (result != null && (result['content'] as String).isNotEmpty) {
+      await widget.python.updateNote(
+        noteId,
+        result['content'] as String,
+        timestamp: result['timestamp'] as String,
+      );
+      _refresh();
+    }
+  }
+
+  Future<void> _deleteNote(String noteId) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Note'),
-        content: TextField(
-          controller: controller,
-          maxLines: 5,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Enter your note content...',
-            border: OutlineInputBorder(),
-          ),
-        ),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Note'),
+        content: const Text('Are you sure you want to delete this note?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Save'),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
 
-    if (result != null && result.isNotEmpty) {
-      await widget.python.addNote(result);
+    if (confirmed == true) {
+      await widget.python.deleteNote(noteId);
       _refresh();
     }
+  }
+
+  Future<Map<String, dynamic>?> _showNoteDialog({
+    String initialContent = '',
+    DateTime? initialTime,
+  }) async {
+    final controller = TextEditingController(text: initialContent);
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        DateTime selectedTime = initialTime ?? DateTime.now();
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(initialContent.isEmpty ? 'Add Note' : 'Edit Note'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: controller,
+                    maxLines: 5,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter your note content...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.clock, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Time: ${AppFormatters.formatDateTime(selectedTime.toIso8601String())}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedTime,
+                            firstDate: DateTime.now().subtract(
+                              const Duration(days: 365),
+                            ),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
+                          );
+                          if (date != null) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(selectedTime),
+                            );
+                            if (time != null) {
+                              setState(() {
+                                selectedTime = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, {
+                    'content': controller.text.trim(),
+                    'timestamp': selectedTime.toUtc().toIso8601String(),
+                  }),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _openNote(Map<String, dynamic> note) async {
@@ -155,8 +269,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                   ),
                   data: (data) {
                     final notesListRaw = data['notes'];
-                    final notesList =
-                        (notesListRaw is List) ? notesListRaw : const [];
+                    final notesList = (notesListRaw is List)
+                        ? notesListRaw
+                        : const [];
                     final typed = notesList
                         .whereType<Map>()
                         .map((e) => e.cast<String, dynamic>())
@@ -192,11 +307,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                     return GridView.builder(
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 400,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        mainAxisExtent: 160,
-                      ),
+                            maxCrossAxisExtent: 400,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            mainAxisExtent: 160,
+                          ),
                       itemCount: typed.length,
                       itemBuilder: (context, idx) {
                         final n = typed[idx];
@@ -211,14 +326,69 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    AppFormatters.formatDateTime(ts),
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        AppFormatters.formatDateTime(ts),
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const Spacer(),
+                                      PopupMenuButton<String>(
+                                        icon: const Icon(
+                                          LucideIcons.moreVertical,
+                                          size: 16,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onSelected: (value) {
+                                          if (value == 'edit') {
+                                            _editNote(n);
+                                          } else if (value == 'delete') {
+                                            _deleteNote(n['id'].toString());
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  LucideIcons.pencil,
+                                                  size: 14,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text('Edit'),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  LucideIcons.trash2,
+                                                  size: 14,
+                                                  color: Colors.red,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Delete',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
                                   Expanded(
                                     child: Text(
                                       content,

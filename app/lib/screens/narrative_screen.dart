@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../utils/date_filter_header.dart';
 import '../services/python_service.dart';
 import '../services/date_filter_provider.dart';
 import '../services/data_providers.dart';
 import '../utils/event_details_dialog.dart';
+import '../utils/formatters.dart';
+import '../utils/evidence_collection.dart';
 
 class NarrativeScreen extends ConsumerStatefulWidget {
   const NarrativeScreen({
@@ -42,46 +45,133 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
   }
 
   Future<void> _addNote() async {
-    final note = await showDialog<String>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) {
         final c = TextEditingController();
-        return AlertDialog(
-          title: const Text('Add note'),
-          content: TextField(
-            controller: c,
-            autofocus: true,
-            minLines: 2,
-            maxLines: 6,
-            decoration: const InputDecoration(
-              hintText:
-                  'Short, factual context (e.g., blocked on API contract)',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(c.text.trim()),
-              child: const Text('Add'),
-            ),
-          ],
+        DateTime selectedTime = DateTime.now();
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Add note'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: c,
+                    autofocus: true,
+                    minLines: 2,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      hintText:
+                          'Short, factual context (e.g., blocked on API contract)',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.clock, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Time: ${AppFormatters.formatDateTime(selectedTime.toIso8601String())}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedTime,
+                            firstDate: DateTime.now().subtract(
+                              const Duration(days: 365),
+                            ),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
+                          );
+                          if (date != null) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(selectedTime),
+                            );
+                            if (time != null) {
+                              setState(() {
+                                selectedTime = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop({
+                    'content': c.text.trim(),
+                    'timestamp': selectedTime.toUtc().toIso8601String(),
+                  }),
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
-    if (note == null || note.isEmpty) return;
-    await widget.python.addNote(note);
-    await _refresh();
+
+    if (result == null || (result['content'] as String).isEmpty) return;
+    try {
+      await widget.python.addNote(
+        result['content'] as String,
+        timestamp: result['timestamp'] as String,
+      );
+      await _refresh();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add note: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
-  Future<void> _openEventDetails(String eventId) async {
+  Future<void> _openEventDetails(String eventId,
+      {String? type, String? timestamp}) async {
     // Open the dialog immediately. It will fetch metadata and summary in stages.
+    String? source;
+    if (type != null) {
+      if (type.startsWith('code.')) {
+        source = 'git';
+      } else if (type == 'calendar.event') {
+        source = 'calendar';
+      }
+    }
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => EventDetailsDialog(
         eventId: eventId,
+        source: source,
+        timestamp: timestamp,
         python: widget.python,
         onRefresh: _refresh,
       ),
@@ -93,6 +183,10 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
     final theme = Theme.of(context);
     final filter = ref.watch(dateFilterProvider);
     final summaryAsync = ref.watch(dailySummaryProvider(_regenerate));
+    final locked = summaryAsync.maybeWhen(
+      data: (data) => data['locked'] == true || data['locked'] == 1,
+      orElse: () => false,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -123,11 +217,13 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
                 defaultSubtitle: 'Daily Summary',
                 extraActions: [
                   _HeaderButton(
-                    icon: LucideIcons.sparkles,
-                    tooltip: 'Regenerate Narrative',
-                    onPressed: () => _refresh(regenerate: true),
+                    icon: locked ? LucideIcons.lock : LucideIcons.sparkles,
+                    tooltip: locked
+                        ? 'Narrative is Locked'
+                        : 'Regenerate Narrative',
+                    onPressed: locked ? null : () => _refresh(regenerate: true),
                     theme: theme,
-                    color: theme.colorScheme.primary,
+                    color: locked ? Colors.grey : theme.colorScheme.primary,
                   ),
                 ],
               ),
@@ -172,7 +268,10 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
                   data: (data) {
                     final text = (data['text'] ?? '').toString();
                     final narrativeId = (data['narrative_id'] ?? '').toString();
+                    final periodStart = (data['period_start'] ?? '').toString();
                     final llmOk = data['llm_ok'] ?? true;
+                    final llmProvider = (data['llm_provider'] ?? 'LLM')
+                        .toString();
                     final evidenceIdsRaw = data['evidence_event_ids'];
                     List<dynamic> evidenceIds = [];
                     if (evidenceIdsRaw is List) {
@@ -228,7 +327,7 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: SelectableText(
-                                            'Local LLM is not reachable. Using fallback evidence view.',
+                                            '${llmProvider.toUpperCase()} is not reachable. Using fallback evidence view.',
                                             style: TextStyle(
                                               color: Colors.amber.shade900,
                                               fontSize: 13,
@@ -249,51 +348,87 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
                             ),
                           Card(
                             margin: EdgeInsets.zero,
+                            elevation: 0,
+                            color: Colors.transparent,
                             child: Padding(
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(
-                                        LucideIcons.text,
-                                        size: 18,
-                                        color: Colors.grey.shade500,
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.primary
+                                              .withOpacity(0.08),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          LucideIcons.sparkles,
+                                          size: 18,
+                                          color: theme.colorScheme.primary,
+                                        ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 12),
                                       Text(
-                                        'Summary',
-                                        style: theme.textTheme.titleSmall
+                                        'Daily Narrative',
+                                        style: theme.textTheme.titleMedium
                                             ?.copyWith(
-                                              color: Colors.grey.shade600,
-                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF1E293B),
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
                                             ),
                                       ),
                                       const Spacer(),
                                       if (narrativeId.isNotEmpty)
                                         _StatusBadge(
-                                          label: 'AI Generated',
-                                          color: theme.colorScheme.primary,
+                                          label: locked
+                                              ? 'Approved & Locked'
+                                              : 'AI Summary',
+                                          color: locked
+                                              ? Colors.green
+                                              : theme.colorScheme.primary,
                                         ),
                                     ],
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 28),
                                   _isEditing
-                                      ? TextField(
-                                          controller: _controller,
-                                          maxLines: null,
-                                          minLines: 10,
-                                          textAlignVertical:
-                                              TextAlignVertical.top,
-                                          decoration: const InputDecoration(
-                                            hintText:
-                                                'Edit today’s narrative (keep it factual).',
-                                            filled: false,
-                                            border: InputBorder.none,
-                                            enabledBorder: InputBorder.none,
-                                            focusedBorder: InputBorder.none,
+                                      ? Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade50,
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.grey.shade200,
+                                            ),
+                                          ),
+                                          child: TextField(
+                                            controller: _controller,
+                                            maxLines: null,
+                                            minLines: 10,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontSize: 16,
+                                                  height: 1.6,
+                                                  color: const Color(
+                                                    0xFF334155,
+                                                  ),
+                                                ),
+                                            decoration: const InputDecoration(
+                                              hintText:
+                                                  'Edit today’s narrative...',
+                                              filled: false,
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
                                           ),
                                         )
                                       : SelectableText(
@@ -303,58 +438,20 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
                                                 fontSize: 16,
-                                                height: 1.6,
+                                                height: 1.7,
+                                                color: const Color(0xFF334155),
+                                                letterSpacing: 0.2,
                                               ),
                                         ),
-                                  if (evidenceIds.isNotEmpty) ...[
-                                    const SizedBox(height: 24),
-                                    const Divider(),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'Sources & Evidence',
-                                      style: theme.textTheme.titleSmall
-                                          ?.copyWith(
-                                            color: Colors.grey.shade600,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                  if (evidenceIds.isNotEmpty)
+                                    EvidenceCollection(
+                                      evidenceIds: evidenceIds,
+                                      onTap: (id, {type}) => _openEventDetails(
+                                        id,
+                                        type: type,
+                                        timestamp: periodStart,
+                                      ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        for (final id in evidenceIds.take(12))
-                                          Tooltip(
-                                            message: id.toString(),
-                                            child: ActionChip(
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              backgroundColor: theme
-                                                  .colorScheme
-                                                  .primary
-                                                  .withOpacity(0.08),
-                                              side: BorderSide(
-                                                color: theme.colorScheme.primary
-                                                    .withOpacity(0.2),
-                                              ),
-                                              label: Text(
-                                                '#${id.toString().substring(0, 6)}',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color:
-                                                      theme.colorScheme.primary,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              onPressed: () =>
-                                                  _openEventDetails(
-                                                    id.toString(),
-                                                  ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
@@ -362,26 +459,84 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
                           const SizedBox(height: 24),
                           Row(
                             children: [
-                              if (_isEditing) ...[
+                              if (locked) ...[
+                                Tooltip(
+                                  message: 'Narrative is approved and locked',
+                                  child: FilledButton.icon(
+                                    onPressed: null,
+                                    icon: const Icon(
+                                      LucideIcons.edit3,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Edit'),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: theme.disabledColor,
+                                      foregroundColor: theme
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.38),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Tooltip(
+                                  message: 'Narrative is already locked',
+                                  child: OutlinedButton.icon(
+                                    onPressed: null,
+                                    icon: const Icon(
+                                      LucideIcons.checkCircle,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Approved'),
+                                  ),
+                                ),
+                              ] else if (_isEditing) ...[
                                 FilledButton.icon(
                                   onPressed: narrativeId.isEmpty
                                       ? null
                                       : () async {
-                                          await widget.python.updateNarrative(
-                                            narrativeId: narrativeId,
-                                            text: _controller.text,
-                                          );
-                                          setState(() => _isEditing = false);
-                                          if (mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Changes saved'),
-                                              ),
+                                          try {
+                                            await widget.python.updateNarrative(
+                                              narrativeId: narrativeId,
+                                              text: _controller.text,
                                             );
+                                            setState(() => _isEditing = false);
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: const Text(
+                                                    'Narrative updated successfully',
+                                                  ),
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                            await _refresh();
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Failed to update: $e',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            }
                                           }
-                                          await _refresh();
                                         },
                                   icon: const Icon(LucideIcons.check, size: 18),
                                   label: const Text('Save Changes'),
@@ -394,54 +549,108 @@ class _NarrativeScreenState extends ConsumerState<NarrativeScreen> {
                                       _controller.text = text;
                                     });
                                   },
-                                  child: const Text('Cancel'),
+                                  child: const Text('Discard'),
                                 ),
                               ] else ...[
                                 FilledButton.icon(
                                   onPressed: narrativeId.isEmpty
                                       ? null
                                       : () => setState(() => _isEditing = true),
-                                  icon: const Icon(
-                                    LucideIcons.pencil,
-                                    size: 18,
+                                  icon: const Icon(LucideIcons.edit3, size: 18),
+                                  label: const Text('Edit'),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: theme.colorScheme.primary,
+                                    foregroundColor: Colors.white,
                                   ),
-                                  label: const Text('Edit Narrative'),
                                 ),
                                 const SizedBox(width: 12),
                                 OutlinedButton.icon(
                                   onPressed: narrativeId.isEmpty
                                       ? null
                                       : () async {
-                                          await widget.python.lockNarrative(
-                                            narrativeId,
-                                          );
-                                          if (mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Narrative approved & locked',
-                                                ),
-                                              ),
+                                          try {
+                                            await widget.python.lockNarrative(
+                                              narrativeId,
                                             );
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: const Text(
+                                                    'Narrative approved and locked',
+                                                  ),
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                            await _refresh();
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Failed to lock: $e',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            }
                                           }
-                                          await _refresh();
                                         },
                                   icon: const Icon(LucideIcons.lock, size: 18),
                                   label: const Text('Approve & Lock'),
                                 ),
                               ],
                               const Spacer(),
-                              TextButton.icon(
-                                onPressed: _addNote,
-                                icon: const Icon(
-                                  LucideIcons.messageSquarePlus,
-                                  size: 18,
-                                ),
-                                label: const Text('Add Observation'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: theme.colorScheme.primary,
+                              Tooltip(
+                                message: locked
+                                    ? 'Cannot add observations to a locked narrative'
+                                    : '',
+                                child: TextButton.icon(
+                                  onPressed: locked ? null : _addNote,
+                                  icon: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (locked
+                                                  ? Colors.grey
+                                                  : theme.colorScheme.primary)
+                                              .withOpacity(0.08),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      LucideIcons.plus,
+                                      size: 14,
+                                      color: locked
+                                          ? Colors.grey
+                                          : theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                  label: const Text('Add Observation'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: locked
+                                        ? Colors.grey
+                                        : theme.colorScheme.primary,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -469,19 +678,31 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.15), width: 1.5),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color.withOpacity(0.9),
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -498,7 +719,7 @@ class _HeaderButton extends StatelessWidget {
 
   final IconData icon;
   final String tooltip;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final ThemeData theme;
   final Color? color;
 
@@ -507,15 +728,22 @@ class _HeaderButton extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: IconButton(
         tooltip: tooltip,
         onPressed: onPressed,
-        icon: Icon(icon, color: color ?? Colors.grey.shade700, size: 18),
-        padding: const EdgeInsets.all(10),
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        icon: Icon(icon, color: color ?? const Color(0xFF64748B), size: 20),
+        padding: const EdgeInsets.all(12),
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
       ),
     );
   }

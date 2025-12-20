@@ -48,7 +48,10 @@ def utc_now_iso() -> str:
 
 def parse_iso(iso_str: str) -> datetime:
     # datetime.fromisoformat handles most ISO 8601 strings in Python 3.7+
-    return datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def run_cmd(args: List[str]) -> str:
@@ -61,32 +64,42 @@ def run_cmd(args: List[str]) -> str:
     return result.stdout
 
 
-def log_generation(purpose: str, prompt: str, output: str, evidence: str = "", notes: str = "") -> None:
-    """Logs the LLM generation process to a text file for debugging."""
+def log_llm_request(
+    purpose: str, prompt: str, evidence: str = "", notes: str = ""
+) -> str:
+    """Starts a log file for an LLM request and returns the path."""
     ld = os.path.join(data_dir(), "logs")
     ensure_dir(ld)
-    
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = os.path.join(ld, f"gen_{purpose}_{timestamp}_{uuid.uuid4().hex[:6]}.txt")
-    
+
     with open(log_file, "w", encoding="utf-8") as f:
         f.write(f"PURPOSE: {purpose}\n")
-        f.write(f"TIMESTAMP: {datetime.now(timezone.utc).isoformat()}\n")
-        f.write("="*80 + "\n")
+        f.write(f"START_TIMESTAMP: {datetime.now(timezone.utc).isoformat()}\n")
+        f.write("=" * 80 + "\n")
         f.write("EVIDENCE SNIPPETS:\n")
         f.write(evidence + "\n")
-        f.write("="*80 + "\n")
+        f.write("=" * 80 + "\n")
         f.write("USER NOTES:\n")
         f.write(notes + "\n")
-        f.write("="*80 + "\n")
+        f.write("=" * 80 + "\n")
         f.write("PROMPT USED:\n")
         f.write(prompt + "\n")
-        f.write("="*80 + "\n")
-        f.write("LLM OUTPUT:\n")
-        f.write(output + "\n")
-        f.write("="*80 + "\n")
-    
+        f.write("=" * 80 + "\n")
+        f.write("LLM OUTPUT (PENDING):\n")
+
     import sys
+
     sys.stderr.write(f"\nLOG_FILE: {log_file}\n")
     sys.stderr.flush()
+    return log_file
+
+
+def log_llm_response(log_file: str, output: str) -> None:
+    """Appends the LLM response to the log file."""
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(output + "\n")
+        f.write("=" * 80 + "\n")
+        f.write(f"END_TIMESTAMP: {datetime.now(timezone.utc).isoformat()}\n")
 

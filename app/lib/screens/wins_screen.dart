@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'dart:convert';
 import '../utils/date_filter_header.dart';
 import '../services/python_service.dart';
 import '../services/date_filter_provider.dart';
 import '../services/data_providers.dart';
+import '../utils/event_details_dialog.dart';
+import '../utils/evidence_collection.dart';
 
 class WinsScreen extends ConsumerStatefulWidget {
-  const WinsScreen({
-    super.key,
-    required this.python,
-  });
+  const WinsScreen({super.key, required this.python});
 
   final PythonService python;
 
@@ -21,6 +21,7 @@ class WinsScreen extends ConsumerStatefulWidget {
 
 class _WinsScreenState extends ConsumerState<WinsScreen> {
   bool _isEditing = false;
+  bool _regenerate = false;
   final TextEditingController _controller = TextEditingController();
 
   @override
@@ -29,18 +30,46 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
     super.dispose();
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool regenerate = false}) async {
     setState(() {
       _isEditing = false;
+      _regenerate = regenerate;
     });
-    ref.invalidate(winsProvider);
+    ref.invalidate(winsProvider(_regenerate));
+  }
+
+  Future<void> _openEventDetails(String eventId,
+      {String? type, String? timestamp}) async {
+    String? source;
+    if (type != null) {
+      if (type.startsWith('code.')) {
+        source = 'git';
+      } else if (type == 'calendar.event') {
+        source = 'calendar';
+      }
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => EventDetailsDialog(
+        eventId: eventId,
+        source: source,
+        timestamp: timestamp,
+        python: widget.python,
+        onRefresh: _refresh,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final filter = ref.watch(dateFilterProvider);
-    final winsAsync = ref.watch(winsProvider);
+    final winsAsync = ref.watch(winsProvider(_regenerate));
+    final locked = winsAsync.maybeWhen(
+      data: (data) => data['locked'] == true || data['locked'] == 1,
+      orElse: () => false,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -69,6 +98,15 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
                 },
                 onRefresh: _refresh,
                 defaultSubtitle: 'Achievements & Milestones',
+                extraActions: [
+                  _HeaderButton(
+                    icon: locked ? LucideIcons.lock : LucideIcons.sparkles,
+                    tooltip: locked ? 'Wins are Locked' : 'Regenerate Wins',
+                    onPressed: locked ? null : () => _refresh(regenerate: true),
+                    theme: theme,
+                    color: locked ? Colors.grey : theme.colorScheme.primary,
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               Expanded(
@@ -111,6 +149,19 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
                   data: (data) {
                     final text = (data['text'] ?? '').toString();
                     final narrativeId = (data['narrative_id'] ?? '').toString();
+                    final periodStart = (data['period_start'] ?? '').toString();
+                    final evidenceIdsRaw = data['evidence_event_ids'];
+                    List<dynamic> evidenceIds = [];
+                    if (evidenceIdsRaw is List) {
+                      evidenceIds = evidenceIdsRaw;
+                    } else if (evidenceIdsRaw is String &&
+                        evidenceIdsRaw.isNotEmpty) {
+                      try {
+                        evidenceIds = jsonDecode(evidenceIdsRaw);
+                      } catch (e) {
+                        evidenceIds = [];
+                      }
+                    }
 
                     if (!_isEditing) {
                       _controller.text = text;
@@ -121,8 +172,11 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Card(
+                            margin: EdgeInsets.zero,
+                            elevation: 0,
+                            color: Colors.transparent,
                             child: Padding(
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -138,10 +192,20 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
                                         'Highlights',
                                         style: theme.textTheme.titleSmall
                                             ?.copyWith(
-                                          color: Colors.grey.shade600,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                              color: Colors.grey.shade600,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                       ),
+                                      const Spacer(),
+                                      if (narrativeId.isNotEmpty)
+                                        _StatusBadge(
+                                          label: locked
+                                              ? 'Approved & Locked'
+                                              : 'AI Generated',
+                                          color: locked
+                                              ? Colors.green
+                                              : theme.colorScheme.primary,
+                                        ),
                                     ],
                                   ),
                                   const SizedBox(height: 20),
@@ -150,8 +214,12 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
                                           controller: _controller,
                                           maxLines: null,
                                           minLines: 10,
-                                          textAlignVertical:
-                                              TextAlignVertical.top,
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                fontSize: 16,
+                                                height: 1.6,
+                                                color: const Color(0xFF334155),
+                                              ),
                                           decoration: const InputDecoration(
                                             hintText: 'Describe your wins...',
                                             filled: false,
@@ -166,10 +234,20 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
                                               : text,
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
-                                            fontSize: 16,
-                                            height: 1.6,
-                                          ),
+                                                fontSize: 16,
+                                                height: 1.6,
+                                                color: const Color(0xFF334155),
+                                              ),
                                         ),
+                                  if (evidenceIds.isNotEmpty)
+                                    EvidenceCollection(
+                                      evidenceIds: evidenceIds,
+                                      onTap: (id, {type}) => _openEventDetails(
+                                        id,
+                                        type: type,
+                                        timestamp: periodStart,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -177,26 +255,72 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
                           const SizedBox(height: 24),
                           Row(
                             children: [
-                              if (_isEditing) ...[
+                              if (locked) ...[
+                                Tooltip(
+                                  message: 'Wins are approved and locked',
+                                  child: FilledButton.icon(
+                                    onPressed: null,
+                                    icon: const Icon(
+                                      LucideIcons.pencil,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Edit Wins'),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: theme.disabledColor,
+                                      foregroundColor: theme
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.38),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Tooltip(
+                                  message: 'Wins are already locked',
+                                  child: OutlinedButton.icon(
+                                    onPressed: null,
+                                    icon: const Icon(
+                                      LucideIcons.checkCircle,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Approved'),
+                                  ),
+                                ),
+                              ] else if (_isEditing) ...[
                                 FilledButton.icon(
                                   onPressed: narrativeId.isEmpty
                                       ? null
                                       : () async {
-                                          await widget.python.updateNarrative(
-                                            narrativeId: narrativeId,
-                                            text: _controller.text,
-                                          );
-                                          setState(() => _isEditing = false);
-                                          if (mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Wins updated'),
-                                              ),
+                                          try {
+                                            await widget.python.updateNarrative(
+                                              narrativeId: narrativeId,
+                                              text: _controller.text,
                                             );
+                                            setState(() => _isEditing = false);
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Wins updated'),
+                                                ),
+                                              );
+                                            }
+                                            await _refresh();
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Failed to update: $e',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
                                           }
-                                          await _refresh();
                                         },
                                   icon: const Icon(LucideIcons.check, size: 18),
                                   label: const Text('Save Changes'),
@@ -259,6 +383,66 @@ class _WinsScreenState extends ConsumerState<WinsScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color.withOpacity(0.9),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderButton extends StatelessWidget {
+  const _HeaderButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    required this.theme,
+    this.color,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final ThemeData theme;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon, color: color ?? Colors.grey.shade700, size: 18),
+        padding: const EdgeInsets.all(10),
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      ),
     );
   }
 }

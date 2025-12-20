@@ -151,18 +151,11 @@ def get_google_calendar_events(days: int = 7, start_date: Optional[datetime] = N
                 print(f"DEBUG: Skipping '{summary}' (keyword match)", file=sys.stderr)
                 continue
             
-            # Filter out all-day events that are more than 30 days in the future
+            # Filter out all-day events
             is_all_day = 'dateTime' not in e['start']
             if is_all_day:
-                try:
-                    # All-day dates are YYYY-MM-DD
-                    event_date = datetime.strptime(start, "%Y-%m-%d").date()
-                    days_ahead = (event_date - now.date()).days
-                    if days_ahead > 30:
-                        print(f"DEBUG: Skipping '{summary}' (all-day event >30 days ahead)", file=sys.stderr)
-                        continue
-                except Exception as ex:
-                    print(f"DEBUG: Error parsing all-day date {start} for '{summary}': {ex}", file=sys.stderr)
+                print(f"DEBUG: Skipping '{summary}' (all-day event)", file=sys.stderr)
+                continue
             
             # Simple duration calc
             try:

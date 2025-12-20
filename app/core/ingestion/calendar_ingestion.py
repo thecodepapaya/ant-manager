@@ -78,16 +78,9 @@ def get_calendar_events(days: int = 7, start_date: Optional[datetime] = None) ->
         if any(keyword in title for keyword in ['birthday', 'happy birthday', 'anniversary']):
             continue
         
-        # Filter out all-day events that are more than 30 days in the future
-        # (these are often recurring events like birthdays)
-        # Only apply this filter if the event is in the future relative to now
-        is_all_day = e.isAllDay()
-        if is_all_day:
-            days_ahead = (start_dt - now).days
-            # Skip all-day events more than 30 days in the future (relative to now)
-            # But don't filter out past events
-            if days_ahead > 30:
-                continue
+        # Filter out all-day events
+        if e.isAllDay():
+            continue
         
         duration = int((end_ts - start_ts) / 60)
         

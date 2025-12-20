@@ -31,6 +31,11 @@ def init_db() -> None:
             conn.execute("ALTER TABLE events ADD COLUMN author TEXT")
         except sqlite3.OperationalError:
             pass  # Column already exists
+        # Migration: Add title column to events if it doesn't exist
+        try:
+            conn.execute("ALTER TABLE events ADD COLUMN title TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
@@ -44,6 +49,7 @@ def upsert_event(
     timestamp_start: str,
     timestamp_end: Optional[str],
     type: str,
+    title: Optional[str] = None,
     author: Optional[str] = None,
     source: str,
     source_id: Optional[str],
@@ -52,12 +58,13 @@ def upsert_event(
     with connect() as conn:
         conn.execute(
             """
-            INSERT INTO events (id,timestamp_start,timestamp_end,type,author,source,source_id,confidence_score,created_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
+            INSERT INTO events (id,timestamp_start,timestamp_end,type,title,author,source,source_id,confidence_score,created_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(id) DO UPDATE SET
               timestamp_start=excluded.timestamp_start,
               timestamp_end=excluded.timestamp_end,
               type=excluded.type,
+              title=excluded.title,
               author=excluded.author,
               source=excluded.source,
               source_id=excluded.source_id,
@@ -68,6 +75,7 @@ def upsert_event(
                 timestamp_start,
                 timestamp_end,
                 type,
+                title,
                 author,
                 source,
                 source_id,
@@ -80,15 +88,18 @@ def upsert_event(
 
 def insert_event_if_missing(
     *,
+    event_id: Optional[str] = None,
     timestamp_start: str,
     timestamp_end: Optional[str],
     type: str,
+    title: Optional[str] = None,
     author: Optional[str] = None,
     source: str,
     source_id: Optional[str],
     confidence_score: float = 1.0,
 ) -> str:
     init_db()
+    # 1. Check if an event with this source/source_id already exists
     if source_id is not None:
         with connect() as conn:
             row = conn.execute(
@@ -98,18 +109,30 @@ def insert_event_if_missing(
             if row:
                 return str(row["id"])
 
-    event_id = new_id()
+    # 2. Check if an event with this specific primary ID already exists (e.g. SHA)
+    if event_id is not None:
+        with connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM events WHERE id=?",
+                (event_id,),
+            ).fetchone()
+            if row:
+                return str(row["id"])
+
+    # 3. Create new event
+    eid = event_id or new_id()
     upsert_event(
-        event_id=event_id,
+        event_id=eid,
         timestamp_start=timestamp_start,
         timestamp_end=timestamp_end,
         type=type,
+        title=title,
         author=author,
         source=source,
         source_id=source_id,
         confidence_score=confidence_score,
     )
-    return event_id
+    return eid
 
 
 def insert_artifact(
@@ -164,6 +187,40 @@ def add_note(content: str, timestamp: Optional[str] = None) -> str:
     return note_id
 
 
+def update_note(note_id: str, content: str, timestamp: Optional[str] = None) -> bool:
+    init_db()
+    with connect() as conn:
+        if timestamp:
+            conn.execute(
+                "UPDATE notes SET content=?, timestamp=? WHERE id=?",
+                (content, timestamp, note_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE notes SET content=? WHERE id=?",
+                (content, note_id),
+            )
+        conn.commit()
+        return True
+
+
+def delete_note(note_id: str) -> bool:
+    init_db()
+    with connect() as conn:
+        conn.execute("DELETE FROM notes WHERE id=?", (note_id,))
+        conn.commit()
+        return True
+
+
+def delete_event(event_id: str) -> bool:
+    init_db()
+    with connect() as conn:
+        # artifacts will be deleted automatically due to ON DELETE CASCADE
+        conn.execute("DELETE FROM events WHERE id=?", (event_id,))
+        conn.commit()
+        return True
+
+
 def list_notes(days: int = 30, start_iso: Optional[str] = None, end_iso: Optional[str] = None) -> List[Dict[str, Any]]:
     init_db()
     with connect() as conn:
@@ -171,7 +228,7 @@ def list_notes(days: int = 30, start_iso: Optional[str] = None, end_iso: Optiona
             rows = conn.execute(
                 """
                 SELECT * FROM notes
-                WHERE timestamp >= ? AND timestamp < ?
+                WHERE datetime(timestamp) >= datetime(?) AND datetime(timestamp) < datetime(?)
                 ORDER BY timestamp DESC
                 """,
                 (start_iso, end_iso),
@@ -180,7 +237,7 @@ def list_notes(days: int = 30, start_iso: Optional[str] = None, end_iso: Optiona
             rows = conn.execute(
                 """
                 SELECT * FROM notes
-                WHERE timestamp >= datetime('now', ?)
+                WHERE datetime(timestamp) >= datetime('now', ?)
                 ORDER BY timestamp DESC
                 """,
                 (f"-{days} days",),
@@ -191,10 +248,12 @@ def list_notes(days: int = 30, start_iso: Optional[str] = None, end_iso: Optiona
 def list_events(days: int = 7, author: Optional[str] = None) -> List[Dict[str, Any]]:
     init_db()
     with connect() as conn:
-        query = "SELECT * FROM events WHERE timestamp_start >= datetime('now', ?)"
+        query = "SELECT * FROM events WHERE datetime(timestamp_start) >= datetime('now', ?)"
         params = [f"-{days} days"]
         if author:
-            query += " AND (author IS NULL OR author = ?)"
+            # Strict filtering: if it's a git commit, it MUST match the author.
+            # Otherwise (notes, calendar), we allow NULL author.
+            query += " AND (author = ? OR (author IS NULL AND source != 'git'))"
             params.append(author)
         query += " ORDER BY timestamp_start DESC"
         rows = conn.execute(query, params).fetchall()
@@ -206,10 +265,12 @@ def list_events_between(
 ) -> List[Dict[str, Any]]:
     init_db()
     with connect() as conn:
-        query = "SELECT * FROM events WHERE timestamp_start >= ? AND timestamp_start < ?"
+        query = "SELECT * FROM events WHERE datetime(timestamp_start) >= datetime(?) AND datetime(timestamp_start) < datetime(?)"
         params = [start_iso, end_iso]
         if author:
-            query += " AND (author IS NULL OR author = ?)"
+            # Strict filtering: if it's a git commit, it MUST match the author.
+            # Otherwise (notes, calendar), we allow NULL author.
+            query += " AND (author = ? OR (author IS NULL AND source != 'git'))"
             params.append(author)
         query += " ORDER BY timestamp_start ASC"
         rows = conn.execute(query, params).fetchall()
@@ -224,11 +285,13 @@ def list_artifacts_between(
         query = """
             SELECT a.* FROM artifacts a
             JOIN events e ON e.id = a.event_id
-            WHERE e.timestamp_start >= ? AND e.timestamp_start < ?
+            WHERE datetime(e.timestamp_start) >= datetime(?) AND datetime(e.timestamp_start) < datetime(?)
         """
         params = [start_iso, end_iso]
         if author:
-            query += " AND (e.author IS NULL OR e.author = ?)"
+            # Strict filtering: if it's a git commit, it MUST match the author.
+            # Otherwise (notes, calendar), we allow NULL author.
+            query += " AND (e.author = ? OR (e.author IS NULL AND e.source != 'git'))"
             params.append(author)
         query += " ORDER BY e.timestamp_start ASC, a.created_at ASC"
         rows = conn.execute(query, params).fetchall()

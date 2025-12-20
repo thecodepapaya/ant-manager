@@ -26,6 +26,143 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     ref.invalidate(timelineProvider);
   }
 
+  Future<void> _editNote(Map<String, dynamic> note) async {
+    final noteId = note['id'].toString();
+    final result = await _showNoteDialog(
+      initialContent: note['content'].toString(),
+      initialTime: DateTime.parse(note['timestamp'].toString()),
+    );
+    if (result != null && (result['content'] as String).isNotEmpty) {
+      await widget.python.updateNote(
+        noteId,
+        result['content'] as String,
+        timestamp: result['timestamp'] as String,
+      );
+      _refresh();
+    }
+  }
+
+  Future<void> _deleteNote(String noteId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Note'),
+        content: const Text('Are you sure you want to delete this note?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await widget.python.deleteNote(noteId);
+      _refresh();
+    }
+  }
+
+  Future<Map<String, dynamic>?> _showNoteDialog({
+    String initialContent = '',
+    DateTime? initialTime,
+  }) async {
+    final controller = TextEditingController(text: initialContent);
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        DateTime selectedTime = initialTime ?? DateTime.now();
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(initialContent.isEmpty ? 'Add Note' : 'Edit Note'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: controller,
+                    maxLines: 5,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter your note content...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.clock, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Time: ${AppFormatters.formatDateTime(selectedTime.toIso8601String())}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedTime,
+                            firstDate: DateTime.now().subtract(
+                              const Duration(days: 365),
+                            ),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 1),
+                            ),
+                          );
+                          if (date != null) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(selectedTime),
+                            );
+                            if (time != null) {
+                              setState(() {
+                                selectedTime = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, {
+                    'content': controller.text.trim(),
+                    'timestamp': selectedTime.toUtc().toIso8601String(),
+                  }),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Color _getIconColor(String type, ThemeData theme) {
     if (type == 'calendar.event') {
       return Colors.blue;
@@ -69,19 +206,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Future<void> _openItem(Map<String, dynamic> item) async {
     final kind = (item['kind'] ?? '').toString();
     if (kind == 'note') {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Note'),
-          content: SelectableText((item['content'] ?? '').toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
+      await _editNote(item);
       return;
     }
 
@@ -113,6 +238,28 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final filter = ref.watch(dateFilterProvider);
     final timelineAsync = ref.watch(timelineProvider);
 
+    // Calculate counts for filters if data is available
+    int totalCount = 0;
+    int codeCount = 0;
+    int calendarCount = 0;
+    int notesCount = 0;
+
+    final itemsData = timelineAsync.value?['items'] as List?;
+    if (itemsData != null) {
+      final items = itemsData
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+      totalCount = items.length;
+      codeCount = items
+          .where((item) => (item['type'] ?? '').toString().startsWith('code.'))
+          .length;
+      calendarCount = items
+          .where((item) => item['type'] == 'calendar.event')
+          .length;
+      notesCount = items.where((item) => item['kind'] == 'note').length;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
@@ -140,13 +287,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             defaultSubtitle: 'Last 7 days',
           ),
           const SizedBox(height: 16),
-          // Filter chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 _FilterChip(
                   label: 'All',
+                  count: totalCount,
                   selected: _filter == TimelineFilter.all,
                   onSelected: () =>
                       setState(() => _filter = TimelineFilter.all),
@@ -154,6 +301,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Code',
+                  count: codeCount,
                   selected: _filter == TimelineFilter.code,
                   onSelected: () =>
                       setState(() => _filter = TimelineFilter.code),
@@ -161,6 +309,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Calendar',
+                  count: calendarCount,
                   selected: _filter == TimelineFilter.calendar,
                   onSelected: () =>
                       setState(() => _filter = TimelineFilter.calendar),
@@ -168,6 +317,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Notes',
+                  count: notesCount,
                   selected: _filter == TimelineFilter.notes,
                   onSelected: () =>
                       setState(() => _filter = TimelineFilter.notes),
@@ -221,15 +371,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
               data: (data) {
                 final itemsRaw = data['items'];
-                final items = (itemsRaw is List) ? itemsRaw : const [];
+                final items = (itemsRaw is List)
+                    ? itemsRaw
+                          .whereType<Map>()
+                          .map((e) => e.cast<String, dynamic>())
+                          .toList()
+                    : <Map<String, dynamic>>[];
 
-                final filtered = items
-                    .whereType<Map>()
-                    .map((e) => e.cast<String, dynamic>())
-                    .where(_matchesFilter)
-                    .toList();
+                final filtered = items.where(_matchesFilter).toList();
 
-                if (filtered.isEmpty) {
+                if (filtered.isEmpty && items.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -380,11 +531,56 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              Icon(
-                                LucideIcons.chevronRight,
-                                size: 18,
-                                color: Colors.grey.shade400,
-                              ),
+                              if (kind == 'note')
+                                PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    LucideIcons.moreVertical,
+                                    size: 18,
+                                  ),
+                                  color: Colors.white,
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      _editNote(item);
+                                    } else if (value == 'delete') {
+                                      _deleteNote(item['id'].toString());
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(
+                                        children: [
+                                          Icon(LucideIcons.pencil, size: 14),
+                                          SizedBox(width: 8),
+                                          Text('Edit'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            LucideIcons.trash2,
+                                            size: 14,
+                                            color: Colors.red,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Delete',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Icon(
+                                  LucideIcons.chevronRight,
+                                  size: 18,
+                                  color: Colors.grey.shade400,
+                                ),
                             ],
                           ),
                         ),
@@ -404,11 +600,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
+    required this.count,
     required this.selected,
     required this.onSelected,
   });
 
   final String label;
+  final int count;
   final bool selected;
   final VoidCallback onSelected;
 
@@ -416,7 +614,34 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ChoiceChip(
-      label: Text(label),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: selected
+                    ? theme.colorScheme.primary.withOpacity(0.2)
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
       selected: selected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(

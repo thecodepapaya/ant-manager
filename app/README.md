@@ -4,7 +4,7 @@ AntManager is a **local-first** macOS desktop app that helps you keep an evidenc
 
 - Git commits (automatic)
 - Manual notes (fast, lightweight)
-- Local LLM summaries via Ollama (optional; falls back to deterministic output if Ollama is not running)
+- LLM summaries via Ollama, Gemini, or OpenAI (optional; falls back to deterministic output if the provider is not reachable)
 
 ## Quick start (dev)
 
