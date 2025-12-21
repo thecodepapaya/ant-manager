@@ -1,1 +1,23 @@
-{"flutter":{"platforms":{"macos":{"default":{"projectId":"ant-manager-papaya","appId":"1:407231777528:ios:cc0ac9282aa30aed1d890d","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"ant-manager-papaya","configurations":{"macos":"1:407231777528:ios:cc0ac9282aa30aed1d890d","windows":"1:407231777528:web:8e4dda86b3235b551d890d"}}}}}}
+{
+    "flutter": {
+        "platforms": {
+            "macos": {
+                "default": {
+                    "projectId": "ant-manager-papaya",
+                    "appId": "1:407231777528:ios:cc0ac9282aa30aed1d890d",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "macos/Runner/GoogleService-Info.plist"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "ant-manager-papaya",
+                    "configurations": {
+                        "macos": "1:407231777528:ios:cc0ac9282aa30aed1d890d",
+                        "windows": "1:407231777528:web:8e4dda86b3235b551d890d"
+                    }
+                }
+            }
+        }
+    }
+}

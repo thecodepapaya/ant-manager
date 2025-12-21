@@ -1,6 +1,14 @@
-# AntManager
+# Ant Manager
 
-AntManager is a local-first macOS desktop application designed to help developers and professionals maintain an evidence-backed timeline of their work. It automates the collection of activity from various sources and uses Large Language Models (LLMs) to generate meaningful daily/weekly narratives and "Wins" lists.
+Ant Manager is a local-first macOS desktop application designed to help developers and professionals maintain an evidence-backed timeline of their work. It automates the collection of activity from various sources and uses Large Language Models (LLMs) to generate meaningful daily/weekly narratives and "Wins" lists.
+
+## Philosophy
+
+Ant Manager is inspired by how ants work: small, steady contributions that add up over time.
+Much of human work feels similar — meaningful effort that is hard to articulate in the moment, but becomes clear in hindsight.
+
+
+Read the full philosophy here: [PHILOSOPHY.md](./PHILOSOPHY.md)
 
 ## 🚀 Key Features
 
@@ -89,7 +97,7 @@ Sources:       Ingestors:          Processing:        Storage:
 
 ## 📊 Data Model
 
-AntManager uses a relational SQLite schema designed for flexibility across different work sources.
+Ant Manager uses a relational SQLite schema designed for flexibility across different work sources.
 
 ### Event vs. Evidence
 While often used interchangeably in the UI, they have distinct technical meanings:
@@ -147,5 +155,5 @@ Tracks friction points identified in the workflow.
 
 ## 📋 Overall View
 
-AntManager bridges the gap between raw technical activity (commits) and human-readable work reporting. It is designed for individuals who want to keep a better record of their contributions with minimal manual effort, while retaining full control over their data.
+Ant Manager bridges the gap between raw technical activity (commits) and human-readable work reporting. It is designed for individuals who want to keep a better record of their contributions with minimal manual effort, while retaining full control over their data.
 
