@@ -9,6 +9,8 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] Decide the **bundle ID** (e.g. `com.<you>.antmanager`). It's used by signing, OAuth redirects and keychain entries, so it's hard to change later.
 - [ ] Host **appcast feeds** (GitHub Releases works; or under the `web/` site via Cloudflare). Confirm which domain.
 - [ ] Generate a **Sparkle EdDSA key pair** for update signing and store the private key in CI secrets. (I'll give you the command.)
+- [ ] **Protect release tags:** GitHub → Settings → Rules → add a tag ruleset for `v*` so only you can create them. Every `v*` tag publishes a public release ([RELEASE.md](./RELEASE.md)).
+- [ ] **Cut the first release** when ready: bump `app/pubspec.yaml`, tag `vX.Y.Z`, push ([RELEASE.md](./RELEASE.md)).
 
 ## Google Calendar
 - [ ] Create a **Google Cloud project**, enable the Calendar API.
@@ -25,6 +27,7 @@ None of these block development; placeholders are used until each is done. Tick 
 ## Testing infrastructure
 - [ ] **GitHub Enterprise Server** trial licence (or access to a real GHES instance) for self-hosted testing.
 - [ ] Test accounts: Linear workspace, Jira Cloud site, an Outlook / M365 account (for its ICS link) and a Google account with sample calendar data.
+- [ ] **Smoke-test the unsigned installers** from a CI build on a real Windows 10/11 PC and a Linux desktop (install, launch, tray icon). CI builds them but can't run them.
 - [ ] (GitLab self-managed: I'll run GitLab CE in Docker. Nothing needed from you.)
 
 ## Content & legal

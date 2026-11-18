@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.47.9
+
+jobs:
+  test:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # Desktop plugin build deps (tray, secure storage, hotkeys, notifications).
+      - name: Install Linux desktop deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev \
+            libayatana-appindicator3-dev libsecret-1-dev libkeybinder-3.0-dev libnotify-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Pub get (workspace)
+        run: flutter pub get
+
+      - name: Generated code is committed
+        working-directory: packages/core
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          if [ -n "$(git status --porcelain -- .)" ]; then
+            git status --porcelain -- .
+            git diff -- .
+            echo "::error::Generated code is out of date. Run build_runner in packages/core and commit the result."
+            exit 1
+          fi
+
+      - name: core - analyze
+        run: dart analyze packages/core
+
+      - name: core - test
+        working-directory: packages/core
+        run: dart test --exclude-tags live
+
+      - name: ui - analyze
+        working-directory: packages/ui
+        run: flutter analyze
+
+      - name: ui - test
+        working-directory: packages/ui
+        run: if [ -d test ]; then flutter test; else echo "No tests in packages/ui, skipping"; fi
+
+      - name: ui - design tokens check
+        run: |
+          if [ -f packages/ui/tool/check_tokens.dart ]; then
+            dart run packages/ui/tool/check_tokens.dart
+          else
+            echo "packages/ui/tool/check_tokens.dart not present, skipping"
+          fi
+
+      - name: app - analyze
+        working-directory: app
+        run: flutter analyze
+
+      - name: app - test
+        working-directory: app
+        run: if [ -d test ]; then flutter test; else echo "No tests in app, skipping"; fi
