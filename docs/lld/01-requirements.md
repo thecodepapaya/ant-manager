@@ -17,7 +17,7 @@ Sources ──► EVIDENCE ──► NARRATIVE ──► tool layer ──► Re
 | Term | Meaning |
 |---|---|
 | **Evidence** | Any captured record of work: commit, PR/review, calendar event, note (text or screenshot + optional link), etc. Notes can be added for any day, including past days. |
-| **Fact** | One typed statement in the Narrative, citing ≥ 1 evidence item. Types: **Workstream, Outcome, Problem solved, Invisible work, Hiccup, Decision, Time allocation**. Labelled *model-inferred* or *user-confirmed*; time facts are *measured* or *estimated*. |
+| **Fact** | One typed statement in the Narrative, citing ≥ 1 evidence item. Types: **Outcome, Problem solved, Invisible work, Hiccup, Decision, Time allocation**. Facts are grouped into **Workstreams** (an entity, see 02-entities). Labelled *model-inferred* or *user-confirmed*; time facts are *measured* or *estimated*. |
 | **Narrative** | The set of all facts for a profile: the defensible, continuously maintained model of the work. Answers "what did I work on, which projects, what invisible work, what problems were solved, where did time go, what went wrong". |
 | **Report** | A read-only rendering of the Narrative for a period (daily, weekly, monthly, quarterly or custom) through a template. Can be locked. A "review doc" is a quarterly or custom report with a review template. |
 | **Win** | An Outcome fact or starred evidence in the Wins log, including model suggestions the user accepted. |
@@ -86,7 +86,6 @@ These must fit the core abstractions without changing them. The extensibility st
 
 ## Open points
 
-- **Regenerate with a style instruction** ("shorter", "less jargon"): it changes wording only, never facts. Keep it?
-  Assumed **yes**; confirm.
+- ~~Regenerate with a style instruction~~: **resolved, yes** (wording only, stored on the snapshot; see 02-entities).
 - Revisit N5's memory budget once there's a running build.
 - The mockup predates this pivot (it shows editable reports and no facts view). It's still valid as design language only.
