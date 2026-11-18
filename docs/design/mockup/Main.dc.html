@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ant Manager — App window</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:var(--bg)}
+a{color:var(--accent-text)}a:hover{color:var(--accent-text-hover)}
+.app{position:relative;display:flex;flex-wrap:wrap;min-height:960px;width:100%;background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:13px;line-height:1.45;letter-spacing:-0.003em}
+.app button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0;text-align:left}
+.side{flex:1 1 224px;background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px;gap:2px;box-sizing:border-box}
+.main{flex:999 1 560px;min-width:0;display:flex;flex-direction:column}
+.nav{display:flex;align-items:center;gap:10px;padding:0 10px;height:32px;border-radius:var(--r-md);color:var(--text-soft);width:100%;box-sizing:border-box}
+.nav:hover{background:var(--hover);color:var(--text)}
+.nav.on{background:var(--active);color:var(--text)}
+.nav .count{margin-left:auto;font-size:11px;color:var(--muted)}
+.topbar{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap;box-sizing:border-box}
+.h1{font-size:15px;font-weight:600;letter-spacing:-0.01em}
+.h2{font-size:13px;font-weight:600}
+.muted{color:var(--muted)}
+.soft{color:var(--text-soft)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:var(--r-md);border:1px solid var(--border-strong);background:var(--raised);color:var(--text);font-size:12.5px;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--active)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--text-soft)}
+.btn.ghost:hover{background:var(--chip-bg);color:var(--text)}
+.kbd{font-family:var(--font-mono);font-size:10.5px;padding:1px 5px;border:1px solid var(--border-stronger);border-radius:var(--r-xs);color:var(--muted);line-height:16px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl)}
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:var(--r-sm);background:var(--chip-bg);color:var(--text-soft);font-size:11.5px;border:1px solid var(--border-subtle);white-space:nowrap}
+.chip.on{background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--accent-text);border-color:color-mix(in srgb, var(--accent) 40%, transparent)}
+.chip.ok{color:var(--success-text);background:color-mix(in srgb, var(--success) 10%, transparent);border-color:color-mix(in srgb, var(--success) 30%, transparent)}
+.chip.warn{color:var(--accent-text);background:color-mix(in srgb, var(--accent) 10%, transparent);border-color:color-mix(in srgb, var(--accent) 30%, transparent)}
+.chip.err{color:var(--danger-text);background:color-mix(in srgb, var(--danger) 10%, transparent);border-color:color-mix(in srgb, var(--danger) 30%, transparent)}
+.cite{display:inline-flex;align-items:center;height:20px;padding:0 6px;margin:0 2px;border-radius:var(--r-xs);background:var(--chip-bg);border:1px solid var(--border-strong);color:var(--text-3);font-family:var(--font-mono);font-size:10.5px;vertical-align:1px}
+.cite:hover{border-color:var(--accent);color:var(--accent-text)}
+.ev{display:flex;gap:12px;align-items:flex-start;padding:9px 10px;border-radius:var(--r-lg)}
+.ev:hover{background:var(--hover)}
+.ev.is-hl{background:color-mix(in srgb, var(--accent) 9%, transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent)}
+.ev.is-hidden{opacity:.55}
+.ev .acts{display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.ev:hover .acts,.ev.is-hl .acts{opacity:1}
+.ibtn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-md);color:var(--muted)}
+.ibtn:hover{background:var(--border);color:var(--text)}
+.kind{width:26px;height:26px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;flex:0 0 26px;background:var(--chip-bg);border:1px solid var(--border-subtle)}
+.mono{font-family:var(--font-mono);font-size:11.5px}
+.label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.annot{margin-top:6px;padding:6px 10px;border-radius:var(--r-md);background:var(--surface-2);border:1px dashed var(--border-stronger);color:var(--text-3);font-size:12px}
+.prose{font-size:13.5px;line-height:1.6;color:var(--text-2)}
+.prose h4{margin:18px 0 6px;font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.prose ul{margin:0;padding-left:18px}
+.prose li{margin:4px 0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 8px}
+.menu{position:absolute;z-index:20;background:var(--raised);border:1px solid var(--border-stronger);border-radius:var(--r-lg);padding:4px;box-shadow:var(--shadow);min-width:220px}
+.mi{display:flex;align-items:center;gap:10px;width:100%;height:32px;padding:0 10px;border-radius:var(--r-sm);box-sizing:border-box;color:var(--text-2)}
+.mi:hover{background:var(--border);color:var(--text)}
+.mi .kbd{margin-left:auto}
+.tabs{display:flex;gap:2px;padding:3px;background:var(--surface-sunken);border:1px solid var(--border);border-radius:var(--r-lg)}
+.tab{height:26px;padding:0 12px;border-radius:var(--r-sm);color:var(--text-soft);font-size:12.5px;font-weight:500}
+.tab:hover{color:var(--text)}
+.tab.on{background:var(--border);color:var(--text)}
+.input{height:32px;border:1px solid var(--border-strong);background:var(--input-bg);border-radius:var(--r-md);color:var(--text);padding:0 10px;font:inherit;font-size:13px;box-sizing:border-box;width:100%}
+.input::placeholder{color:var(--placeholder)}
+.input:focus{outline:none;border-color:var(--accent)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.row{display:flex;align-items:center;gap:10px}
+.toast{position:absolute;right:24px;bottom:24px;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--active);border:1px solid var(--border-stronger);border-radius:var(--r-lg);box-shadow:var(--shadow);font-size:12.5px}
+.sw{width:30px;height:18px;border-radius:9px;background:var(--border-stronger);position:relative;flex:0 0 30px}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text)}
+.sw.on{background:var(--accent)}
+.sw.on::after{left:14px;background:var(--on-accent)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:16px}
+.card:hover{border-color:var(--border-strong)}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl td,.tbl th{padding:9px 12px;border-bottom:1px solid var(--divider);text-align:left;vertical-align:middle}
+.tbl th{font-weight:500;color:var(--muted);font-size:11.5px}
+.sel{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 10px;border:1px solid var(--border-strong);border-radius:var(--r-md);background:var(--surface-sunken);color:var(--text-2);font-size:12.5px}
+.bar{width:7px;border-radius:2px;background:var(--border-stronger)}
+.seg{height:6px;border-radius:3px}
+</style>
+</helmet>
+
+<div class="app ant" data-theme="{{theme}}" style="{{themeVars}}">
+
+<!-- ============ SIDEBAR ============ -->
+<nav class="side" aria-label="Main">
+  <div style="position: relative">
+    <button class="nav" style="height: 40px; margin-bottom: 6px" onClick="{{toggleProfile}}" aria-label="Switch profile">
+      <span style="width: 24px; height: 24px; border-radius: var(--r-md); background: var(--text); display: flex; align-items: center; justify-content: center; flex: 0 0 24px">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="7.5" cy="16" rx="4" ry="3" transform="rotate(-40 7.5 16)" fill="var(--bg)"></ellipse><circle cx="12.2" cy="11.6" r="1.6" fill="var(--bg)"></circle><circle cx="15.8" cy="8.2" r="2.6" fill="var(--bg)"></circle><path d="M16.5 5.8l1-3M18 7.4l3-.8M11 10.3l-3-1.8M13.4 13l1.2 3.4" stroke="var(--bg)" stroke-width="1.3" stroke-linecap="round" fill="none"></path></svg>
+      </span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2">
+        <span style="font-weight: 600; color: var(--text)">{{profileName}}</span>
+        <span style="font-size: 11px; color: var(--muted)">Ant Manager</span>
+      </span>
+      <svg style="margin-left: auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"></path></svg>
+    </button>
+    <sc-if value="{{profileOpen}}" hint-placeholder-val="{{ false }}">
+      <div class="menu" style="top: 44px; left: 0; width: 100%">
+        <div class="label" style="padding: 6px 10px">Profiles</div>
+        <sc-for list="{{profiles}}" as="p" hint-placeholder-count="2">
+          <button class="mi" onClick="{{p.pick}}"><span class="dot" style="background: {{p.color}}"></span>{{p.name}}<span class="kbd">{{p.key}}</span></button>
+        </sc-for>
+        <div style="height: 1px; background: var(--border-subtle); margin: 4px 0"></div>
+        <button class="mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New profile…</button>
+      </div>
+    </sc-if>
+  </div>
+
+  <button class="{{nav.today}}" onClick="{{go.today}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"></path></svg>Today<span class="count">9</span></button>
+  <button class="{{nav.timeline}}" onClick="{{go.timeline}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>Timeline</button>
+  <button class="{{nav.narratives}}" onClick="{{go.narratives}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"></path><path d="M9 11h7M9 15h7M9 7h3"></path></svg>Narratives<span class="count">1 draft</span></button>
+  <button class="{{nav.wins}}" onClick="{{go.wins}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8-4.3-4.1 5.9-.8z"></path></svg>Wins<span class="count" style="color: var(--accent-text)">{{pendingWins}} new</span></button>
+  <button class="{{nav.projects}}" onClick="{{go.projects}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Projects</button>
+  <button class="{{nav.reviews}}" onClick="{{go.reviews}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18H6z"></path><path d="M9 13l2 2 4-4"></path></svg>Reviews</button>
+
+  <div style="flex: 1; min-height: 24px"></div>
+
+  <button class="{{nav.sources}}" onClick="{{go.sources}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"></path></svg>Sources<span class="count"><span class="dot" style="background: var(--accent); width: 6px; height: 6px; flex-basis: 6px" aria-label="1 warning"></span></span></button>
+  <button class="{{nav.settings}}" onClick="{{go.settings}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"></path></svg>Settings</button>
+  <div style="display: flex; align-items: center; gap: 8px; padding: 10px; margin-top: 6px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted)">
+    <span class="dot" style="background: var(--success); width: 6px; height: 6px; flex-basis: 6px"></span>Synced 2 min ago · Backup 02:00
+  </div>
+</nav>
+
+<!-- ============ MAIN ============ -->
+<main class="main">
+
+<!-- ===== TODAY ===== -->
+<sc-if value="{{screen.today}}" hint-placeholder-val="{{ true }}">
+  <header class="topbar">
+    <div class="row" style="gap: 4px">
+      <button class="ibtn" onClick="{{prevDay}}" aria-label="Previous day"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+      <button class="ibtn" onClick="{{nextDay}}" aria-label="Next day"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+    <div style="display: flex; flex-direction: column; line-height: 1.25">
+      <span class="h1">{{day.label}}</span>
+      <span class="muted" style="font-size: 11.5px">{{day.sub}}</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"></path></svg>Sync</button>
+    <button class="btn"><span class="soft">Commands</span><span class="kbd">⌘K</span></button>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+    <!-- evidence column -->
+    <section style="flex: 1 1 520px; min-width: 0; padding: 18px 20px 40px; border-right: 1px solid var(--border); box-sizing: border-box" aria-label="Evidence">
+      <div style="display: flex; gap: 8px; margin-bottom: 18px">
+        <label class="sr" for="noteInput">Add a note</label>
+        <input id="noteInput" class="input" placeholder="Add a note to this day — blockers, context, offline work…">
+        <button class="btn"><span>Add</span><span class="kbd">⏎</span></button>
+      </div>
+
+      <div class="row" style="margin-bottom: 10px; gap: 8px; flex-wrap: wrap">
+        <span class="label">Evidence</span>
+        <span class="muted" style="font-size: 12px">{{stats}}</span>
+        <div style="flex: 1"></div>
+        <button class="btn ghost" style="height: 26px; font-size: 12px" onClick="{{toggleShowHidden}}">{{hiddenLabel}}</button>
+      </div>
+
+      <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+        <div style="margin-bottom: 14px">
+          <div class="row" style="padding: 6px 10px; gap: 8px">
+            <span class="dot" style="background: {{g.color}}"></span>
+            <span class="h2">{{g.name}}</span>
+            <span class="muted" style="font-size: 12px">{{g.count}}</span>
+          </div>
+          <sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+            <div class="{{it.rowCls}}">
+              <div class="kind" style="color: {{it.tint}}">
+                <sc-if value="{{it.isCommit}}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-label="Commit" role="img"><circle cx="12" cy="12" r="3.2"></circle><path d="M3 12h5.8M15.2 12H21"></path></svg></sc-if>
+                <sc-if value="{{it.isPR}}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-label="Pull request" role="img"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="18" r="2.5"></circle><path d="M6 8.5v7M18 15.5V9a3 3 0 0 0-3-3h-4"></path></svg></sc-if>
+                <sc-if value="{{it.isTicket}}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Ticket" role="img"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8.5 12.5l2.5 2.5 4.5-5"></path></svg></sc-if>
+                <sc-if value="{{it.isMeeting}}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-label="Meeting" role="img"><rect x="3.5" y="5" width="17" height="15" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg></sc-if>
+                <sc-if value="{{it.isNote}}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Note" role="img"><path d="M5 4h10l4 4v12H5z"></path><path d="M9 12h6M9 16h4"></path></svg></sc-if>
+              </div>
+              <div style="flex: 1; min-width: 0">
+                <div class="row" style="gap: 8px">
+                  <span style="color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{it.title}}</span>
+                  <sc-if value="{{it.starred}}" hint-placeholder-val="{{ false }}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--accent)" aria-label="Starred" role="img" style="flex: 0 0 13px"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8-4.3-4.1 5.9-.8z"></path></svg>
+                  </sc-if>
+                </div>
+                <div class="muted" style="font-size: 12px; margin-top: 2px">{{it.meta}}</div>
+                <sc-if value="{{it.hasRule}}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 11.5px; color: var(--muted); margin-top: 4px">Hidden by rule · {{it.rule}}</div>
+                </sc-if>
+                <sc-if value="{{it.hasNote}}" hint-placeholder-val="{{ false }}">
+                  <div class="annot"><span style="color: var(--muted)">Your note · </span>{{it.annotation}}</div>
+                </sc-if>
+              </div>
+              <span class="mono muted" style="padding-top: 4px">{{it.time}}</span>
+              <div class="acts">
+                <button class="ibtn" onClick="{{it.toggleStar}}" aria-label="{{it.starLabel}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8-4.3-4.1 5.9-.8z"></path></svg></button>
+                <button class="ibtn" onClick="{{it.annotate}}" aria-label="Annotate"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg></button>
+                <button class="ibtn" onClick="{{it.toggleHide}}" aria-label="{{it.hideLabel}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 6.1A9.9 9.9 0 0 1 12 6c5 0 9 6 9 6a16 16 0 0 1-2.6 3.2M6.3 7.6A16 16 0 0 0 3 12s4 6 9 6a9 9 0 0 0 4.2-1"></path></svg></button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </section>
+
+    <!-- draft column -->
+    <section style="flex: 1 1 440px; min-width: 0; padding: 18px 24px 40px; box-sizing: border-box; position: relative" aria-label="Daily narrative">
+      <div class="row" style="flex-wrap: wrap; gap: 8px; margin-bottom: 14px">
+        <span class="label">Daily narrative</span>
+        <span class="{{draftChipCls}}">{{draftStatus}}</span>
+        <div style="flex: 1"></div>
+        <button class="sel" aria-label="Template">Manager update<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      </div>
+
+      <div class="row" style="gap: 6px; margin-bottom: 16px; flex-wrap: wrap; position: relative">
+        <button class="btn" onClick="{{toggleEdit}}">{{editLabel}}</button>
+        <button class="btn" onClick="{{toggleRegen}}"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>Regenerate</button>
+        <button class="btn primary" onClick="{{toggleShare}}">Share<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div style="flex: 1"></div>
+        <span class="muted" style="font-size: 11.5px">Sonnet 5.5 · OpenRouter · 18:00</span>
+        <sc-if value="{{shareOpen}}" hint-placeholder-val="{{ false }}">
+          <div class="menu" style="top: 36px; left: 150px">
+            <sc-for list="{{shareFormats}}" as="f" hint-placeholder-count="4">
+              <button class="mi" onClick="{{f.pick}}">{{f.name}}<span class="kbd">{{f.key}}</span></button>
+            </sc-for>
+            <div style="height: 1px; background: var(--border-subtle); margin: 4px 0"></div>
+            <div style="padding: 4px 10px 6px; font-size: 11px; color: var(--muted)">Default: Slack · change in Settings</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{regenOpen}}" hint-placeholder-val="{{ false }}">
+          <div class="menu" style="top: 36px; left: 60px; width: 340px; padding: 12px">
+            <label for="regenInput" style="display: block; font-size: 12px; color: var(--text-soft); margin-bottom: 6px">Instruction (optional)</label>
+            <input id="regenInput" class="input" placeholder="e.g. shorter, focus on checkout, more impact">
+            <div class="row" style="margin-top: 10px; gap: 6px; flex-wrap: wrap">
+              <span class="chip">Shorter</span><span class="chip">More impact</span><span class="chip">Less jargon</span>
+            </div>
+            <div class="row" style="margin-top: 12px; justify-content: flex-end; gap: 6px">
+              <button class="btn ghost" onClick="{{toggleRegen}}">Cancel</button>
+              <button class="btn primary" onClick="{{regenerate}}">Regenerate</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{editing}}" hint-placeholder-val="{{ false }}">
+        <div class="row" style="padding: 8px 12px; margin-bottom: 12px; border-radius: var(--r-md); background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); font-size: 12px; color: var(--accent-text)">
+          Editing — saving your changes locks this draft from scheduled regeneration.
+        </div>
+      </sc-if>
+
+      <sc-if value="{{regenerating}}" hint-placeholder-val="{{ false }}">
+        <div class="panel" style="padding: 16px; margin-bottom: 12px">
+          <div class="row" style="gap: 8px; color: var(--accent-text); font-size: 12.5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>Streaming from Sonnet 5.5…</div>
+          <div style="margin-top: 10px; height: 8px; width: 80%; border-radius: var(--r-xs); background: var(--border)"></div>
+          <div style="margin-top: 8px; height: 8px; width: 64%; border-radius: var(--r-xs); background: var(--border)"></div>
+        </div>
+      </sc-if>
+
+      <article class="prose" style="{{proseStyle}}">
+        <p style="margin: 0 0 4px; color: var(--text); font-size: 14.5px; font-weight: 500">Shipped retry-safe payment confirmation for Checkout v2 and unblocked CI for three teams.</p>
+        <sc-for list="{{draft}}" as="sec" hint-placeholder-count="3">
+          <h4><span class="dot" style="background: {{sec.color}}"></span>{{sec.title}}</h4>
+          <ul>
+            <sc-for list="{{sec.bullets}}" as="b" hint-placeholder-count="2">
+              <li>{{b.text}}<sc-for list="{{b.cites}}" as="c" hint-placeholder-count="1"><button class="cite" onClick="{{c.go}}" aria-label="Show evidence {{c.label}}">{{c.label}}</button></sc-for></li>
+            </sc-for>
+          </ul>
+        </sc-for>
+      </article>
+
+      <sc-if value="{{showWinSuggest}}" hint-placeholder-val="{{ true }}">
+        <div class="panel" style="margin-top: 22px; padding: 14px 16px; border-color: color-mix(in srgb, var(--accent) 35%, transparent); background: linear-gradient(0deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 5%, transparent)), var(--surface)">
+          <div class="row" style="gap: 8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent)" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8-4.3-4.1 5.9-.8z"></path></svg><span class="label" style="color: var(--accent-text)">Suggested win</span></div>
+          <div style="margin: 6px 0 10px; color: var(--text); font-weight: 500">Eliminated duplicate charges in checkout with idempotent payment confirmation</div>
+          <div class="row" style="gap: 6px; flex-wrap: wrap">
+            <span class="cite">PR #482</span><span class="cite">PAY-311</span>
+            <div style="flex: 1"></div>
+            <button class="btn ghost" onClick="{{dismissWin}}">Dismiss</button>
+            <button class="btn" onClick="{{acceptWin}}">Add to Wins log</button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{winAccepted}}" hint-placeholder-val="{{ false }}">
+        <div class="row" style="margin-top: 22px; gap: 8px; font-size: 12.5px; color: var(--success-text)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Added to your Wins log</div>
+      </sc-if>
+    </section>
+  </div>
+</sc-if>
+
+<!-- ===== TIMELINE ===== -->
+<sc-if value="{{screen.timeline}}" hint-placeholder-val="{{ false }}">
+  <header class="topbar">
+    <span class="h1">Timeline</span>
+    <div class="row" style="gap: 6px; flex-wrap: wrap">
+      <span class="chip on">All</span><span class="chip">Commits</span><span class="chip">PRs &amp; reviews</span><span class="chip">Tickets</span><span class="chip">Meetings</span><span class="chip">Notes</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="sel">Last 7 days<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    <button class="sel">All projects<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+  </header>
+  <div style="padding: 12px 24px 40px; max-width: 980px; box-sizing: border-box">
+    <sc-for list="{{timeline}}" as="d" hint-placeholder-count="3">
+      <div class="row" style="padding: 16px 10px 6px; gap: 10px"><span class="h2">{{d.day}}</span><span class="muted" style="font-size: 12px">{{d.summary}}</span></div>
+      <sc-for list="{{d.items}}" as="t" hint-placeholder-count="3">
+        <div class="ev">
+          <span class="mono muted" style="width: 44px; padding-top: 2px">{{t.time}}</span>
+          <span class="dot" style="background: {{t.color}}; margin-top: 6px"></span>
+          <div style="flex: 1; min-width: 0"><span style="color: var(--text)">{{t.title}}</span> <span class="muted" style="font-size: 12px">· {{t.meta}}</span></div>
+          <span class="chip">{{t.source}}</span>
+        </div>
+      </sc-for>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- ===== NARRATIVES ===== -->
+<sc-if value="{{screen.narratives}}" hint-placeholder-val="{{ false }}">
+  <header class="topbar">
+    <span class="h1">Narratives</span>
+    <div class="tabs" role="tablist">
+      <sc-for list="{{periodTabs}}" as="pt" hint-placeholder-count="4">
+        <button class="{{pt.cls}}" role="tab" onClick="{{pt.pick}}">{{pt.name}}</button>
+      </sc-for>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>Generate now</button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <div style="flex: 1 1 240px; max-width: 300px; border-right: 1px solid var(--border); padding: 12px 10px; box-sizing: border-box">
+      <sc-for list="{{nar.list}}" as="li" hint-placeholder-count="5">
+        <button class="{{li.cls}}" style="height: auto; padding: 8px 10px; flex-direction: column; align-items: flex-start; gap: 2px">
+          <span style="color: var(--text); font-weight: 500">{{li.name}}</span>
+          <span style="font-size: 11.5px; color: var(--muted)">{{li.status}}</span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="flex: 999 1 480px; min-width: 0; padding: 22px 32px 48px; box-sizing: border-box; max-width: 860px">
+      <div class="row" style="flex-wrap: wrap; gap: 8px">
+        <span class="h1" style="font-size: 20px">{{nar.title}}</span>
+        <span class="{{nar.chipCls}}">{{nar.chip}}</span>
+        <div style="flex: 1"></div>
+        <button class="sel">{{nar.template}}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <button class="btn primary">Share<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      </div>
+
+      <div class="panel" style="margin: 16px 0 22px; padding: 12px 14px">
+        <div class="row" style="gap: 8px; margin-bottom: 8px"><span class="label">Built from</span><span class="muted" style="font-size: 12px">{{nar.provenance}}</span></div>
+        <div style="display: flex; gap: 3px">
+          <sc-for list="{{nar.segs}}" as="sg" hint-placeholder-count="7">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0">
+              <div class="seg" style="background: {{sg.color}}"></div>
+              <span style="font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{sg.label}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div class="row" style="gap: 14px; margin-top: 10px; font-size: 11.5px; color: var(--muted); flex-wrap: wrap">
+          <span class="row" style="gap: 6px"><span class="seg" style="width: 14px; background: var(--accent)"></span>Edited narrative (your words carry forward)</span>
+          <span class="row" style="gap: 6px"><span class="seg" style="width: 14px; background: var(--info)"></span>Generated narrative</span>
+          <span class="row" style="gap: 6px"><span class="seg" style="width: 14px; background: var(--raw)"></span>Raw evidence (no narrative)</span>
+        </div>
+      </div>
+
+      <sc-if value="{{nar.empty}}" hint-placeholder-val="{{ false }}">
+        <div class="panel" style="padding: 28px; text-align: center">
+          <div class="h2">Nothing generated for this range yet</div>
+          <div class="muted" style="margin: 6px 0 14px">It will be built from 2 monthlies, 2 weeklies and 31 starred items.</div>
+          <button class="btn primary">Generate custom narrative</button>
+        </div>
+      </sc-if>
+      <article class="prose">
+        <sc-for list="{{nar.sections}}" as="sec" hint-placeholder-count="3">
+          <h4>{{sec.title}}</h4>
+          <ul>
+            <sc-for list="{{sec.bullets}}" as="b" hint-placeholder-count="2">
+              <li>{{b.text}}<sc-for list="{{b.cites}}" as="c" hint-placeholder-count="1"><span class="cite">{{c}}</span></sc-for></li>
+            </sc-for>
+          </ul>
+        </sc-for>
+      </article>
+      <div class="row" style="margin-top: 26px; gap: 8px; font-size: 11.5px; color: var(--muted)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+        {{nar.history}}
+        <a href="#" style="margin-left: 4px">View history</a>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===== WINS ===== -->
+<sc-if value="{{screen.wins}}" hint-placeholder-val="{{ false }}">
+  <header class="topbar">
+    <span class="h1">Wins log</span>
+    <span class="muted" style="font-size: 12px">{{winsCount}} wins · Q4 2026</span>
+    <div style="flex: 1"></div>
+    <div class="row" style="gap: 6px; flex-wrap: wrap">
+      <span class="chip">This month</span><span class="chip on">This quarter</span><span class="chip">This year</span><span class="chip">All time</span>
+    </div>
+    <button class="sel">All projects<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    <button class="btn" onClick="{{go.reviews}}">Use in review</button>
+  </header>
+  <div style="padding: 20px 24px 48px; max-width: 980px; box-sizing: border-box">
+    <sc-if value="{{hasSuggestions}}" hint-placeholder-val="{{ true }}">
+      <div class="row" style="gap: 8px; margin-bottom: 10px"><svg width="13" height="13" viewBox="0 0 24 24" fill="var(--accent)" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg><span class="label" style="color: var(--accent-text)">Suggested by the model</span><span class="muted" style="font-size: 12px">Accept to add to the log. Nothing is added without you.</span></div>
+      <div class="panel" style="border-color: color-mix(in srgb, var(--accent) 30%, transparent); margin-bottom: 28px">
+        <sc-for list="{{suggestions}}" as="s" hint-placeholder-count="3">
+          <div class="row" style="padding: 12px 16px; border-bottom: 1px solid var(--divider); gap: 12px; flex-wrap: wrap">
+            <span class="dot" style="background: {{s.color}}"></span>
+            <div style="flex: 1 1 320px; min-width: 0">
+              <div style="color: var(--text); font-weight: 500">{{s.title}}</div>
+              <div class="muted" style="font-size: 12px; margin-top: 2px">{{s.project}} · {{s.date}} · {{s.why}}</div>
+            </div>
+            <span class="muted" style="font-size: 12px">{{s.sources}}</span>
+            <button class="btn ghost" onClick="{{s.dismiss}}">Dismiss</button>
+            <button class="btn" onClick="{{s.accept}}">Accept</button>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-for list="{{winGroups}}" as="wg" hint-placeholder-count="2">
+      <div class="row" style="gap: 10px; margin: 6px 0 8px"><span class="h2">{{wg.month}}</span><span class="muted" style="font-size: 12px">{{wg.count}}</span></div>
+      <div style="margin-bottom: 24px">
+        <sc-for list="{{wg.items}}" as="w" hint-placeholder-count="3">
+          <div class="ev" style="padding: 12px 10px; border-bottom: 1px solid var(--divider)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent)" aria-hidden="true" style="margin-top: 2px; flex: 0 0 15px"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8-4.3-4.1 5.9-.8z"></path></svg>
+            <div style="flex: 1; min-width: 0">
+              <div style="color: var(--text); font-weight: 500">{{w.title}}</div>
+              <div class="row" style="gap: 8px; margin-top: 5px; flex-wrap: wrap">
+                <span class="chip"><span class="dot" style="background: {{w.color}}; width: 6px; height: 6px; flex-basis: 6px"></span>{{w.project}}</span>
+                <span class="muted" style="font-size: 12px">{{w.date}} · {{w.sources}} · {{w.origin}}</span>
+              </div>
+            </div>
+            <span class="{{w.newCls}}">{{w.newLabel}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- ===== PROJECTS ===== -->
+<sc-if value="{{screen.projects}}" hint-placeholder-val="{{ false }}">
+  <header class="topbar">
+    <span class="h1">Projects</span>
+    <span class="muted" style="font-size: 12px">Evidence is grouped automatically; you confirm.</span>
+    <div style="flex: 1"></div>
+    <button class="btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New project</button>
+  </header>
+  <div style="padding: 20px 24px 48px; box-sizing: border-box">
+    <div class="panel" style="padding: 14px 16px; margin-bottom: 20px; border-style: dashed; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent)" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>
+      <div style="flex: 1 1 300px"><span style="color: var(--text); font-weight: 500">New project detected: “Refunds API”</span><div class="muted" style="font-size: 12px">23 items since Nov 3 from repo refunds-svc and Jira label refunds</div></div>
+      <button class="btn ghost">Ignore</button><button class="btn">Merge into Checkout v2</button><button class="btn primary">Create project</button>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px">
+      <sc-for list="{{projects}}" as="p" hint-placeholder-count="4">
+        <div class="card">
+          <div class="row" style="gap: 8px"><span class="dot" style="background: {{p.color}}"></span><span class="h2" style="font-size: 14px">{{p.name}}</span><div style="flex: 1"></div><span class="muted" style="font-size: 12px">{{p.status}}</span></div>
+          <div style="display: flex; align-items: flex-end; gap: 4px; height: 44px; margin: 16px 0 6px" aria-label="Activity, last 12 weeks" role="img">
+            <sc-for list="{{p.bars}}" as="h" hint-placeholder-count="12"><div class="bar" style="height: {{h.h}}; background: {{h.c}}"></div></sc-for>
+          </div>
+          <div class="muted" style="font-size: 11px; margin-bottom: 12px">Activity · last 12 weeks</div>
+          <div class="row" style="gap: 16px; font-size: 12px; margin-bottom: 12px"><span><b style="color: var(--text)">{{p.items}}</b> <span class="muted">items</span></span><span><b style="color: var(--text)">{{p.wins}}</b> <span class="muted">wins</span></span></div>
+          <div style="display: flex; gap: 5px; flex-wrap: wrap">
+            <sc-for list="{{p.rules}}" as="r" hint-placeholder-count="3"><span class="chip mono" style="font-size: 10.5px">{{r}}</span></sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===== REVIEWS ===== -->
+<sc-if value="{{screen.reviews}}" hint-placeholder-val="{{ false }}">
+  <header class="topbar">
+    <span class="h1">Reviews</span>
+    <span class="muted" style="font-size: 12px">Self-reviews and brag docs built from your Wins log and narratives</span>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; gap: 20px; padding: 20px 24px 48px; box-sizing: border-box">
+    <div style="flex: 1 1 380px; min-width: 0">
+      <span class="label">Your reviews</span>
+      <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px">
+        <div class="card">
+          <div class="row" style="gap: 8px"><span class="h2" style="font-size: 14px">H2 2026 self-review</span><span class="chip warn">Draft</span><div style="flex: 1"></div><span class="muted" style="font-size: 12px">Edited 2 h ago</span></div>
+          <div class="muted" style="font-size: 12px; margin-top: 6px">Jul 1 – Dec 31 · Self-review template · 4 projects · 17 wins · 212 citations</div>
+          <div class="row" style="gap: 6px; margin-top: 12px"><button class="btn">Open</button><button class="btn ghost">Export ▾</button></div>
+        </div>
+        <div class="card">
+          <div class="row" style="gap: 8px"><span class="h2" style="font-size: 14px">Q3 2026 brag doc</span><span class="chip ok">Exported</span><div style="flex: 1"></div><span class="muted" style="font-size: 12px">PDF · Oct 3</span></div>
+          <div class="muted" style="font-size: 12px; margin-top: 6px">Jul 1 – Sep 30 · Brag doc template · 11 wins · 96 citations</div>
+          <div class="row" style="gap: 6px; margin-top: 12px"><button class="btn">Open</button><button class="btn ghost">Export ▾</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="flex: 1 1 360px; padding: 18px; align-self: flex-start">
+      <div class="h2" style="font-size: 14px; margin-bottom: 14px">New review</div>
+      <div class="label" style="margin-bottom: 6px">Range</div>
+      <div class="row" style="gap: 6px; flex-wrap: wrap; margin-bottom: 16px"><span class="chip">This quarter</span><span class="chip on">H2 2026</span><span class="chip">This year</span><span class="chip">Custom…</span></div>
+      <div class="label" style="margin-bottom: 6px">Template</div>
+      <div class="row" style="gap: 6px; flex-wrap: wrap; margin-bottom: 16px"><span class="chip on">Self-review</span><span class="chip">Brag doc</span><span class="chip">Promotion packet</span></div>
+      <div class="label" style="margin-bottom: 8px">Include</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; font-size: 12.5px">
+        <div class="row"><span class="sw on"></span>Wins log (17 wins)</div>
+        <div class="row"><span class="sw on"></span>Monthly &amp; weekly narratives</div>
+        <div class="row"><span class="sw on"></span>Group by project</div>
+        <div class="row"><span class="sw"></span>Raw evidence appendix</div>
+      </div>
+      <button class="btn primary" style="width: 100%; justify-content: center; height: 34px">Generate draft</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===== SOURCES ===== -->
+<sc-if value="{{screen.sources}}" hint-placeholder-val="{{ false }}">
+  <header class="topbar">
+    <span class="h1">Sources</span>
+    <span class="muted" style="font-size: 12px">Work profile · syncs every 30 min while the tray app runs</span>
+    <div style="flex: 1"></div>
+    <button class="btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add source</button>
+  </header>
+  <div style="padding: 20px 24px 48px; box-sizing: border-box">
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px">
+      <sc-for list="{{sources}}" as="s" hint-placeholder-count="9">
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <div class="row" style="gap: 10px">
+            <span style="width: 30px; height: 30px; border-radius: var(--r-md); background: var(--chip-bg); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; color: var(--text-2)">{{s.glyph}}</span>
+            <div style="flex: 1; min-width: 0"><div style="color: var(--text); font-weight: 500">{{s.name}}</div><div class="muted" style="font-size: 11.5px">{{s.host}}</div></div>
+            <span class="{{s.chipCls}}">{{s.status}}</span>
+          </div>
+          <div class="soft" style="font-size: 12px">{{s.detail}}</div>
+          <div class="row" style="gap: 6px"><button class="btn" style="height: 26px; font-size: 12px">{{s.action}}</button><span class="muted" style="font-size: 11.5px">{{s.last}}</span></div>
+        </div>
+      </sc-for>
+    </div>
+    <div class="panel" style="margin-top: 16px; padding: 18px; border-style: dashed; text-align: center">
+      <div class="h2">Drop meeting transcripts here</div>
+      <div class="muted" style="font-size: 12px; margin-top: 4px">.vtt · .srt · .txt — matched to the overlapping calendar event and summarized</div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===== SETTINGS ===== -->
+<sc-if value="{{screen.settings}}" hint-placeholder-val="{{ false }}">
+  <header class="topbar">
+    <span class="h1">Settings</span>
+    <div class="tabs" role="tablist">
+      <sc-for list="{{settingsTabs}}" as="st" hint-placeholder-count="3">
+        <button class="{{st.cls}}" role="tab" onClick="{{st.pick}}">{{st.name}}</button>
+      </sc-for>
+    </div>
+  </header>
+
+  <sc-if value="{{set.ai}}" hint-placeholder-val="{{ true }}">
+    <div style="padding: 20px 24px 48px; max-width: 980px; box-sizing: border-box">
+      <span class="label">Providers</span>
+      <div class="panel" style="margin: 10px 0 26px">
+        <sc-for list="{{providers}}" as="pv" hint-placeholder-count="6">
+          <div class="row" style="padding: 11px 16px; border-bottom: 1px solid var(--divider); gap: 12px; flex-wrap: wrap">
+            <span style="width: 150px; color: var(--text); font-weight: 500">{{pv.name}}</span>
+            <span class="muted" style="flex: 1 1 260px; font-size: 12px">{{pv.detail}}</span>
+            <span class="{{pv.chipCls}}">{{pv.status}}</span>
+            <button class="btn" style="height: 26px; font-size: 12px">{{pv.action}}</button>
+          </div>
+        </sc-for>
+      </div>
+      <div class="row" style="gap: 8px"><span class="label">Model per task</span><span class="muted" style="font-size: 12px">Leave a task on “Default” to follow the default model</span></div>
+      <div class="panel" style="margin-top: 10px; overflow-x: auto">
+        <table class="tbl">
+          <thead><tr><th>Task</th><th>Model</th><th>Provider</th><th>Est. cost / run</th></tr></thead>
+          <tbody>
+            <sc-for list="{{routing}}" as="r" hint-placeholder-count="7">
+              <tr><td style="color: var(--text)">{{r.task}}</td><td><span class="sel">{{r.model}}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></td><td class="muted">{{r.provider}}</td><td class="mono muted">{{r.cost}}</td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top: 14px; gap: 8px; font-size: 12px; color: var(--muted)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16v.5"></path></svg>Cloud providers receive full evidence, including diffs and meeting details. Local models keep everything on this machine.</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{set.schedule}}" hint-placeholder-val="{{ false }}">
+    <div style="padding: 20px 24px 48px; max-width: 760px; box-sizing: border-box">
+      <div class="panel">
+        <sc-for list="{{scheduleRows}}" as="sr" hint-placeholder-count="6">
+          <div class="row" style="padding: 14px 16px; border-bottom: 1px solid var(--divider); gap: 12px; flex-wrap: wrap">
+            <div style="flex: 1 1 280px"><div style="color: var(--text); font-weight: 500">{{sr.name}}</div><div class="muted" style="font-size: 12px">{{sr.hint}}</div></div>
+            <span class="sel">{{sr.value}}</span>
+            <span class="{{sr.sw}}" aria-hidden="true"></span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{set.backup}}" hint-placeholder-val="{{ false }}">
+    <div style="padding: 20px 24px 48px; max-width: 980px; box-sizing: border-box">
+      <div class="row" style="gap: 10px; flex-wrap: wrap; margin-bottom: 18px">
+        <div style="flex: 1 1 300px"><div class="h2" style="font-size: 14px">Backups</div><div class="muted" style="font-size: 12px">Last successful backup: today 02:00 · 3 destinations · 18.4 MB</div></div>
+        <button class="btn">Restore…</button>
+        <button class="btn primary" onClick="{{backupNow}}">Back up now</button>
+      </div>
+      <span class="label">Destinations</span>
+      <div class="panel" style="margin: 10px 0 24px">
+        <sc-for list="{{destinations}}" as="d" hint-placeholder-count="3">
+          <div class="row" style="padding: 12px 16px; border-bottom: 1px solid var(--divider); gap: 12px; flex-wrap: wrap">
+            <span style="width: 30px; height: 30px; border-radius: var(--r-md); background: var(--chip-bg); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px">{{d.glyph}}</span>
+            <div style="flex: 1 1 260px; min-width: 0"><div style="color: var(--text); font-weight: 500">{{d.name}}</div><div class="muted mono" style="font-size: 11px">{{d.path}}</div></div>
+            <span class="{{d.chipCls}}">{{d.status}}</span>
+            <button class="btn ghost" style="height: 26px; font-size: 12px">Edit</button>
+          </div>
+        </sc-for>
+        <div style="padding: 10px 16px"><button class="btn ghost" style="height: 28px; font-size: 12px">+ Add destination · Local folder, Google Drive, OneDrive, Dropbox, WebDAV, S3</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px">
+        <div class="card"><div class="label" style="margin-bottom: 8px">Schedule</div><div style="color: var(--text)">Daily at 02:00</div><div class="muted" style="font-size: 12px; margin-top: 4px">Missed runs catch up on next launch</div></div>
+        <div class="card"><div class="label" style="margin-bottom: 8px">Keep</div><div style="color: var(--text)">7 daily · 4 weekly · 12 monthly</div><div class="muted" style="font-size: 12px; margin-top: 4px">Warn if no backup for 3 days</div></div>
+        <div class="card"><div class="label" style="margin-bottom: 8px">Contents</div><div class="row" style="font-size: 12.5px"><span class="sw on"></span>Readable Markdown/JSON export too</div><div class="muted" style="font-size: 12px; margin-top: 6px">API keys &amp; sign-ins are never included</div></div>
+      </div>
+      <div class="row" style="margin-top: 16px; padding: 10px 14px; border-radius: var(--r-lg); background: color-mix(in srgb, var(--accent) 8%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); gap: 10px; font-size: 12px; color: var(--accent-text)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4M12 17v.5"></path></svg>Backups are not encrypted. Cloud destinations will hold your full evidence, including code diffs and meeting details.</div>
+    </div>
+  </sc-if>
+</sc-if>
+
+</main>
+
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{ false }}">
+  <div class="toast" role="status"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success-text)" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{toast}}</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark","section":"Design tokens"},"accent":{"editor":"color","default":"#E8A54B","options":["#E8A54B","#7FA8E8","#6CC28C","#B3A3F0"],"section":"Design tokens"},"radius":{"editor":"range","min":0,"max":14,"step":1,"unit":"px","default":6,"section":"Design tokens"},"startScreen":{"editor":"enum","options":["today","timeline","narratives","wins","projects","reviews","sources","settings"],"default":"today"},"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      screen: null, profile: 'Work', profileOpen: false,
+      starred: {}, hidden: {}, notes: {}, showHidden: false, hl: null,
+      shareOpen: false, regenOpen: false, regenerating: false, editing: false, edited: false,
+      todayWin: null, dayIdx: 2, period: 'weekly', setTab: 'ai', winStatus: {}, toast: ''
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); clearTimeout(this._r); }
+  flash(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: msg });
+    this._t = setTimeout(() => this.setState({ toast: '' }), 2200);
+  }
+  /* Design tokens live in ./tokens.css (single source of truth).
+     This artboard only overrides the two brand knobs from its Tweaks. */
+  tokenOverrides() {
+    const r = this.props.radius ?? 6;
+    return '--accent:' + (this.props.accent ?? '#E8A54B') + ';--radius:' + r + 'px';
+  }
+  renderVals() {
+    const s = this.state;
+    const scr = s.screen || this.props.startScreen || 'today';
+    const names = ['today','timeline','narratives','wins','projects','reviews','sources','settings'];
+    const screen = {}, nav = {}, go = {};
+    names.forEach(n => {
+      screen[n] = scr === n;
+      nav[n] = 'nav' + (scr === n ? ' on' : '');
+      go[n] = () => this.setState({ screen: n, profileOpen: false, shareOpen: false, regenOpen: false });
+    });
+
+    /* ---------- Today ---------- */
+    const P = {
+      checkout: { name: 'Checkout v2', color: '#E8A54B' },
+      rel: { name: 'Platform reliability', color: '#7FA8E8' },
+      hiring: { name: 'Hiring', color: '#6CC28C' },
+      other: { name: 'Unsorted', color: '#8F8A81' }
+    };
+    const T = { commit: 'var(--text-3)', pr: 'var(--purple)', ticket: 'var(--info)', meeting: 'var(--success)', note: 'var(--accent)' };
+    const raw = [
+      { id: 'e1', p: 'checkout', k: 'commit', title: 'feat(checkout): idempotency keys for payment intents', meta: 'payments-web · a41c9e2 · +184 −37', time: '10:42' },
+      { id: 'e2', p: 'checkout', k: 'meeting', title: 'Checkout v2 design review', meta: '11:00–11:45 · 6 people · transcript attached', time: '11:00' },
+      { id: 'e3', p: 'checkout', k: 'pr', title: 'Retry-safe payment confirmation', meta: 'payments-web #482 · merged · 2 approvals', time: '15:10', star: true },
+      { id: 'e4', p: 'checkout', k: 'ticket', title: 'PAY-311 Duplicate charge on double-click', meta: 'Jira · In review → Done', time: '15:24' },
+      { id: 'x2', p: 'checkout', k: 'commit', title: "Merge branch 'main' into checkout-v2", meta: 'payments-web · 0f3d1aa', time: '15:31', hide: true, rule: 'merge commits' },
+      { id: 'n1', p: 'checkout', k: 'note', title: 'Paired with Priya on refund edge cases', meta: 'Note · she owns the follow-up ticket', time: '17:20' },
+      { id: 'r1', p: 'rel', k: 'pr', title: 'Pin runner image to fix flaky e2e', meta: 'infra-ci #1290 · you reviewed · approved with 3 comments', time: '16:05' },
+      { id: 'r2', p: 'rel', k: 'commit', title: 'ci: quarantine 4 flaky checkout specs', meta: 'infra-ci · 7be20d1 · +22 −3', time: '16:40', note: 'The flaky suite had blocked merges for 3 teams since Friday.' },
+      { id: 'h1', p: 'hiring', k: 'meeting', title: 'Interview: Senior Backend, loop 2', meta: '13:00–14:00 · Google Calendar', time: '13:00' },
+      { id: 'x1', p: 'other', k: 'meeting', title: 'Lunch', meta: '12:30–13:00 · Apple Calendar', time: '12:30', hide: true, rule: 'events titled “Lunch”' }
+    ];
+    const isHidden = i => (s.hidden[i.id] !== undefined ? s.hidden[i.id] : !!i.hide);
+    const isStar = i => (s.starred[i.id] !== undefined ? s.starred[i.id] : !!i.star);
+    const noteOf = i => (s.notes[i.id] !== undefined ? s.notes[i.id] : i.note);
+    const deco = i => {
+      const h = isHidden(i), st = isStar(i), n = noteOf(i);
+      return {
+        ...i, tint: T[i.k],
+        isCommit: i.k === 'commit', isPR: i.k === 'pr', isTicket: i.k === 'ticket', isMeeting: i.k === 'meeting', isNote: i.k === 'note',
+        starred: st, starLabel: st ? 'Unstar' : 'Star as win',
+        hideLabel: h ? 'Unhide' : 'Hide from narratives',
+        hasRule: h && !!i.rule, hasNote: !!n, annotation: n,
+        rowCls: 'ev' + (h ? ' is-hidden' : '') + (s.hl === i.id ? ' is-hl' : ''),
+        toggleStar: () => { this.setState({ starred: { ...s.starred, [i.id]: !st } }); this.flash(st ? 'Unstarred' : 'Starred — always included and added to Wins'); },
+        toggleHide: () => { this.setState({ hidden: { ...s.hidden, [i.id]: !h } }); this.flash(h ? 'Included again' : 'Hidden from narratives'); },
+        annotate: () => { if (!n) { this.setState({ notes: { ...s.notes, [i.id]: 'Context the data can’t show — the model will see this.' } }); } }
+      };
+    };
+    const groups = ['checkout', 'rel', 'hiring', 'other'].map(pid => {
+      const items = raw.filter(i => i.p === pid && (s.showHidden || !isHidden(i))).map(deco);
+      return { ...P[pid], items, count: items.length + (items.length === 1 ? ' item' : ' items') };
+    }).filter(g => g.items.length);
+    const hiddenCount = raw.filter(isHidden).length;
+    const visible = raw.length - hiddenCount;
+    const days = [
+      { label: 'Mon, Nov 16', sub: 'Reviewed · narrative edited by you' },
+      { label: 'Tue, Nov 17', sub: 'Reviewed · narrative generated' },
+      { label: 'Today · Wed, Nov 18', sub: 'Work profile · last sync 2 min ago' }
+    ];
+    const hl = id => () => { this.setState({ hl: id, showHidden: s.showHidden }); };
+    const draft = [
+      { title: 'Checkout v2', color: '#E8A54B', bullets: [
+        { text: 'Merged idempotency keys for payment intents, closing the duplicate-charge bug. ', cites: [{ label: 'PR #482', go: hl('e3') }, { label: 'PAY-311', go: hl('e4') }, { label: 'a41c9e2', go: hl('e1') }] },
+        { text: 'Led the v2 design review; agreed to ship behind a 10% rollout flag. ', cites: [{ label: 'Design review', go: hl('e2') }] },
+        { text: 'Paired on refund edge cases; follow-up owned by Priya. ', cites: [{ label: 'Note', go: hl('n1') }] }
+      ] },
+      { title: 'Platform reliability', color: '#7FA8E8', bullets: [
+        { text: 'Quarantined 4 flaky checkout specs that had blocked merges for three teams since Friday. ', cites: [{ label: '7be20d1', go: hl('r2') }] },
+        { text: 'Reviewed the runner-image pin for flaky e2e runs. ', cites: [{ label: '#1290', go: hl('r1') }] }
+      ] },
+      { title: 'Hiring', color: '#6CC28C', bullets: [
+        { text: 'Interviewed a Senior Backend candidate (loop 2). ', cites: [{ label: 'Interview', go: hl('h1') }] }
+      ] }
+    ];
+    const shareFormats = [
+      { name: 'Copy for Slack', key: '⌘⇧C' }, { name: 'Copy as rich text (email, Docs)', key: '' },
+      { name: 'Copy as Markdown', key: '' }, { name: 'Export PDF…', key: '' }
+    ].map(f => ({ ...f, pick: () => { this.setState({ shareOpen: false }); this.flash(f.name.replace('…', '') + ' — done'); } }));
+
+    /* ---------- Narratives ---------- */
+    const NAR = {
+      daily: {
+        title: 'Tue, Nov 17', chip: 'Generated 18:00', chipCls: 'chip', template: 'Manager update',
+        provenance: '9 evidence items · 1 starred · 1 annotation',
+        segs: [{ label: 'Raw evidence', color: 'var(--raw)' }],
+        list: [['Wed, Nov 18', 'Draft · 18:00'], ['Tue, Nov 17', 'Generated'], ['Mon, Nov 16', 'Edited · locked'], ['Fri, Nov 13', 'Edited · locked'], ['Thu, Nov 12', 'Generated']],
+        sections: [{ title: 'Checkout v2', bullets: [{ text: 'Shipped retry-safe payment confirmation and closed the duplicate-charge bug.', cites: ['PR #482', 'PAY-311'] }] }, { title: 'Platform reliability', bullets: [{ text: 'Unblocked CI for three teams by quarantining flaky specs.', cites: ['7be20d1'] }] }],
+        history: '2 versions'
+      },
+      weekly: {
+        title: 'Week 46 · Nov 9 – 15', chip: 'Edited by you · locked', chipCls: 'chip on', template: 'Weekly review',
+        provenance: '3 edited dailies · 2 generated dailies · 6 starred items · 4 annotations · raw evidence for Sat–Sun',
+        segs: [['Mon · edited', 'var(--accent)'], ['Tue · generated', 'var(--info)'], ['Wed · edited', 'var(--accent)'], ['Thu · generated', 'var(--info)'], ['Fri · edited', 'var(--accent)'], ['Sat · raw', 'var(--raw)'], ['Sun · raw', 'var(--raw)']].map(x => ({ label: x[0], color: x[1] })),
+        list: [['Week 47 · Nov 16 – 22', 'In progress · auto Mon 09:00'], ['Week 46 · Nov 9 – 15', 'Edited · locked'], ['Week 45 · Nov 2 – 8', 'Generated'], ['Week 44 · Oct 26 – Nov 1', 'Edited · locked']],
+        sections: [
+          { title: 'Highlights', bullets: [{ text: 'Cut checkout p95 latency from 820 ms to 410 ms by batching fraud checks.', cites: ['PR #471', 'Mon note'] }, { text: 'Drove Checkout v2 API contract to sign-off with Payments and Mobile.', cites: ['Design sync', 'PAY-298'] }] },
+          { title: 'Checkout v2', bullets: [{ text: 'Landed fraud-check batching and the new payment-intent schema (4 PRs).', cites: ['#471', '#474', '#476', '#479'] }, { text: 'Wrote the rollout plan: 10% → 50% → 100% over two weeks.', cites: ['Doc', 'Wed daily'] }] },
+          { title: 'Platform reliability', bullets: [{ text: 'Reviewed 6 CI PRs; paired on runner caching with the infra team.', cites: ['6 reviews'] }] },
+          { title: 'Next week', bullets: [{ text: 'Ship idempotent confirmation; start the 10% rollout.', cites: ['PAY-311'] }] }
+        ],
+        history: '3 versions · last edited Mon 09:42'
+      },
+      monthly: {
+        title: 'October 2026', chip: 'Generated Nov 1', chipCls: 'chip', template: 'Monthly recap',
+        provenance: '4 weeklies (2 edited) · 14 starred items · Wins log entries for October',
+        segs: [['Wk 40 · edited', 'var(--accent)'], ['Wk 41 · generated', 'var(--info)'], ['Wk 42 · edited', 'var(--accent)'], ['Wk 43 · generated', 'var(--info)']].map(x => ({ label: x[0], color: x[1] })),
+        list: [['November 2026', 'In progress'], ['October 2026', 'Generated'], ['September 2026', 'Edited · locked'], ['August 2026', 'Generated']],
+        sections: [
+          { title: 'Highlights', bullets: [{ text: 'Migrated CI to ephemeral runners; median queue time down 38%.', cites: ['INFRA-88', '9 PRs'] }, { text: 'Wrote and presented the Oct 4 payments incident review.', cites: ['Doc', 'Postmortem'] }] },
+          { title: 'Hiring', bullets: [{ text: 'Ran 9 interview loops; 2 offers accepted.', cites: ['9 meetings'] }] }
+        ],
+        history: '1 version'
+      },
+      custom: {
+        title: 'Sep 1 – Nov 15, 2026', chip: 'Not generated', chipCls: 'chip', template: 'Manager update', empty: true,
+        provenance: 'September & October monthlies · weeks 45–46 · 31 starred items',
+        segs: [['Sep · edited', 'var(--accent)'], ['Oct · generated', 'var(--info)'], ['Wk 45 · generated', 'var(--info)'], ['Wk 46 · edited', 'var(--accent)']].map(x => ({ label: x[0], color: x[1] })),
+        list: [['Sep 1 – Nov 15', 'Not generated'], ['Q3 2026 (custom)', 'Edited · locked']],
+        sections: [], history: 'No versions yet'
+      }
+    };
+    const cur = NAR[s.period];
+    const nar = {
+      ...cur, empty: !!cur.empty,
+      list: cur.list.map((l, i) => ({ name: l[0], status: l[1], cls: 'nav' + (i === (s.period === 'weekly' ? 1 : s.period === 'monthly' ? 1 : s.period === 'daily' ? 1 : 0) ? ' on' : '') }))
+    };
+    const periodTabs = [['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['custom', 'Custom']].map(t => ({ name: t[1], cls: 'tab' + (s.period === t[0] ? ' on' : ''), pick: () => this.setState({ period: t[0] }) }));
+
+    /* ---------- Wins ---------- */
+    const SUG = [
+      { id: 's1', title: 'Unblocked merges for 3 teams by quarantining flaky checkout specs', project: 'Platform reliability', color: '#7FA8E8', date: 'Nov 17', why: 'cross-team impact', sources: '2 sources' },
+      { id: 's2', title: 'Cut checkout p95 latency from 820 ms to 410 ms', project: 'Checkout v2', color: '#E8A54B', date: 'Nov 12', why: 'measurable result', sources: '3 sources' },
+      { id: 's3', title: 'Onboarded 2 new engineers to the payments codebase', project: 'Checkout v2', color: '#E8A54B', date: 'Nov 6', why: 'mentoring', sources: '5 sources' }
+    ];
+    const pending = SUG.filter(x => !s.winStatus[x.id]);
+    const accepted = SUG.filter(x => s.winStatus[x.id] === 'accepted');
+    const suggestions = pending.map(x => ({
+      ...x,
+      accept: () => { this.setState({ winStatus: { ...s.winStatus, [x.id]: 'accepted' } }); this.flash('Added to Wins log'); },
+      dismiss: () => this.setState({ winStatus: { ...s.winStatus, [x.id]: 'dismissed' } })
+    }));
+    const todayWinItem = s.todayWin === 'accepted' ? [{ title: 'Eliminated duplicate charges in checkout with idempotent payment confirmation', project: 'Checkout v2', color: '#E8A54B', date: 'Nov 18', sources: '2 sources', origin: 'suggested · accepted', isNew: true }] : [];
+    const nov = todayWinItem.concat(accepted.map(x => ({ title: x.title, project: x.project, color: x.color, date: x.date, sources: x.sources, origin: 'suggested · accepted', isNew: true })), [
+      { title: 'Shipped retry-safe payment confirmation — no duplicate charges since rollout', project: 'Checkout v2', color: '#E8A54B', date: 'Nov 17', sources: '3 sources', origin: 'starred' },
+      { title: 'Led Checkout v2 design review to sign-off across Payments and Mobile', project: 'Checkout v2', color: '#E8A54B', date: 'Nov 11', sources: '4 sources', origin: 'starred' }
+    ]);
+    const oct = [
+      { title: 'Migrated CI to ephemeral runners — median queue time down 38%', project: 'Platform reliability', color: '#7FA8E8', date: 'Oct 22', sources: '9 sources', origin: 'suggested · accepted' },
+      { title: 'Ran 9 interview loops; 2 offers accepted', project: 'Hiring', color: '#6CC28C', date: 'Oct 31', sources: '9 sources', origin: 'starred' },
+      { title: 'Wrote and presented the Oct 4 payments incident review', project: 'Checkout v2', color: '#E8A54B', date: 'Oct 7', sources: '3 sources', origin: 'starred' }
+    ];
+    const dec = w => ({ ...w, newCls: w.isNew ? 'chip ok' : 'chip', newLabel: w.isNew ? 'New' : 'Edit' });
+    const winGroups = [
+      { month: 'November', count: nov.length + ' wins', items: nov.map(dec) },
+      { month: 'October', count: oct.length + ' wins', items: oct.map(dec) }
+    ];
+
+    /* ---------- Projects ---------- */
+    const mkBars = (arr, c) => arr.map(v => ({ h: v + 'px', c }));
+    const projects = [
+      { name: 'Checkout v2', color: '#E8A54B', status: 'Active', items: 142, wins: 11, bars: mkBars([8, 12, 18, 14, 22, 30, 26, 34, 40, 36, 42, 38], '#E8A54B'), rules: ['repo: payments-web', 'repo: payments-api', 'jira: PAY', 'calendar: “checkout”'] },
+      { name: 'Platform reliability', color: '#7FA8E8', status: 'Active', items: 88, wins: 4, bars: mkBars([20, 24, 30, 28, 18, 14, 10, 12, 16, 10, 14, 20], '#7FA8E8'), rules: ['repo: infra-ci', 'linear: INFRA', 'reviews on infra-*'] },
+      { name: 'Hiring', color: '#6CC28C', status: 'Ongoing', items: 31, wins: 2, bars: mkBars([6, 8, 4, 10, 12, 8, 6, 14, 10, 8, 12, 6], '#6CC28C'), rules: ['calendar: “Interview”', 'calendar: “Debrief”'] },
+      { name: 'Payments incident · Oct 4', color: '#E8796B', status: 'Archived', items: 19, wins: 1, bars: mkBars([2, 2, 2, 2, 2, 36, 18, 4, 2, 2, 2, 2], '#E8796B'), rules: ['jira: INC-212', 'manual'] }
+    ];
+
+    /* ---------- Sources ---------- */
+    const sources = [
+      { glyph: 'git', name: 'Local git', host: 'git 2.47.1 · Homebrew', status: 'Connected', chipCls: 'chip ok', detail: '14 repos under ~/Projects and ~/work · 2 new repos suggested', action: 'Manage repos', last: 'Synced 2 min ago' },
+      { glyph: 'GH', name: 'GitHub', host: 'github.com', status: 'Connected', chipCls: 'chip ok', detail: 'PRs, reviews, issues for @you across 3 orgs', action: 'Settings', last: 'Synced 2 min ago' },
+      { glyph: 'GH', name: 'GitHub Enterprise', host: 'github.acme.internal · custom CA trusted', status: 'Connected', chipCls: 'chip ok', detail: 'PRs and reviews · 2 orgs', action: 'Settings', last: 'Synced 3 min ago' },
+      { glyph: 'GL', name: 'GitLab', host: 'gitlab.com or self-managed', status: 'Not connected', chipCls: 'chip', detail: 'Merge requests, approvals, comments, issues', action: 'Connect', last: '' },
+      { glyph: 'G', name: 'Google Calendar', host: 'you@acme.com', status: 'Connected', chipCls: 'chip ok', detail: '2 calendars · events you attended', action: 'Settings', last: 'Synced 5 min ago' },
+      { glyph: '', name: 'Apple Calendar', host: 'Calendar.app · macOS', status: 'Connected', chipCls: 'chip ok', detail: 'Personal + iCloud calendars', action: 'Settings', last: 'Live' },
+      { glyph: 'O', name: 'Outlook / Microsoft 365', host: 'Microsoft Graph', status: 'Not connected', chipCls: 'chip', detail: 'Calendar events via sign-in', action: 'Connect', last: '' },
+      { glyph: 'ics', name: 'ICS feed', host: '1 feed · on-call rota', status: 'Connected', chipCls: 'chip ok', detail: 'Recurring events expanded', action: 'Settings', last: 'Synced 1 h ago' },
+      { glyph: 'L', name: 'Linear', host: 'acme workspace', status: 'Connected', chipCls: 'chip ok', detail: 'Issues created, completed, commented · team INFRA', action: 'Settings', last: 'Synced 4 min ago' },
+      { glyph: 'J', name: 'Jira Data Center', host: 'jira.acme.internal · PAT', status: 'Token expires in 5 days', chipCls: 'chip warn', detail: 'Issues transitioned, commented, assigned · project PAY', action: 'Renew token', last: 'Synced 6 min ago' }
+    ];
+
+    /* ---------- Settings ---------- */
+    const settingsTabs = [['ai', 'AI models'], ['schedule', 'Schedule'], ['backup', 'Backup']].map(t => ({ name: t[1], cls: 'tab' + (s.setTab === t[0] ? ' on' : ''), pick: () => this.setState({ setTab: t[0] }) }));
+    const providers = [
+      { name: 'OpenRouter', detail: 'Key in Keychain · 312 models available', status: 'Connected', chipCls: 'chip ok', action: 'Models' },
+      { name: 'Ollama', detail: 'Detected at localhost:11434 · llama3.1:8b, qwen2.5:14b, mistral-nemo', status: 'Running', chipCls: 'chip ok', action: 'Configure' },
+      { name: 'LM Studio', detail: 'localhost:1234 — not responding', status: 'Not running', chipCls: 'chip', action: 'Retry' },
+      { name: 'Anthropic', detail: 'Direct API key', status: 'Not set', chipCls: 'chip', action: 'Add key' },
+      { name: 'OpenAI', detail: 'Direct API key', status: 'Not set', chipCls: 'chip', action: 'Add key' },
+      { name: 'Gemini', detail: 'Direct API key', status: 'Not set', chipCls: 'chip', action: 'Add key' },
+      { name: 'Custom endpoint', detail: 'Any OpenAI-compatible URL (vLLM, llama.cpp, LiteLLM…)', status: 'None', chipCls: 'chip', action: 'Add' }
+    ];
+    const routing = [
+      { task: 'Default', model: 'Sonnet 5.5', provider: 'OpenRouter', cost: '—' },
+      { task: 'Commit summaries', model: 'llama3.1:8b', provider: 'Ollama (local)', cost: 'free' },
+      { task: 'Transcript summaries', model: 'qwen2.5:14b', provider: 'Ollama (local)', cost: 'free' },
+      { task: 'Daily narrative', model: 'Default', provider: 'OpenRouter', cost: '≈ $0.01' },
+      { task: 'Weekly / Monthly', model: 'Default', provider: 'OpenRouter', cost: '≈ $0.03' },
+      { task: 'Wins suggestions', model: 'Haiku 5.5', provider: 'OpenRouter', cost: '≈ $0.002' },
+      { task: 'Review export', model: 'Opus 5.5', provider: 'OpenRouter', cost: '≈ $0.40' }
+    ];
+    const scheduleRows = [
+      { name: 'Daily narrative', hint: 'Drafted automatically from the day’s evidence', value: 'Weekdays · 18:00', sw: 'sw on' },
+      { name: 'End-of-day nudge', hint: '“Your day is drafted — 2-minute review?” · skipped on empty days', value: '18:05', sw: 'sw on' },
+      { name: 'Weekly narrative', hint: 'Rolled up from your dailies', value: 'Monday · 09:00', sw: 'sw on' },
+      { name: 'Monthly narrative', hint: 'Rolled up from weeklies', value: '1st · 09:00', sw: 'sw on' },
+      { name: 'Include weekends', hint: 'Generate and nudge on Saturday and Sunday', value: 'Off', sw: 'sw' },
+      { name: 'Source sync', hint: 'While the tray app is running', value: 'Every 30 min', sw: 'sw on' },
+      { name: 'Launch at login', hint: 'Start in the menu bar', value: 'Menu bar only', sw: 'sw on' }
+    ];
+    const destinations = [
+      { glyph: '⌂', name: 'Local folder', path: '~/Library/Mobile Documents/…/AntManager Backups', status: 'OK · 02:00', chipCls: 'chip ok' },
+      { glyph: 'G', name: 'Google Drive', path: 'My Drive / Ant Manager (app files only)', status: 'OK · 02:01', chipCls: 'chip ok' },
+      { glyph: 'S3', name: 'Cloudflare R2 (S3)', path: 's3://backups-personal/antmanager/', status: 'Failed · retrying', chipCls: 'chip err' }
+    ];
+
+    const profiles = [{ name: 'Work', color: '#E8A54B', key: '⌘1' }, { name: 'Side projects', color: '#B3A3F0', key: '⌘2' }]
+      .map(p => ({ ...p, pick: () => this.setState({ profile: p.name, profileOpen: false }) }));
+
+    const draftStatus = s.edited ? 'Edited · locked' : (s.dayIdx === 2 ? 'Draft · auto 18:00' : 'Generated');
+
+    /* ---------- Timeline ---------- */
+    const timeline = [
+      { day: 'Today · Wed, Nov 18', summary: '9 items', items: [
+        { time: '16:40', title: 'ci: quarantine 4 flaky checkout specs', meta: 'infra-ci', color: '#7FA8E8', source: 'git' },
+        { time: '16:05', title: 'Reviewed #1290 Pin runner image', meta: 'approved', color: '#7FA8E8', source: 'GitHub' },
+        { time: '15:24', title: 'PAY-311 → Done', meta: 'Duplicate charge on double-click', color: '#E8A54B', source: 'Jira' },
+        { time: '15:10', title: 'Merged #482 Retry-safe payment confirmation', meta: 'payments-web', color: '#E8A54B', source: 'GitHub' },
+        { time: '13:00', title: 'Interview: Senior Backend, loop 2', meta: '60 min', color: '#6CC28C', source: 'Google' }
+      ] },
+      { day: 'Tue, Nov 17', summary: '12 items · 1 win', items: [
+        { time: '17:55', title: 'INFRA-102 Runner cache eviction → Done', meta: 'Linear', color: '#7FA8E8', source: 'Linear' },
+        { time: '14:00', title: 'Payments × Mobile sync', meta: '45 min · transcript', color: '#E8A54B', source: 'Outlook' },
+        { time: '11:12', title: 'refactor(intents): extract retry policy', meta: 'payments-api', color: '#E8A54B', source: 'git' }
+      ] }
+    ];
+
+    return {
+      themeVars: this.tokenOverrides(), theme: this.props.theme === 'light' ? 'light' : 'dark',
+      screen, nav, go, profileName: s.profile, profileOpen: s.profileOpen, profiles,
+      toggleProfile: () => this.setState({ profileOpen: !s.profileOpen }),
+      pendingWins: pending.length + (s.todayWin ? 0 : 1),
+      /* today */
+      day: days[s.dayIdx],
+      prevDay: () => this.setState({ dayIdx: Math.max(0, s.dayIdx - 1) }),
+      nextDay: () => this.setState({ dayIdx: Math.min(2, s.dayIdx + 1) }),
+      groups, stats: visible + ' items · 3 projects · ' + hiddenCount + ' hidden',
+      hiddenLabel: s.showHidden ? 'Hide hidden items' : 'Show ' + hiddenCount + ' hidden',
+      toggleShowHidden: () => this.setState({ showHidden: !s.showHidden }),
+      draft, draftStatus, draftChipCls: s.edited ? 'chip on' : 'chip',
+      editing: s.editing, editLabel: s.editing ? 'Done editing' : 'Edit',
+      toggleEdit: () => { if (s.editing) { this.setState({ editing: false, edited: true }); this.flash('Saved · locked from scheduled regeneration'); } else { this.setState({ editing: true, shareOpen: false, regenOpen: false }); } },
+      proseStyle: s.editing ? 'outline: 1px solid #E8A54B; outline-offset: 8px; border-radius: 4px' : '',
+      shareOpen: s.shareOpen, shareFormats,
+      toggleShare: () => this.setState({ shareOpen: !s.shareOpen, regenOpen: false }),
+      regenOpen: s.regenOpen, regenerating: s.regenerating,
+      toggleRegen: () => this.setState({ regenOpen: !s.regenOpen, shareOpen: false }),
+      regenerate: () => { this.setState({ regenOpen: false, regenerating: true }); clearTimeout(this._r); this._r = setTimeout(() => { this.setState({ regenerating: false, edited: false }); this.flash('Regenerated · previous version kept in history'); }, 1600); },
+      showWinSuggest: !s.todayWin, winAccepted: s.todayWin === 'accepted',
+      acceptWin: () => { this.setState({ todayWin: 'accepted' }); this.flash('Added to Wins log'); },
+      dismissWin: () => this.setState({ todayWin: 'dismissed' }),
+      /* other screens */
+      timeline, periodTabs, nar,
+      suggestions, hasSuggestions: pending.length > 0, winGroups, winsCount: nov.length + oct.length,
+      projects, sources, settingsTabs,
+      set: { ai: s.setTab === 'ai', schedule: s.setTab === 'schedule', backup: s.setTab === 'backup' },
+      providers, routing, scheduleRows, destinations,
+      backupNow: () => this.flash('Backed up to 3 destinations · 18.4 MB'),
+      hasToast: !!s.toast, toast: s.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

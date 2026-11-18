@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ant Manager — Quick capture</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.qc button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.kbd{font-family:var(--font-mono);font-size:10.5px;padding:1px 5px;border:1px solid var(--border-stronger);border-radius:var(--r-xs);color:var(--muted);line-height:16px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:var(--r-sm);background:var(--chip-bg);color:var(--text-soft);font-size:11.5px;border:1px solid var(--border-subtle)}
+.chip.on{color:var(--accent-text);background:color-mix(in srgb, var(--accent) 14%, transparent);border-color:color-mix(in srgb, var(--accent) 40%, transparent)}
+.ta{width:100%;min-height:110px;resize:none;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;line-height:1.5;padding:0;box-sizing:border-box}
+.ta:focus{outline:none}
+.ta::placeholder{color:var(--placeholder)}
+</style>
+</helmet>
+<div class="ant" data-theme="{{theme}}" style="width: 640px; height: 340px; box-sizing: border-box; padding: 40px 30px; background: var(--bg-sidebar)">
+  <div class="qc" style="height: 260px; box-sizing: border-box; display: flex; flex-direction: column; background: var(--raised); border: 1px solid var(--border-stronger); border-radius: var(--r-xl); box-shadow: var(--shadow); font-size: 13px">
+    <div style="display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--divider)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M9 12h6M9 16h4"></path></svg>
+      <span style="font-weight: 600">Quick note</span>
+      <span style="color: var(--muted)">· Work · today 14:32</span>
+      <div style="flex: 1"></div>
+      <span class="kbd">esc</span>
+    </div>
+    <div style="flex: 1; padding: 14px 16px">
+      <label for="qcText" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Note</label>
+      <textarea id="qcText" class="ta" placeholder="What just happened? Blocker, decision, offline work…">Unblocked the mobile team on the refund webhook — they were sending the wrong idempotency header.</textarea>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-top: 1px solid var(--divider); flex-wrap: wrap">
+      <sc-for list="{{tags}}" as="t" hint-placeholder-count="3">
+        <button class="{{t.cls}}" onClick="{{t.toggle}}">{{t.name}}</button>
+      </sc-for>
+      <div style="flex: 1"></div>
+      <sc-if value="{{saved}}" hint-placeholder-val="{{ false }}"><span style="color: var(--success-text); font-size: 12px">Saved to Today</span></sc-if>
+      <button onClick="{{save}}" style="display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 500">Save <span class="kbd" style="color: var(--on-accent); border-color: color-mix(in srgb, var(--on-accent) 35%, transparent)">⌘⏎</span></button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark","section":"Design tokens"},"$preview":{"width":640,"height":340}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tags: { checkout: true }, saved: false }; }
+  componentWillUnmount() { clearTimeout(this._t); }
+  renderVals() {
+    const s = this.state;
+    const tags = [['checkout', 'Checkout v2'], ['win', '★ Mark as win'], ['blocker', 'Blocker']].map(t => ({
+      name: t[1], cls: 'chip' + (s.tags[t[0]] ? ' on' : ''),
+      toggle: () => this.setState({ tags: { ...s.tags, [t[0]]: !s.tags[t[0]] } })
+    }));
+    return {
+      theme: this.props.theme === 'light' ? 'light' : 'dark', tags, saved: s.saved,
+      save: () => { this.setState({ saved: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ saved: false }), 1800); }
+    };
+  }
+}
+</script>
+</body>
+</html>
