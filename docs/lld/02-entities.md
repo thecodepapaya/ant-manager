@@ -69,6 +69,7 @@ erDiagram
         string id PK "ULID"
         datetime occurred_start
         datetime occurred_end
+        date day "local date, profile time zone"
         string title
         string project_id FK
         bool starred
@@ -190,13 +191,13 @@ erDiagram
         string base_url
         string protocol "openai, ollama, native"
         string credential_ref
-        string network_class "private, remote"
+        string tls "custom CA, allow self-signed"
     }
     MODEL {
         string id PK
         string provider_id FK
         string model_name
-        json capabilities "vision, context_length"
+        json capabilities "vision, context_length, structured_output"
     }
     TASK_ROUTE {
         string task PK "default, vision, extraction, reports"
@@ -231,7 +232,7 @@ erDiagram
 ### Profile & identity
 | Entity | Purpose | Key attributes |
 |---|---|---|
-| **Profile** | Top-level scope (e.g. Work, Side projects). Everything below belongs to one profile. | id, name, colour, schedule settings |
+| **Profile** | Top-level scope (e.g. Work, Side projects). Everything below belongs to one profile. | id, name, colour, **time zone** (#87), schedule settings |
 | **Identity** | Decides which evidence is "mine". | profile, kind (email / github login / gitlab username / jira account…), value |
 
 ### Capture
@@ -239,7 +240,7 @@ erDiagram
 |---|---|---|
 | **Source** | A connector instance: where payloads come from. | id, profile, kind (github, github_enterprise, gitlab, google_calendar, apple_calendar, ics (incl. Outlook), git_repo, screenshot_capture, manual_note, linear, jira, transcript…), config (JSON), credential ref (keychain key), enabled |
 | **SyncCursor** | Incremental sync position per source (and sub-scope, e.g. per repo or calendar). | source, scope, cursor (opaque), last_success_at, last_error |
-| **Evidence** | A *moment of work*. Usually holds one payload; sometimes several (see grouping). | id (ULID), profile, occurred_start, occurred_end?, title, project?, starred, hidden, **importance** {score, reason, set_by: model\|user\|rule}, created_at, updated_at |
+| **Evidence** | A *moment of work*. Usually holds one payload; sometimes several (see grouping). | id (ULID), profile, occurred_start, occurred_end?, **day** (local date in the profile's time zone, set at ingest), title, project?, starred, hidden, **importance** {score, reason, set_by: model\|user\|rule}, created_at, updated_at |
 | **Payload** | One typed piece of content inside an evidence item, from exactly one source. | id, evidence, **kind**, source, **external_id**, content (typed JSON per kind), **content_hash**, **revision**, tombstoned_at? |
 | **PayloadRevision** | Append-only change log: what each payload looked like at each revision. | payload, revision, content, content_hash, observed_at, cause (sync \| user \| merge \| split) |
 | **Attachment** | Binary content (screenshots) stored on disk, referenced by a payload. | id, payload, path, mime, sha256, size |
@@ -265,8 +266,8 @@ erDiagram
 ### Models
 | Entity | Purpose | Key attributes |
 |---|---|---|
-| **Provider** | An AI endpoint: OpenRouter, OpenAI, Anthropic, Gemini, or a custom endpoint (local, LAN, remote). | id, kind, base_url, protocol (openai \| ollama \| native), credential ref, network class (private \| remote), tls options |
-| **Model** | A model offered by a provider. | provider, model_id, capabilities (vision, context length), pricing? |
+| **Provider** | An AI endpoint: OpenRouter, OpenAI, Anthropic, Gemini, or a custom endpoint (local, LAN, remote). | id, kind, base_url, protocol (openai \| ollama \| native), credential ref, tls options (custom CA / allow self-signed) |
+| **Model** | A model offered by a provider. | provider, model_id, capabilities (vision, context length, **structured output: required**, #70), pricing? |
 | **TaskRoute** | Which model handles a task. The `default` route is the global model; other tasks inherit unless overridden. | profile, task (**default \| vision \| extraction \| reports**), model? (null = inherit default) |
 
 ### Background & staleness machinery
@@ -280,7 +281,7 @@ erDiagram
 
 1. **Payload identity:** `(source, external_id)` is unique. A sync updates only its own payload and never touches other payloads on the same evidence (e.g. the user's note on a meeting).
 2. **Revisions only on meaningful change:** a new PayloadRevision is written only when `content_hash` changes, not on a re-sync or a timestamp touch.
-3. **No deletion of history:** upstream deletions **tombstone** the payload. Evidence survives while it has any live payload. Revisions are append-only.
+3. **No deletion of history:** upstream deletions **tombstone** the payload. Evidence survives while it has any live payload. Revisions are append-only. **Single exception: user "Delete permanently"** (#85), which purges an evidence item and everything derived only from it.
 4. **Every fact has ≥ 1 citation**, each pinned to a payload revision. Citations target payloads, not evidence.
 5. **Staleness is computed, never set by hand:** a derived item is stale iff any recorded input revision ≠ the current revision. Triggers enqueue recompute work atomically with the change, so an app exit can't lose it. Staleness is transitive: payload → enrichment → fact → report.
 6. **Recompute policy:** enrichments, importance and facts recompute **eagerly** (background, debounced). Reports recompute **lazily** (when opened, on schedule, or on demand) and show "out of date" until then.

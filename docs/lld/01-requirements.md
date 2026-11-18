@@ -52,9 +52,12 @@ Sources ──► EVIDENCE ──► NARRATIVE ──► tool layer ──► Re
     - Only the **active profile** runs in the background.
 11. **Profiles:** separate data, sources, identities, models and schedules per profile.
 12. **Projects & curation:** group evidence and facts into projects (auto-suggested, user-confirmed), hide or exclude
-    evidence (including rules), annotate evidence.
+    evidence (including rules), annotate evidence (a note payload), and **delete evidence permanently** (#85).
+    Notes: standalone or attached to evidence; no tags (#83, #84).
 13. **Tool layer:** every consumer (reports, Wins, UI queries) reads Evidence and the Narrative through typed query tools,
     so a future chat or MCP server can reuse them unchanged.
+14. **Templates:** built-in report templates that can be duplicated and edited (prompt, structure, period kinds), with
+    a live preview against real data and reset to default (#86). Templates shape wording and structure, never facts.
 
 ## Below the line (designed *for*, not detailed in this LLD)
 
@@ -67,7 +70,6 @@ These must fit the core abstractions without changing them. The extensibility st
 - Share and export formats (Slack, rich text, Markdown, PDF)
 - Backup and restore (local folder only)
 - Scheduled-generation settings UI, end-of-day nudge, quick-capture UI
-- Prompt-template editor
 - Onboarding flow
 - Auto-update, crash reporting
 
@@ -76,7 +78,7 @@ These must fit the core abstractions without changing them. The extensibility st
 | # | Requirement | Target / definition |
 |---|---|---|
 | N1 | **Perceived low latency** | Opening Today or a report is instant (< 200 ms from local data). Generation streams: first token ≤ 2 s on cloud, ≤ 5 s on a warm local model. Scheduled reports and fact extraction are precomputed. Fact extraction is incremental, and prompt size is budgeted. Generation never blocks the UI and can be cancelled. (Total generation time on slow local hardware is explicitly *not* guaranteed.) |
-| N2 | **Privacy** | All data at rest stays on the machine. Network traffic goes only to the configured AI provider and connected source APIs. No telemetry unless opted in. Secrets live only in the OS keychain. Remote providers get a one-time consent notice. |
+| N2 | **Privacy** | All data at rest stays on the machine. Network traffic goes only to the configured AI provider and connected source APIs. No telemetry unless opted in. Secrets live only in the OS keychain. Every non-localhost provider gets a one-time consent notice (#74). |
 | N3 | **Durability** | No data loss on crash or force-quit: transactional writes (SQLite WAL), idempotent and resumable syncs and extraction, a job queue that survives restarts. |
 | N4 | **Offline-first** | Everything except cloud AI calls and remote source sync works offline. |
 | N5 | **Footprint** | Near-zero idle CPU in the tray (event-driven watching, backed-off polling). Memory budget roughly 200 MB resident in the tray, to be validated. |
@@ -89,4 +91,5 @@ These must fit the core abstractions without changing them. The extensibility st
 
 - ~~Regenerate with a style instruction~~: **resolved, yes** (wording only, stored on the snapshot; see 02-entities).
 - Revisit N5's memory budget once there's a running build.
+- v1 is **English only**; day boundaries use the profile's time zone (#87).
 - The mockup predates this pivot (it shows editable reports and no facts view). It's still valid as design language only.

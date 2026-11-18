@@ -30,7 +30,7 @@ core idea, a **highly polished UX/UI**, Flutter, greenfield (no backward compati
 | 2 | **Platforms:** macOS universal .dmg, Windows Inno Setup .exe, Linux AppImage, all in v1. | Owner's choice. |
 | 3 | **Git via system `git`**, auto-detected, with a guided install if missing. | Users with repos almost always have git. Detection must avoid triggering the macOS `/usr/bin/git` Xcode-CLT stub. *Rejected:* bundling libgit2 (≈5 MB + native builds per platform), a pure-Dart git reader (fragile packfile parsing). |
 | 4 | **Code signing:** build the pipeline now; ship unsigned/ad-hoc until certificates exist. | The owner has no certs yet. Gatekeeper/SmartScreen workarounds go in the release notes meanwhile. |
-| 5 | **Tech picks** (mine, not contested): Riverpod, drift + bundled sqlite3, dio, isolates, window_manager / tray_manager / hotkey_manager / launch_at_startup / local_notifier, auto_updater, sentry_flutter, flutter_secure_storage (Linux: libsecret with an encrypted-file fallback). | Standard, maintained Flutter desktop packages. |
+| 5 | **Tech picks** (mine, not contested): Riverpod, drift + bundled sqlite3, dio, isolates, window_manager / tray_manager / hotkey_manager / launch_at_startup / local_notifier, auto_updater, sentry_flutter, flutter_secure_storage (Linux: libsecret with an encrypted-file fallback). | Standard, maintained Flutter desktop packages. **⟶ Linux libsecret fallback removed by #77.** |
 
 ## 2. Distribution & operations
 
@@ -44,21 +44,21 @@ core idea, a **highly polished UX/UI**, Flutter, greenfield (no backward compati
 
 | # | Decision | Rationale / context |
 |---|---|---|
-| 9 | **Multiple profiles** (e.g. Work / Side projects), each with its own DB file, sources, identities, models, templates, schedule and backups. Each profile has multiple identities (emails/usernames). | Owner's choice over "multi-email single profile". |
-| 10 | **Calendars:** Google (OAuth), Apple (EventKit Swift bridge, macOS only), Outlook/M365 (Graph), ICS URL/file. | The Google `calendar.readonly` scope is *sensitive*: verification is needed, and there's a 100-user cap plus an "unverified app" warning until it's approved. |
-| 11 | **OAuth clients:** the owner registers Google + Azure clients that ship in the app (PKCE), with a BYO client-ID override. | One-click sign-in for users; power users can bring their own. |
-| 12 | **More sources:** GitHub, GitLab, Linear, Jira, meeting transcripts (.vtt/.srt/.txt matched to calendar events). | Catches work local git can't see (reviews, tickets, meetings). |
-| 13 | **Self-hosted support:** GitHub Enterprise Server (custom API URL), GitLab self-managed, Jira Data Center (separate adapter: API v2, PAT, usernames), plus a custom-CA trust option. | The owner asked "why do we need self-hosted?" Answer: the core audience (enterprise devs writing reviews) often works on internal servers. GHES/GitLab are nearly free to support (same API, different URL); Jira DC costs a medium amount. Owner: "let's support self hosted". |
+| 9 | **Multiple profiles** (e.g. Work / Side projects), each with its own DB file, sources, identities, models, templates, schedule and backups. Each profile has multiple identities (emails/usernames). | Owner's choice over "multi-email single profile". **⟶ Only the active profile runs: #77.** |
+| 10 | **Calendars:** Google (OAuth), Apple (EventKit Swift bridge, macOS only), Outlook/M365 (Graph), ICS URL/file. | The Google `calendar.readonly` scope is *sensitive*: verification is needed, and there's a 100-user cap plus an "unverified app" warning until it's approved. **⟶ Outlook via ICS only: #82.** |
+| 11 | **OAuth clients:** the owner registers Google + Azure clients that ship in the app (PKCE), with a BYO client-ID override. | One-click sign-in for users; power users can bring their own. **⟶ Built-in clients only, no BYO override (#76); no Azure client (#82).** |
+| 12 | **More sources:** GitHub, GitLab, Linear, Jira, meeting transcripts (.vtt/.srt/.txt matched to calendar events). | Catches work local git can't see (reviews, tickets, meetings). **⟶ Transcripts are attached by suggestion, never fuzzy auto-match: #57 grouping rules.** |
+| 13 | **Self-hosted support:** GitHub Enterprise Server (custom API URL), GitLab self-managed, Jira Data Center (separate adapter: API v2, PAT, usernames), plus a custom-CA trust option. | The owner asked "why do we need self-hosted?" Answer: the core audience (enterprise devs writing reviews) often works on internal servers. GHES/GitLab are nearly free to support (same API, different URL); Jira DC costs a medium amount. Owner: "let's support self hosted". **⟶ Jira Cloud only: #81.** |
 | 14 | **Repo setup:** scan watched root folders, list repos with recent activity by your identities, tick to include, auto-suggest new repos; manual add too. | Lower setup friction than picking folders one by one. |
 
 ## 4. AI
 
 | # | Decision | Rationale / context |
 |---|---|---|
-| 15 | **Providers:** OpenRouter, OpenAI, Anthropic, Gemini, and **custom endpoints**: any number of named URLs (localhost, **LAN machines**, or remote servers), OpenAI-compatible or Ollama-native, with optional API key/headers, HTTP or custom-CA TLS, and connection test + model listing. Localhost Ollama/LM Studio auto-detection kept as a convenience. | Owner request ("add option to set a url for openai compatible endpoint instead of local models. they may be on the local network"): models often run on a separate GPU box. Private-network endpoints are labelled as such; remote ones get the cloud consent notice. Note: macOS 15+ shows a Local Network permission prompt for LAN hosts. |
-| 16 | **Per-task model routing:** one default + optional per-task overrides. | E.g. a cheap local model for commit summaries, a strong cloud model for reviews. **UX correction (from mockup review):** the global model must be the obvious primary control; per-task overrides go in a collapsed "Customize per task" with an "inherits default" state. |
+| 15 | **Providers:** OpenRouter, OpenAI, Anthropic, Gemini, and **custom endpoints**: any number of named URLs (localhost, **LAN machines**, or remote servers), OpenAI-compatible or Ollama-native, with optional API key/headers, HTTP or custom-CA TLS, and connection test + model listing. Localhost Ollama/LM Studio auto-detection kept as a convenience. | Owner request ("add option to set a url for openai compatible endpoint instead of local models. they may be on the local network"): models often run on a separate GPU box. Private-network endpoints are labelled as such; remote ones get the cloud consent notice. Note: macOS 15+ shows a Local Network permission prompt for LAN hosts. **⟶ Privacy label replaced by consent for any non-localhost provider: #74. All models must support structured output: #70.** |
+| 16 | **Per-task model routing:** one default + optional per-task overrides. | E.g. a cheap local model for commit summaries, a strong cloud model for reviews. **UX correction (from mockup review):** the global model must be the obvious primary control; per-task overrides go in a collapsed "Customize per task" with an "inherits default" state. **⟶ Four routes only (Default, Vision, Extraction, Reports): #75.** |
 | 17 | **Privacy: send everything** (full diffs, meeting details, transcripts, screenshots) to whichever provider is configured. | The owner rejected per-source toggles. Mitigation: a one-time consent notice when a cloud provider is first enabled. PRIVACY.md / THREAT_MODEL.md must be rewritten (they promised "only the text required is sent"). |
-| 18 | **Image understanding** is its own per-task model setting, using a **vision model only** (no OS OCR). | The owner chose vision-model-only over on-device OCR. If the chosen model can't read images, the UI says so and suggests one (local `llava`/`qwen2.5-vl`, or cloud). With a cloud model, screenshots leave the machine; this is covered by the consent notice. |
+| 18 | **Image understanding** is its own per-task model setting, using a **vision model only** (no OS OCR). | The owner chose vision-model-only over on-device OCR. If the chosen model can't read images, the UI says so and suggests one (local `llava`/`qwen2.5-vl`, or cloud). With a cloud model, screenshots leave the machine; this is covered by the consent notice. **⟶ Folded into the Vision route: #75.** |
 
 ## 5. Core product flow
 
@@ -85,9 +85,9 @@ core idea, a **highly polished UX/UI**, Flutter, greenfield (no backward compati
 | # | Decision | Rationale / context |
 |---|---|---|
 | 34 | **Outputs:** a restorable `.antbackup` bundle (`VACUUM INTO` snapshot + manifest) **and** an optional Markdown/JSON readable export. | Backup is for disaster recovery; export is for owning your data. |
-| 35 | **Destinations (all):** local folder (also covers Drive/iCloud/Dropbox/OneDrive sync folders), Google Drive API (`drive.file`, non-sensitive), OneDrive API (app folder), Dropbox, WebDAV, S3-compatible. | |
+| 35 | **Destinations (all):** local folder (also covers Drive/iCloud/Dropbox/OneDrive sync folders), Google Drive API (`drive.file`, non-sensitive), OneDrive API (app folder), Dropbox, WebDAV, S3-compatible. | **⟶ Superseded by #80: local folder only.** |
 | 36 | **No encryption in v1** (owner: "encryption out of scope for now"). | Backups are plaintext; the UI warns for cloud destinations. It may return later without a format change. |
-| 37 | **Schedule:** daily via the tray + "Back up now"; rotation 7 daily / 4 weekly / 12 monthly; stale-backup warning. | |
+| 37 | **Schedule:** daily via the tray + "Back up now"; rotation 7 daily / 4 weekly / 12 monthly; stale-backup warning. | **⟶ Keep last N (#78); catch up once (#79).** |
 | 38 | Secrets are never in backups (re-auth after restore). Backup ≠ sync. Restore into a new or existing profile, with a preview first. | My defaults, stated and not contested. |
 
 ## 7. Design
@@ -179,4 +179,35 @@ Full design: [lld/03-class-design.md](./lld/03-class-design.md).
 | 81 | **Jira Cloud only.** No Jira Data Center adapter. | Owner cut it. Refines #13 (GitHub Enterprise and GitLab self-managed stay). |
 | 82 | **Outlook via ICS feed only.** No Microsoft Graph OAuth or Azure app registration. | Owner cut it. Refines #10 and #11. |
 | — | *Kept as-is (simplification offered, declined):* custom CA + self-signed toggle per endpoint (#15), and readable Markdown/JSON export alongside backups (#34). | Owner chose to keep them. |
+
+## 12. Scope audit answers (2026-11-18)
+
+| # | Decision | Rationale / context |
+|---|---|---|
+| 83 | **Notes are evidence only:** standalone on any day, or a payload on an existing evidence item. "Add context" on a report or win creates a note dated inside that period (with its project). Notes never attach to facts: you correct facts instead. | Resolves a contradiction between SPEC ("attach to day, project, fact, win or report") and the entity model (#56). Owner agreed. |
+| 84 | **No tags in v1** (notes have an optional project only). Recognition is a note with a screenshot + link. | Owner: "none in v1". |
+| 85 | **"Delete permanently"** on evidence: the single exception to never deleting history. It purges payloads, revisions, attachments, enrichments, FTS entries and citations; facts left uncited are deleted with their history; others are re-extracted or flagged for review. Locked reports and existing backups are not touched (the UI warns). No undo. | Owner agreed: privacy needs a way to remove things captured by mistake. Refines #59 and entity invariant 3. |
+| 86 | **The template editor is in v1:** duplicate built-ins, edit prompt/structure/period kinds, live preview, reset. | Owner: "we need template editor". Rejected my proposal to defer it under #67. Moves it from "below the line" to a core requirement (FR14). |
+| 87 | **English only in v1; one time zone per profile** (defaults to the system's) defines day boundaries. Evidence stores its local `day` at ingest. | Owner agreed. Simplest correct day boundaries; also fixes the step-4 draft, which used the machine's local time. |
+
+## 13. Implementation choices (LLD step 4, 2026-11-18)
+
+Full algorithms: [lld/04-implementation.md](./lld/04-implementation.md).
+
+| # | Decision | Rationale / context |
+|---|---|---|
+| 88 | **Initial import = last 30 days** when a source is added. | Owner agreed. Enough for a useful first Narrative without a huge first run. |
+| 89 | **Commit patches stored up to 200 KB**, stats only beyond. | Owner agreed. Keeps "send everything" meaningful while bounding DB size. |
+| 90 | **Estimated time from commit sessions is kept**, always labelled *estimated* (sessions: commits < 90 min apart, counted from 30 min before the first commit). Measured time comes from calendar durations. Both are computed in code, not by the model. | Owner: "yes keep it". A transparent heuristic is acceptable for time, unlike importance (#60). Otherwise time allocation would only cover meetings. |
+| 91 | **Every payload kind gets an enrichment** (commit, PR/review, event, note, image, transcript), batched and cached, re-run only on revision change. | Owner rejected my "images + transcripts only" proposal. Cost accepted: more model calls per sync, mitigated by batching and caching. |
+| 92 | **Reports are generated as structured JSON** (sections → items → fact ids) and rendered to Markdown by code; uncited items are dropped. | Owner agreed. Guarantees every line traces to facts (N9). |
+
+## 14. Build kickoff (2026-11-18)
+
+| # | Decision | Rationale / context |
+|---|---|---|
+| 93 | **Git:** parallel agents work on short-lived branches in their own worktrees, merged into an integration branch **`v1`**; `main` stays docs-only until the owner merges. | Owner's choice. Lifts #44 for this build. |
+| 94 | **CI:** pushes are allowed; CI tests every push and builds **unsigned** macOS .dmg / Windows .exe / Linux AppImage; **tagged versions publish public GitHub Releases**. Signing is added later (OWNER_TODO). | Owner's choice. The repo is public. |
+| 95 | **No review checkpoint:** foundation and features are built in one run. | Owner's choice (faster); accepted risk that foundation mistakes propagate. |
+| 96 | **End-to-end testing uses OpenRouter**, with a key the owner enters in the app (never in chat or the repo). Unit tests use fakes. | Owner's choice. |
 

@@ -1,0 +1,213 @@
+# LLD 04 — Implementation (key algorithms)
+
+Step 4 of the low-level design. **Status: agreed (2026-11-18)** after owner review (#88–#92). Every choice follows DECISIONS #67 (simple over complete). Choices that go beyond agreed decisions are
+tagged ; open points are at the end. Builds on [02-entities.md](./02-entities.md) and
+[03-class-design.md](./03-class-design.md).
+
+```
+ sync / note ─► Ingestor ─► payload rows ──trigger──► RecomputeQueue ─► RecomputeWorker
+                                                                         ├─ score importance   (Extraction route)
+                                                                         ├─ enrich             (Vision / Extraction)
+                                                                         ├─ extract day facts  (Extraction route)
+                                                                         ├─ compute time facts (deterministic, no model)
+                                                                         └─ assign workstreams (Extraction route)
+ schedule / open / on demand ─────────────────────────────────────────► generate report    (Reports route)
+```
+
+## 4.1 Ingest & grouping
+
+```
+ingest(source, observations):            # one SQLite transaction per batch
+  for o in observations:
+    p = payload where (source, o.externalId)
+    if p is null:
+      if o.tombstone: continue
+      e = (o.groupKey != null) ? evidence owning a live payload with the same groupKey : null   # iCal UID / commit SHA
+      e ??= new Evidence(occurred = o.occurredStart..o.occurredEnd, day = localDate(o.occurredStart, profile.tz), title = titleOf(o))
+      insert Payload(rev 1, hash = sha256(canonicalJson(o.content))) + PayloadRevision(1, cause: sync)
+    else if o.tombstone and p.tombstonedAt == null:
+      set p.tombstonedAt = now; p.revision += 1; append PayloadRevision(cause: sync)        # change → triggers fire
+    else if sha256(canonicalJson(o.content)) != p.contentHash:
+      update content/hash; p.revision += 1; append PayloadRevision(cause: sync)
+    # else: identical → no write, nothing goes stale (invariant 2)
+  advance SyncCursor only after the transaction commits
+```
+
+- **Canonical JSON** (sorted keys, no volatile fields such as `fetched_at`) makes hashes stable, so re-syncs are no-ops.
+- **Evidence title/time** come from its first payload. If that payload is tombstoned, the next live payload takes over.
+  Evidence with no live payloads is hidden from views but kept (history).
+- **Manual attach / split / suggested attach** are engine commands that move a payload between evidence rows in one
+  transaction (`cause: merge | split`), which bumps the payload revision so dependents go stale.
+
+## 4.2 Staleness
+
+**Recording (on every derived write):** the producer writes `Dependency(dependent, dependent_revision, input, input_revision)`
+for each input it actually read, in the same transaction as the derived row.
+
+**Triggers (enqueue atomically with the change):**
+
+```sql
+CREATE TRIGGER payload_changed AFTER UPDATE OF revision ON payload BEGIN
+  INSERT INTO recompute_queue(entity_type, entity_id, reason, enqueued_at)
+  SELECT d.dependent_type, d.dependent_id, 'payload ' || NEW.id || ' r' || NEW.revision, unixepoch()
+  FROM dependency d WHERE d.input_type = 'payload' AND d.input_id = NEW.id;
+  -- plus: a 'day' entry for the evidence's day, so new/changed evidence re-runs that day's extraction
+  INSERT INTO recompute_queue(entity_type, entity_id, reason, enqueued_at)
+  SELECT 'day', e.day, 'evidence changed', unixepoch()   -- day precomputed in the profile time zone (#87)
+  FROM evidence e WHERE e.id = NEW.evidence_id;
+END;
+-- Same pattern: AFTER INSERT ON payload (new evidence → its day), AFTER UPDATE OF revision ON fact
+-- (→ dependents: reports, workstreams), AFTER UPDATE OF starred, hidden, importance ON evidence (→ its day).
+```
+
+**Computed check (source of truth for "out of date" badges):**
+
+```sql
+-- stale iff any recorded input revision differs from the current one
+SELECT EXISTS (
+  SELECT 1 FROM dependency d
+  JOIN payload p ON d.input_type = 'payload' AND p.id = d.input_id
+  WHERE d.dependent_type = ? AND d.dependent_id = ? AND p.revision <> d.input_revision
+  UNION ALL
+  SELECT 1 FROM dependency d
+  JOIN fact f ON d.input_type = 'fact' AND f.id = d.input_id
+  WHERE d.dependent_type = ? AND d.dependent_id = ? AND f.revision <> d.input_revision
+);
+```
+
+**RecomputeWorker:** drains the queue (de-duplicated by entity, oldest first), debounced by about 30 s so a burst of
+sync changes becomes one recompute per day. It dispatches by type: `day` → importance → enrichment → fact extraction →
+time facts → workstreams. `report` → only marks it; reports regenerate lazily (invariant 6). Each handler deletes its
+queue rows **in the same transaction** as its output, so a crash simply leaves the work queued.
+
+## 4.3 Capture (core sources)
+
+| Source | Sync (pull) | Change trigger | "Mine" filter | Payload content |
+|---|---|---|---|---|
+| **git repo** | `git log --all --since=<cursor> --format=… --numstat` per repo; cursor = last seen commit time minus 1 day (overlap is free thanks to hashes) | watcher on `.git/refs/` and `.git/logs/HEAD` → debounced sync | author or committer email ∈ identities | sha, message, author, timestamps, branches containing it, stats, **patch up to 200 KB, then stats only [proposed]** |
+| **GitHub / GHES / GitLab** | Search API for PRs/MRs updated since the cursor where you're author, reviewer or commenter; then each PR's reviews and comments by you | none (poll every 15 min) | login ∈ identities | PR: title, body, state, repo, URL, merged_at, your reviews/comments; commits referenced by SHA (→ grouping) |
+| **Google Calendar** | `events.list` with `syncToken` (incremental by design) | none (poll every 15 min) | events where you're not `declined` | title, start/end, attendees count, organizer, description, iCalUID (→ grouping) |
+| **Apple Calendar** | EventKit fetch for the window [cursor − 7 d, now + 1 d] | `EKEventStoreChanged` → sync | not declined | same as Google |
+| **ICS (incl. Outlook)** | HTTP GET (ETag), parse, expand RRULE within the window | none (poll every 60 min) | all events in the feed | same as Google; external id = UID + recurrence id |
+| **Notes / screenshots** | n/a: written directly by engine commands | — | always mine | text, link?, attachment refs |
+
+- **Remote → repo mapping:** each git repo's `origin` URL is parsed into (host, owner, repo). If the host matches a
+  connected GitHub/GHES/GitLab source, that source covers the repo; otherwise the UI offers to connect that host.
+- **Initial import:** the last **30 days** when a source is added .
+- **Polling intervals** are constants in v1, not settings .
+
+## 4.4 Importance scoring
+
+- **Batch:** up to 50 unscored or changed evidence items per call (Extraction route, structured output):
+  `[{evidence_id, score: 0..1, reason}]`. The input is title + kind + short content excerpt per item.
+- **Precedence when stored:** user per-item (star = 1.0, hide = 0) > CurationRule (highest priority match) > model.
+  The model never overwrites `set_by = user | rule`.
+- **Neutral default** 0.5 until scored.
+
+## 4.5 Enrichment (every payload kind, #91)
+
+Every payload gets an enrichment through a per-kind `EnrichmentStrategy`:
+- **Image → description** (Vision route): text in the image, who/what/where if visible, any praise/recognition wording.
+- **Transcript → summary** (Extraction route): decisions, action items, who said what that matters.
+- **Commit → summary** (what changed and why, from message + patch), **PR/review → summary** (purpose, outcome,
+  your role), **calendar event → summary** (purpose, your role, from title/description/attendees), **note → normalized
+  summary** (Extraction route).
+- Batched where possible (several small payloads per call), cached, re-run only when the payload revision changes.
+  Fact extraction reads enrichments **plus** raw excerpts.
+
+## 4.6 Fact extraction (per day)
+
+**Input** (prompt budget allocated by importance, highest first, until ~60% of the model's context is used; anything
+left is listed as one line per item):
+- the day's evidence (not hidden), with payload ids, content excerpts and enrichments
+- the day's existing facts (id, type, statement, origin, citations)
+- the profile's projects and the workstreams active in the last 30 days (for hints only)
+
+**Output** (structured):
+
+```json
+{ "ops": [
+  { "op": "create", "type": "Outcome", "statement": "…", "details": {}, "citations": ["payload-id", "…"],
+    "project_id": "…|null", "importance": 0.8, "suggest_win": true },
+  { "op": "update", "fact_id": "…", "statement": "…", "citations": ["…"] },
+  { "op": "retire", "fact_id": "…", "reason": "evidence removed" } ] }
+```
+
+**FactReconciler rules (enforce invariants, one transaction per day):**
+1. Drop any op whose citations reference payloads not in the input (logged as an extraction error, counted for evals).
+2. `create` → new Fact (origin `inferred`, revision 1) + FactRevision + Citations pinned to current payload revisions.
+   `suggest_win` → `win_status = suggested` (unless the same statement was rejected before for these citations).
+3. `update`/`retire` on a model-owned fact (`origin = inferred`) → apply, bump revision, append FactRevision.
+4. `update`/`retire` on a user-touched fact (`confirmed | user-edited | user-created`) → **don't apply**; set
+   `review_state = needs_review` with the proposal attached for the user to accept or dismiss (invariant 7).
+5. Record Dependency rows (fact ← cited payload revisions; the day ← all its input payload revisions).
+
+## 4.7 Time allocation (deterministic: no model) 
+
+Time facts are computed in code, so they're reproducible and defensible:
+- **Measured:** sum of durations of non-declined, non-hidden calendar events per project per day (overlaps merged).
+- **Estimated:** commit activity sessions: consecutive commits by you less than 90 min apart form a session; a session
+  counts from 30 min before its first commit to its last commit; summed per project per day, excluding time already
+  measured by meetings.
+- Output: one `Time allocation` fact per project per day, `details = {minutes, basis: measured|estimated}`, citing the
+  payloads used. Weekly and longer periods sum these.
+
+## 4.8 Workstream assignment
+
+After a day's extraction, new facts without a workstream go to the Extraction route with the active workstreams
+(last 30 days: id, title, summary). Structured output: per fact, an existing workstream id **or** a new title. Users can
+rename, merge or move facts between workstreams (user changes are never overwritten). Workstream span and summary update
+from their facts.
+
+## 4.9 Report generation
+
+1. **Gather** through the tool layer: `get_facts(period, profile)` (not rejected; ordered by importance) +
+   `time_breakdown(period)` + `list_wins(period)`.
+2. **Budget:** include facts by importance until ~60% of the Reports model's context; the rest become per-project counts.
+3. **Generate** (Reports route, structured output):
+   `{ "sections": [{ "heading": "…", "items": [{ "text": "…", "fact_ids": ["…"] }] }] }`, guided by the template
+   prompt + optional style instruction.
+4. **Validate:** every `fact_ids` entry must be in the gathered set; items with none are dropped (no uncited claims, N9).
+5. **Render** to Markdown deterministically (citation markers from fact ids), store a ReportSnapshot (JSON + Markdown)
+   and Dependency rows (snapshot ← fact revisions).
+6. **When:** on schedule, when opened if stale, or on demand. **Locked** reports skip steps 1–6 and only show staleness.
+
+## 4.10 Wins
+
+- `win_status = suggested` comes from extraction (§4.6). Accept/reject is a user command (user-touched from then on).
+- **Star an evidence item:** if an Outcome fact already cites one of its payloads → set that fact `accepted`. Otherwise,
+  enqueue a one-off extraction for that evidence that must produce an Outcome fact, created as `accepted` with
+  origin `user-created`.
+- The Wins view = `type = Outcome AND win_status = accepted`, filterable by period and project.
+
+## 4.11 Jobs & scheduler
+
+- **Job table** with `state ∈ queued | running | done | failed`, `run_after`, `attempts`, `lease_until`.
+- **One worker loop** in the engine isolate with two lanes: **IO** (syncs, backups) and **LLM** (one model call at a time,
+  so a local model isn't swamped). A job leased but not finished when the app dies is re-queued when `lease_until` passes.
+- **Retries:** exponential backoff (1 min, 5 min, 30 min), then `failed` and shown in Settings .
+- **Scheduler:** per profile, a list of `{kind, rule}` (daily 18:00 weekdays, weekly Mon 09:00, monthly 1st 09:00,
+  quarterly first day 09:00, backup 02:00). On launch and every minute: for each schedule, if its latest due time is
+  after its last run → enqueue once (catch up once, #79).
+
+## 4.12 Delete permanently (#85)
+
+One transaction, user command only:
+1. Collect the evidence's payloads → delete their PayloadRevisions, Attachments (rows now, files after commit),
+   Enrichments, FTS rows, and Citations pointing to them; then the payloads and the evidence.
+2. Facts that now have **no citations** → delete them with their FactRevisions and Dependency rows.
+3. Facts that kept some citations → model-owned: enqueue re-extraction of their day; user-touched: `needs_review`.
+4. Report snapshots that depended on deleted facts go stale through the normal mechanism. **Locked** snapshots keep their
+   text until unlocked; the UI warns that locked reports and existing backups may still contain the deleted content.
+
+No undo. A confirmation dialog states exactly what will be removed.
+
+## Review outcome
+
+| # | Open point | Answer |
+|---|---|---|
+| 1 | Initial import window | **Last 30 days** when a source is added (#88). |
+| 2 | Patch size cap | **200 KB per commit**, stats only beyond (#89). |
+| 3 | Estimated time from commit sessions | **Keep it**, labelled *estimated* (#90). |
+| 4 | Enrichment scope | **Every payload kind** (#91). Rejected my "images + transcripts only" proposal. |
+| 5 | Structured reports rendered by code | **Yes** (#92). |
