@@ -1,4 +1,4 @@
-data/
+/data/
 core/__pycache__/
 core/**/*.pyc
 core/.venv/
@@ -15,3 +15,5 @@ core/.venv/
 .claude/worktrees/
 
 .open_router_key.claude/settings.local.json
+.dart_tool/
+build/
