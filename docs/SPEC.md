@@ -96,8 +96,22 @@ Every integration implements one interface: `connect/validate`, `sync(since, unt
 
 ## 6. AI providers & routing
 
-- Providers: **OpenRouter**, **OpenAI**, **Anthropic**, **Gemini**, **Local / custom URL**
-  (Ollama native + any OpenAI-compatible endpoint; auto-detect `localhost:11434` and `localhost:1234`).
+- Providers: **OpenRouter**, **OpenAI**, **Anthropic**, **Gemini**, and **custom endpoints**.
+- **Custom endpoints** (any number, each named, e.g. "Home GPU box"):
+  - **Any URL**: localhost, a machine on the LAN (`http://192.168.1.20:11434`, `http://gpu-box.local:1234`), or a remote
+    server (vLLM, llama.cpp server, LiteLLM, LocalAI, a company gateway). Not limited to models on this machine.
+  - **Protocol per endpoint:** OpenAI-compatible (`/v1/models`, `/v1/chat/completions`) or Ollama native (`/api/tags`, `/api/chat`).
+  - **Optional auth:** API key (Bearer) and/or custom headers, stored in the keychain.
+  - **Networking:** plain HTTP allowed (with a warning when the host isn't on a private network); a per-endpoint custom CA
+    or "allow self-signed" toggle; configurable timeout (local models can be slow to load).
+  - **Test connection** lists the endpoint's models and detects capabilities (vision, context length where reported);
+    model names can also be typed by hand when `/models` isn't supported.
+  - **Auto-detect** stays as a convenience: `localhost:11434` (Ollama) and `localhost:1234` (LM Studio) are offered at setup.
+  - **Privacy label:** endpoints on loopback/private ranges (127.0.0.0/8, 10/8, 172.16/12, 192.168/16, `.local`) are labelled
+    "Private network"; anything else "Remote". Remote custom endpoints get the same one-time consent notice as cloud providers.
+  - **macOS Local Network permission:** since macOS 15, reaching LAN hosts triggers a system prompt; the app ships
+    `NSLocalNetworkUsageDescription` and explains the prompt before the first LAN connection.
+  - Custom endpoints work anywhere a model can be chosen (default model, per-task overrides, image understanding).
 - Model pickers list live models. OpenRouter shows price and context length.
 - **Per-task routing:** one default model, plus optional overrides per task
   (commit summary, transcript summary, **image understanding**, daily, weekly, monthly, Wins, review export).
