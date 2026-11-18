@@ -31,9 +31,13 @@ class DbModelRouter implements ModelRouter {
     }
     final provider = await (appDb.select(appDb.providers)..where((p) => p.id.equals(model.providerId))).getSingle();
 
-    final apiKey = provider.credentialRef == null ? null : await secrets.read(provider.credentialRef!);
+    final apiKey = provider.credentialRef == null
+        ? null
+        : await _secret(provider.credentialRef!, provider.name, 'API key');
     final headerRefs = (jsonDecode(provider.headers) as Map).cast<String, String>();
-    final headers = {for (final e in headerRefs.entries) e.key: await secrets.read(e.value) ?? ''};
+    final headers = {
+      for (final e in headerRefs.entries) e.key: await _secret(e.value, provider.name, '${e.key} header'),
+    };
 
     return ResolvedModel(
       client: createClient(provider, apiKey: apiKey, headers: headers),
@@ -47,4 +51,9 @@ class DbModelRouter implements ModelRouter {
       ),
     );
   }
+
+  /// A referenced secret that is gone (keychain reset, restored database) fails here, not as a 401.
+  Future<String> _secret(String ref, String provider, String what) async =>
+      await secrets.read(ref) ??
+      (throw LlmFailure('The $what for $provider is missing. Re-enter it in Settings → Models.'));
 }
