@@ -52,7 +52,7 @@ void main() {
 
   Future<List<PayloadObservation>> sync(FakeContext c) => GitRepoSource().sync(c).toList();
 
-  test('captures my commits with stats, patch and branch; skips others', () async {
+  test('captures my commits with stats and patch (no branch); skips others', () async {
     await commitFile('old.txt', 'old\n', at: now.subtract(const Duration(days: 60)));
     await commitFile('a.txt', 'one\ntwo\n', msg: 'feat: first\n\nbody line');
     await commitFile('b.txt', 'other\n', email: 'someone@else.dev');
@@ -74,7 +74,7 @@ void main() {
       'deleted': 0,
     });
     expect(first.content['patch'], contains('+one'));
-    expect(obs.firstWhere((o) => o.title == 'add c.txt').content['branch'], 'feature');
+    expect(obs.firstWhere((o) => o.title == 'add c.txt').content.containsKey('branch'), isFalse);
     expect(c.staged[''], isNotNull);
   });
 

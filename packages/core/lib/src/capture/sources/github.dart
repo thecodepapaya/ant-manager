@@ -7,12 +7,18 @@ import '../source.dart';
 /// Config: `{apiBaseUrl (default https://api.github.com; GHES https://host/api/v3), login}`.
 /// Token from `ctx.secret()`.
 ///
-/// Sync: search PRs that involve you, updated since the cursor (ascending), then
-/// each PR's details, commits, and your reviews + review comments. Emits one
-/// `pullRequest` payload per PR you authored / were assigned / reviewed, and one
-/// `review` payload per review you submitted. Commits are recorded by SHA only;
-/// they group with local git commits through the git source.
-/// On 403/429 the sync stops; the cursor stays at the last fully processed PR.
+/// Sync: search PRs that involve you or that you reviewed (`involves:` omits reviewers), updated since the
+/// cursor (ascending), then each PR's details, commits, and your reviews + review comments (all pages).
+/// Emits one `pullRequest` payload per PR you authored / were assigned / reviewed / commented on, and one
+/// `review` payload per review you submitted. Your review comments outside any review are kept on the PR
+/// payload (`comments`).
+///
+/// Commits are recorded by SHA in `content.commits` only; no `groupKey` is set. Grouping is exact identity
+/// per payload (#57), so a PR never groups with its commits: the PR<->commit link is made downstream by facts
+/// citing both (the SHAs in the content let the model connect them).
+///
+/// On 403/429 the sync stops; the cursor stays at the last fully processed PR. A PR that is gone (404/410,
+/// e.g. deleted or transferred) is skipped; any other error (401, 5xx) fails the sync.
 class GitHubSource implements Source {
   GitHubSource({this.kind = SourceKind.github});
 
@@ -63,34 +69,46 @@ class GitHubSource implements Source {
     final since = cursor ?? _iso(ctx.initialImportFrom);
 
     try {
-      final items = <Map>[];
-      for (var page = 1; page <= _maxSearchPages; page++) {
-        final r = await _get(ctx, token, '$base/search/issues', {
-          'q': 'is:pr involves:$login updated:>=$since',
-          'sort': 'updated',
-          'order': 'asc',
-          'per_page': _perPage,
-          'page': page,
-        }) as Map;
-        final batch = (r['items'] as List).cast<Map>();
-        items.addAll(batch);
-        if (batch.length < _perPage) break;
+      final byPr = <String, Map>{};
+      for (final who in ['reviewed-by:$login', 'involves:$login']) {
+        for (var page = 1; page <= _maxSearchPages; page++) {
+          final r = await _get(ctx, token, '$base/search/issues', {
+            'q': 'is:pr $who updated:>=$since',
+            'sort': 'updated',
+            'order': 'asc',
+            'per_page': _perPage,
+            'page': page,
+          }) as Map;
+          final batch = (r['items'] as List).cast<Map>();
+          for (final item in batch) {
+            byPr['${item['repository_url']}#${item['number']}'] = item;
+          }
+          if (batch.length < _perPage) break;
+        }
       }
+      final items = byPr.values.toList()
+        ..sort((a, b) => (a['updated_at'] as String).compareTo(b['updated_at'] as String));
 
       for (final item in items) {
         final repo = _repoOf(item['repository_url'] as String);
         final number = item['number'] as int;
         final prBase = '$base/repos/$repo/pulls/$number';
-        final pr = await _get(ctx, token, prBase) as Map;
-        final commits = (await _get(ctx, token, '$prBase/commits', {'per_page': _perPage}) as List).cast<Map>();
-        final reviews = (await _get(ctx, token, '$prBase/reviews', {'per_page': _perPage}) as List)
-            .cast<Map>()
-            .where((rv) => _isMe(rv['user'], me) && rv['submitted_at'] != null)
-            .toList();
-        final comments = (await _get(ctx, token, '$prBase/comments', {'per_page': _perPage}) as List)
-            .cast<Map>()
-            .where((c) => _isMe(c['user'], me))
-            .toList();
+        final Map pr;
+        final List<Map> commits, reviews, comments;
+        try {
+          pr = await _get(ctx, token, prBase) as Map;
+          commits = await _getAll(ctx, token, '$prBase/commits');
+          reviews = (await _getAll(
+            ctx,
+            token,
+            '$prBase/reviews',
+          )).where((rv) => _isMe(rv['user'], me) && rv['submitted_at'] != null).toList();
+          comments = (await _getAll(ctx, token, '$prBase/comments')).where((c) => _isMe(c['user'], me)).toList();
+        } on GitHubGone {
+          ctx.setCursor(_cursorScope, item['updated_at'] as String);
+          continue;
+        }
+        final reviewIds = {for (final rv in reviews) rv['id']};
 
         final roles = <String>[
           if (_isMe(pr['user'], me)) 'author',
@@ -123,6 +141,11 @@ class GitHubSource implements Source {
               'changedFiles': pr['changed_files'],
               'roles': roles,
               'commits': [for (final c in commits) c['sha']],
+              // Your review comments not attached to one of your submitted reviews ("single comments").
+              'comments': [
+                for (final c in comments)
+                  if (!reviewIds.contains(c['pull_request_review_id'])) _comment(c),
+              ],
             },
           );
         }
@@ -143,15 +166,7 @@ class GitHubSource implements Source {
               'url': rv['html_url'],
               'comments': [
                 for (final c in comments)
-                  if (c['pull_request_review_id'] == id)
-                    {
-                      'path': c['path'],
-                      'line': c['line'] ?? c['original_line'],
-                      'body': c['body'],
-                      'createdAt': c['created_at'],
-                      'url': c['html_url'],
-                      'inReplyTo': c['in_reply_to_id'],
-                    },
+                  if (c['pull_request_review_id'] == id) _comment(c),
               ],
             },
           );
@@ -163,18 +178,47 @@ class GitHubSource implements Source {
     }
   }
 
-  static bool _isMe(Object? user, String me) =>
-      user is Map && (user['login'] as String?)?.toLowerCase() == me;
+  static Map<String, Object?> _comment(Map c) => {
+    'path': c['path'],
+    'line': c['line'] ?? c['original_line'],
+    'body': c['body'],
+    'createdAt': c['created_at'],
+    'url': c['html_url'],
+    'inReplyTo': c['in_reply_to_id'],
+  };
+
+  static bool _isMe(Object? user, String me) => user is Map && (user['login'] as String?)?.toLowerCase() == me;
 
   static String _repoOf(String repositoryUrl) {
     final segs = Uri.parse(repositoryUrl).pathSegments;
-    final i = segs.lastIndexOf('repos');
+    final i = segs.indexOf('repos'); // first: a repo may itself be named `repos`
     return segs.sublist(i + 1).join('/');
   }
 
   static String _iso(DateTime t) => '${t.toUtc().toIso8601String().split('.').first}Z';
 
-  Future<Object?> _get(SourceContext ctx, String token, String url, [Map<String, Object?>? query]) async {
+  Future<Object?> _get(SourceContext ctx, String token, String url, [Map<String, Object?>? query]) async =>
+      (await _request(ctx, token, url, query)).data;
+
+  /// All pages of a list endpoint, following `Link: <...>; rel="next"`.
+  Future<List<Map>> _getAll(SourceContext ctx, String token, String url) async {
+    final out = <Map>[];
+    String? next = url;
+    Map<String, Object?>? query = {'per_page': _perPage};
+    while (next != null) {
+      final r = await _request(ctx, token, next, query);
+      out.addAll((r.data as List).cast<Map>());
+      next = _nextLink(r.headers.value('link'));
+      query = null; // the next link carries the query
+    }
+    return out;
+  }
+
+  static final _next = RegExp(r'<([^>]+)>\s*;\s*rel="next"');
+
+  static String? _nextLink(String? link) => link == null ? null : _next.firstMatch(link)?.group(1);
+
+  Future<Response<Object?>> _request(SourceContext ctx, String token, String url, Map<String, Object?>? query) async {
     final r = await ctx.http.get<Object?>(
       url,
       queryParameters: query,
@@ -189,13 +233,24 @@ class GitHubSource implements Source {
       ),
     );
     final s = r.statusCode ?? 0;
-    if (s == 429 || (s == 403 && r.headers.value('x-ratelimit-remaining') == '0') ||
+    if (s == 429 ||
+        (s == 403 && r.headers.value('x-ratelimit-remaining') == '0') ||
         (s == 403 && '${r.data}'.toLowerCase().contains('rate limit'))) {
       throw GitHubRateLimited();
     }
+    if (s == 404 || s == 410) throw GitHubGone(url, s);
     if (s < 200 || s >= 300) throw StateError('GitHub $url → HTTP $s: ${r.data}');
-    return r.data;
+    return r;
   }
+}
+
+/// 404/410: the item no longer exists (or is no longer visible). Skipped per PR; fatal elsewhere.
+class GitHubGone implements Exception {
+  GitHubGone(this.url, this.status);
+  final String url;
+  final int status;
+  @override
+  String toString() => 'GitHub $url → HTTP $status';
 }
 
 class GitHubRateLimited implements Exception {

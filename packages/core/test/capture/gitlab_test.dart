@@ -109,7 +109,7 @@ void main() {
     expect((await ingestor.ingest('gl', await GitLabSource().sync(c).toList())).created, 4);
     c.commit();
     expect((await ingestor.ingest('gl', await GitLabSource().sync(c).toList())).unchanged, 4);
-    expect(queries.last['updated_after'], '2026-11-13T10:00:00Z');
+    expect(queries.last['updated_after'], '2026-11-13T09:59:59.000Z'); // 1 s overlap (#21)
   });
 
   test('429 stops the sync and keeps the cursor at the last finished MR', () async {

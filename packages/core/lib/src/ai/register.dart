@@ -17,7 +17,13 @@ LlmClient createClient(Provider row, {required String? apiKey, Map<String, Strin
   );
   final base = row.baseUrl;
   return switch (row.protocol) {
-    ProviderProtocol.openai => OpenAiCompatibleClient(baseUrl: base, apiKey: apiKey, headers: headers, dio: dio),
+    ProviderProtocol.openai => OpenAiCompatibleClient(
+      baseUrl: base,
+      apiKey: apiKey,
+      headers: headers,
+      kind: row.kind,
+      dio: dio,
+    ),
     ProviderProtocol.ollama => OllamaClient(baseUrl: base, apiKey: apiKey, headers: headers, dio: dio),
     ProviderProtocol.native => switch (row.kind) {
       ProviderKind.anthropic => AnthropicClient(baseUrl: base, apiKey: apiKey, headers: headers, dio: dio),

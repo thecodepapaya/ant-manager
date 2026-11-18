@@ -11,16 +11,19 @@ const maxPatchBytes = 200 * 1024;
 
 /// A local git repository (LLD 04 §4.3). Config: `{path}`.
 ///
-/// Sync runs `git log --all` from the cursor (last seen committer time minus one
-/// day; overlap is free because content hashes make re-syncs no-ops) and keeps
-/// commits whose author or committer email is one of your identities.
+/// Sync runs `git log --all` (minus stash and notes refs) from the cursor (last seen committer time minus
+/// one day; overlap is free because content hashes make re-syncs no-ops) and keeps commits whose author or
+/// committer email is one of your identities. Branch names are not stored: which ref reaches a commit
+/// changes without the commit changing, and would create spurious revisions.
 class GitRepoSource implements WatchableSource {
   static const _cursorScope = '';
-  static const _sep = '\x00';
-  static const _rec = '\x1e';
-  // sha, author name/email, committer name/email, author/committer ISO dates, source ref, raw body.
-  // NUL can't be passed in argv, so the format uses git's %x escapes.
-  static const _format = '%x1e%H%x00%an%x00%ae%x00%cn%x00%ce%x00%aI%x00%cI%x00%S%x00%B%x00';
+  // Each record: NUL, then sha, author name/email, committer name/email, author/committer ISO dates and raw
+  // body, each NUL-terminated, then the numstat lines. No field can contain NUL, so splitting on NUL gives
+  // exactly 1 + 9 × records tokens whatever the message contains. NUL can't be passed in argv, hence `%x00`.
+  static const _format = '%x00%H%x00%an%x00%ae%x00%cn%x00%ce%x00%aI%x00%cI%x00%B%x00';
+
+  /// Records of the last [sync] that could not be parsed (and were skipped).
+  int skippedRecords = 0;
 
   @override
   SourceKind get kind => SourceKind.gitRepo;
@@ -34,6 +37,9 @@ class GitRepoSource implements WatchableSource {
   @override
   Future<SourceHealth> validate(SourceContext ctx) async {
     if (await ctx.git.locate() == null) return const SourceHealth.error('git is not installed');
+    if (ctx.identities('email').isEmpty) {
+      return const SourceHealth.error('Add your git email in Settings → Identities to capture commits');
+    }
     try {
       await ctx.git.run(_path(ctx), ['rev-parse', '--git-dir']);
       return const SourceHealth.ok();
@@ -52,15 +58,17 @@ class GitRepoSource implements WatchableSource {
   Stream<PayloadObservation> sync(SourceContext ctx) async* {
     final repo = _path(ctx);
     final mine = ctx.identities('email').map((e) => e.toLowerCase()).toSet();
+    // Fail rather than advance the cursor past commits nobody could be matched to.
+    if (mine.isEmpty) throw StateError('No email identities: add your git email to capture commits');
     final cursor = await ctx.cursor(_cursorScope);
-    final since = cursor == null
-        ? ctx.initialImportFrom
-        : DateTime.parse(cursor).subtract(const Duration(days: 1));
+    final since = cursor == null ? ctx.initialImportFrom : DateTime.parse(cursor).subtract(const Duration(days: 1));
 
     final out = await ctx.git.run(repo, [
       'log',
+      '--exclude=refs/stash',
+      '--exclude=refs/notes/*',
       '--all',
-      '--source',
+      '--diff-merges=first-parent', // a merge's stats/patch = what it brought into the branch
       '--since=${since.toUtc().toIso8601String()}',
       '--format=$_format',
       '--numstat',
@@ -68,15 +76,21 @@ class GitRepoSource implements WatchableSource {
     ]);
 
     DateTime? latest;
-    for (final c in parseGitLog(out)) {
+    final log = parseGitLog(out);
+    skippedRecords = log.skipped;
+    for (final c in log.commits) {
       if (latest == null || c.committedAt.isAfter(latest)) latest = c.committedAt;
       if (!mine.contains(c.authorEmail.toLowerCase()) && !mine.contains(c.committerEmail.toLowerCase())) {
         continue;
       }
-      final patch = await ctx.git.run(repo, ['show', '--format=', '--no-color', c.sha]);
+      final patch = await ctx.git.run(repo, ['show', '--format=', '--no-color', '--diff-merges=first-parent', c.sha]);
       yield c.toObservation(utf8.encode(patch).length <= maxPatchBytes ? patch : null);
     }
-    if (latest != null) ctx.setCursor(_cursorScope, latest.toUtc().toIso8601String());
+    if (latest != null) {
+      // Someone's clock in the future must not push the cursor past commits made before it.
+      final now = ctx.clock.now().toUtc();
+      ctx.setCursor(_cursorScope, (latest.isAfter(now) ? now : latest).toUtc().toIso8601String());
+    }
   }
 }
 
@@ -90,12 +104,11 @@ class GitCommit {
     required this.committerEmail,
     required this.authoredAt,
     required this.committedAt,
-    required this.branch,
     required this.message,
     required this.files,
   });
 
-  final String sha, authorName, authorEmail, committerName, committerEmail, branch, message;
+  final String sha, authorName, authorEmail, committerName, committerEmail, message;
   final DateTime authoredAt, committedAt;
   final List<({String path, int? added, int? deleted})> files; // null counts = binary
 
@@ -118,9 +131,10 @@ class GitCommit {
         'committer': {'name': committerName, 'email': committerEmail},
         'authoredAt': authoredAt.toUtc().toIso8601String(),
         'committedAt': committedAt.toUtc().toIso8601String(),
-        'branch': branch,
         'stats': {
-          'files': [for (final f in files) {'path': f.path, 'added': f.added, 'deleted': f.deleted}],
+          'files': [
+            for (final f in files) {'path': f.path, 'added': f.added, 'deleted': f.deleted},
+          ],
           'added': added,
           'deleted': deleted,
         },
@@ -130,41 +144,46 @@ class GitCommit {
   }
 }
 
-/// Parses output produced with [GitRepoSource]'s `--format` plus `--numstat`.
-List<GitCommit> parseGitLog(String out) {
+/// Parses output produced with [GitRepoSource]'s `--format` plus `--numstat`. Records whose sha or dates
+/// don't parse are counted in `skipped`.
+({List<GitCommit> commits, int skipped}) parseGitLog(String out) {
   final commits = <GitCommit>[];
-  for (final record in out.split(GitRepoSource._rec)) {
-    if (record.trim().isEmpty) continue;
-    final f = record.split(GitRepoSource._sep);
-    if (f.length < 10) continue;
+  var skipped = 0;
+  final t = out.split('\x00');
+  // t[0] is whatever precedes the first record (empty); then 9 tokens per record.
+  if ((t.length - 1) % 9 != 0) skipped++; // trailing partial record
+  for (var i = 1; i + 9 <= t.length; i += 9) {
+    final sha = t[i].trim();
+    final authoredAt = DateTime.tryParse(t[i + 5]);
+    final committedAt = DateTime.tryParse(t[i + 6]);
+    if (!_sha.hasMatch(sha) || authoredAt == null || committedAt == null) {
+      skipped++;
+      continue;
+    }
     final files = <({String path, int? added, int? deleted})>[];
-    for (final line in const LineSplitter().convert(f[9])) {
+    for (final line in const LineSplitter().convert(t[i + 8])) {
       final cols = line.split('\t');
       if (cols.length < 3) continue;
       files.add((path: cols.sublist(2).join('\t'), added: int.tryParse(cols[0]), deleted: int.tryParse(cols[1])));
     }
-    var branch = f[7];
-    for (final prefix in const ['refs/heads/', 'refs/remotes/', 'refs/']) {
-      if (branch.startsWith(prefix)) {
-        branch = branch.substring(prefix.length);
-        break;
-      }
-    }
-    commits.add(GitCommit(
-      sha: f[0].trim(),
-      authorName: f[1],
-      authorEmail: f[2],
-      committerName: f[3],
-      committerEmail: f[4],
-      authoredAt: DateTime.parse(f[5]).toUtc(),
-      committedAt: DateTime.parse(f[6]).toUtc(),
-      branch: branch,
-      message: f[8].trimRight(),
-      files: files,
-    ));
+    commits.add(
+      GitCommit(
+        sha: sha,
+        authorName: t[i + 1],
+        authorEmail: t[i + 2],
+        committerName: t[i + 3],
+        committerEmail: t[i + 4],
+        authoredAt: authoredAt.toUtc(),
+        committedAt: committedAt.toUtc(),
+        message: t[i + 7].trimRight(),
+        files: files,
+      ),
+    );
   }
-  return commits;
+  return (commits: commits, skipped: skipped);
 }
+
+final _sha = RegExp(r'^[0-9a-f]{40}([0-9a-f]{24})?$');
 
 /// Finds git repositories under [roots] (a directory containing `.git`), at most
 /// [maxDepth] levels down. Hidden directories are skipped; repos aren't descended into.
@@ -206,7 +225,8 @@ class GitRemote {
   String toString() => '$host/$owner/$repo';
 }
 
-final _scpLike = RegExp(r'^(?:[^@/\s]+@)?([^:/\s]+):(?!//)(.+)$');
+final _scpLike = RegExp(r'^(?:[^@/\s]+@)?([^:/\s]{2,}):(?!//)(.+)$'); // 1-letter host = drive letter
+final _windowsPath = RegExp(r'^[A-Za-z]:[\\/]');
 
 /// Parses ssh (`git@host:owner/repo.git`, `ssh://git@host:22/owner/repo`) and
 /// http(s) remotes into (host, owner, repo). Returns null for anything else.
@@ -222,6 +242,7 @@ GitRemote? parseRemote(String url) {
     host = u.host.toLowerCase();
     path = u.path;
   } else {
+    if (_windowsPath.hasMatch(url)) return null; // local path such as C:/repos/api
     final m = _scpLike.firstMatch(url);
     if (m == null) return null;
     host = m.group(1)!.toLowerCase();
