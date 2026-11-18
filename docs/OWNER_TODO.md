@@ -12,6 +12,8 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] **Protect release tags:** GitHub → Settings → Rules → add a tag ruleset for `v*` so only you can create them. Every `v*` tag publishes a public release ([RELEASE.md](./RELEASE.md)).
 - [ ] **Cut the first release** when ready: bump `app/pubspec.yaml`, tag `vX.Y.Z`, push ([RELEASE.md](./RELEASE.md)).
 
+- [ ] After signing exists: switch secrets to the data-protection keychain (`keychain-access-groups`), enable hardened runtime, review entitlements (DECISIONS #101).
+
 ## Google Calendar
 - [ ] Create a **Google Cloud project**, enable the Calendar API.
 - [ ] Configure the **OAuth consent screen** (external, scope `calendar.readonly`) and create a *Desktop app* OAuth client. Give me the client ID (and the non-confidential desktop secret). They replace the `TODO_GOOGLE_CLIENT_ID` / `TODO_GOOGLE_CLIENT_SECRET` placeholders in `packages/core/lib/src/capture/sources/google_oauth.dart`. Until verified, refresh tokens of a testing-mode app expire after 7 days.
