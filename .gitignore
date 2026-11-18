@@ -17,3 +17,4 @@ core/.venv/
 .open_router_key.claude/settings.local.json
 .dart_tool/
 build/
+dist/
