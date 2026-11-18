@@ -5,3 +5,8 @@ core/.venv/
 .DS_Store
 
 
+
+# Secrets (never commit)
+.open_router_key
+*.key
+.env

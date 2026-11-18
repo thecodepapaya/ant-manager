@@ -1,0 +1,20 @@
+name: core
+description: Ant Manager engine — pure Dart (no Flutter).
+publish_to: none
+version: 0.1.0
+resolution: workspace
+environment:
+  sdk: ^3.13.0
+dependencies:
+  collection: ^1.19.1
+  crypto: ^3.0.8
+  dio: ^5.11.1
+  drift: ^2.35.4
+  meta: ^1.19.0
+  path: ^1.9.1
+  sqlite3: ^3.9.1
+dev_dependencies:
+  build_runner: ^2.16.1
+  drift_dev: ^2.35.3
+  lints: ^6.1.0
+  test: ^1.31.1
