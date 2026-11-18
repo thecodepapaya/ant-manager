@@ -14,7 +14,7 @@ None of these block development; placeholders are used until each is done. Tick 
 
 ## Google Calendar
 - [ ] Create a **Google Cloud project**, enable the Calendar API.
-- [ ] Configure the **OAuth consent screen** (external, scope `calendar.readonly`) and create a *Desktop app* OAuth client. Give me the client ID (and the non-confidential desktop secret).
+- [ ] Configure the **OAuth consent screen** (external, scope `calendar.readonly`) and create a *Desktop app* OAuth client. Give me the client ID (and the non-confidential desktop secret). They replace the `TODO_GOOGLE_CLIENT_ID` / `TODO_GOOGLE_CLIENT_SECRET` placeholders in `packages/core/lib/src/capture/sources/google_oauth.dart`. Until verified, refresh tokens of a testing-mode app expire after 7 days.
 - [ ] Publish a **privacy policy URL** and **home page** (the `web/` site can host both).
 - [ ] Submit for **sensitive-scope verification**: demo video plus written justification. Takes weeks. Until approved: an "unverified app" warning and a 100-user cap.
 

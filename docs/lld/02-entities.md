@@ -293,7 +293,7 @@ erDiagram
 
 1:1 is the norm. Grouping is rare and never fuzzy.
 
-- **Automatic, exact identity only:** the same meeting from two calendars (same iCal UID); the same commit from local git and a hosting API (same SHA).
+- **Automatic, exact identity only:** the same meeting from two calendars (same iCal UID + occurrence start, #98); the same commit from local git and a hosting API (same SHA).
 - **Manual:** drag a screenshot or note onto an existing evidence item.
 - **Suggested:** a quick capture during a meeting offers to attach to that meeting (time overlap). The user confirms.
 - **Split:** "detach" moves a payload into its own new evidence. Citations stay valid because they target payloads.
