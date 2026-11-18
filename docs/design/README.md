@@ -10,3 +10,7 @@
 Known gaps from the owner's review (fix in the real UI, see SPEC §10 "UX principles"): padding and spacing
 inconsistencies, no obvious global model, notes hard to find, intimidating for new users, and a placeholder
 hand-drawn logo instead of the real one.
+
+**Superseded by the harness pivot (DECISIONS #47–#53):** the mockup shows editable reports ("Edit" on Today, an
+edit-locked weekly) and no Narrative/facts view. Reports are now read-only renderings of the Narrative; corrections
+happen on facts and evidence.

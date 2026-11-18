@@ -124,25 +124,30 @@ Every integration implements one interface: `connect/validate`, `sync(since, unt
 
 ## 7. Core product flow
 
+Ant Manager is a **harness** (DECISIONS #47–#53): evidence goes in, a structured **Narrative** of your work is
+maintained from it, and every output reads from that Narrative.
+
 ```
- CAPTURE (passive)        REVIEW (2 min/day)          NARRATE                  SHARE
- git, PRs, calendar,  →   Today page: evidence   →   Daily draft at your  →   Slack / rich text /
- tickets, transcripts     by project; star, hide,    scheduled time;          Markdown / PDF
- + quick-capture notes    annotate, add notes        edit in place
-                                                     ↓ hybrid roll-up
-                                                     daily → weekly → monthly → custom / review
+ CAPTURE (passive + notes)    NARRATIVE (maintained)            OUTPUTS (read-only views)
+ git, PRs, calendar,     →    typed facts, each citing     →    Reports: daily … quarterly, custom
+ tickets, transcripts,        evidence: workstreams,            Wins: outcomes + starred evidence
+ notes, screenshots           outcomes, problems solved,        Chat / MCP tools (later)
+                              invisible work, hiccups,
+ user can add evidence        decisions, time allocation
+ for any day                  ↑ user confirms / corrects facts
 ```
 
-- **Home = Today page.** A journal-style day view: the day's evidence grouped by project, next to the day's narrative
-  draft. Notes are added inline. `←/→` (or `[`/`]`) moves between days, and a date picker jumps anywhere.
-- **Navigation (sidebar):** profile switcher at the top · Today · Timeline · Narratives · Wins · Projects · Reviews ·
-  then Sources and Settings at the bottom. Notes have no separate tab; they live in Today and Timeline.
-- **Notes & context (generic):** notes can be standalone or attached to a day, project, narrative, win or review.
+- **Home = Today page.** A journal-style day view: the day's evidence grouped by project, next to the day's facts
+  and its (read-only) daily report. Notes are added inline. `←/→` (or `[`/`]`) moves between days, and a date picker jumps anywhere.
+- **Navigation (sidebar):** profile switcher at the top · Today · Timeline · Narrative · Reports · Wins · Projects ·
+  then Sources and Settings at the bottom (tentative, revisited in the UI step of the LLD; "Reviews" are Reports). Notes have no separate tab; they live in Today and Timeline.
+- **Notes & context (generic):** notes are evidence. They can be standalone or attached to a day (including past days),
+  project, fact, win or report.
   They can include dropped/pasted images and an optional link. Add-note is visible in Today, Timeline and on every
   narrative/win/review, plus the quick-capture hotkey.
-- **Regenerate anything with context:** every generated item that is **not locked** has "Add context & regenerate".
-  Its attached notes + an optional one-off instruction feed the next generation. Locked items must be unlocked first,
-  and previous versions are always kept in history.
+- **Change what a report says by changing its inputs:** reports can't be edited. Add evidence (e.g. a note for that day),
+  or confirm, correct or reject a fact, then regenerate. Locked reports must be unlocked first; previous versions are
+  kept in history.
 - **Quick capture** has a text mode and a **screenshot-region mode** (needs Screen Recording permission on macOS,
   the screenshot portal on Linux Wayland). Fields: note, optional link, project, tags (e.g. Recognition).
 - **Curation on any evidence item:**
@@ -156,23 +161,27 @@ Every integration implements one interface: `connect/validate`, `sync(since, unt
 - **Share:** Slack mrkdwn, rich text/HTML for email or Docs, Markdown (copy or file), PDF. Every format is available;
   the default copy format is configurable per profile.
 
-## 8. Narratives, Wins, Review export
+## 8. Narrative, Reports, Wins
 
-- Periods: **daily, weekly, monthly, custom range**.
-- **Hybrid roll-up:** weekly is built from the week's (edited) dailies + starred evidence + annotations, using raw
-  evidence for days without a daily. Monthly is built from weeklies the same way. Custom ranges and reviews use the
-  best available level. User edits therefore carry forward, and prompts stay bounded over long ranges.
+- **Narrative = typed facts, each citing evidence:** Workstream, Outcome, Problem solved, Invisible work, Hiccup, Decision,
+  Time allocation. Every fact is labelled *model-inferred* or *user-confirmed*; time is *measured* (calendar) or
+  *estimated*; "unknown" is allowed. Updated **incrementally** as evidence arrives. User-touched facts are never
+  overwritten by the model.
+- **Reports** cover **daily, weekly, monthly, quarterly and custom** ranges. Each report queries the Narrative for its
+  period and renders it with a template. Reports are **not editable**. **Lock** freezes a report as a snapshot (never
+  regenerated, shows "facts changed since lock", can be unlocked). Version history is kept.
 - **Generation:** automatic on a configurable schedule (e.g. daily at 18:00, weekly on Monday 09:00) when the tray app
-  is running, plus on demand at any time. Missed runs catch up on next launch.
-- **Editable:** rich-text / Markdown editing in place. A manual edit locks the narrative against auto-regeneration.
-  Regenerate takes an optional instruction ("shorter", "focus on the migration"). Version history with restore.
-- Every claim links back to its **evidence citations** (commit, PR, meeting, note).
-- **Wins = a living Wins log**, not a per-period generation. It holds starred items plus wins the model suggests
-  (each accepted or rejected by you), each with citations, project and date. It can be filtered by period and project, and it feeds review export.
-- **Review / brag doc:** quarter, half-year or custom range. Built from the Wins log + narratives, grouped by project,
-  with citations. Exported in any share format.
+  is running, plus on demand. Missed runs catch up on next launch.
+- Every claim in a report links to the **facts and evidence** behind it.
+- **Wins = a view** over Outcome facts + starred evidence, plus model-suggested wins you accept or reject. Filterable
+  by period and project.
+- **Review / brag doc** = a quarterly or custom report with a review template.
 - **Templates:** built-in templates (Standup, Manager update, Weekly review, Wins, Brag doc) that can be duplicated and
-  edited, with `{variables}`, a live preview against real evidence, and reset to default.
+  edited, with `{variables}`, a live preview against real data, and reset to default. Templates shape wording and
+  structure only, never facts.
+- **Retrieval-ready:** a full-text index (FTS5) over evidence and facts ships in v1. A query **tool layer**
+  (search evidence, get facts, time breakdown, workstream timeline) serves reports and Wins now, and will serve chat
+  and an MCP server later.
 
 ## 9. Backup & export
 
@@ -247,7 +256,7 @@ Every integration implements one interface: `connect/validate`, `sync(since, unt
 
 ## 12. Out of scope for v1
 
-Full-text search, backup encryption, mobile, cloud sync between devices, team or manager features, Slack ingestion, local embeddings.
+Full-text search UI (the index ships in v1), chat interface, MCP server (tool layer is designed for both), backup encryption, mobile, cloud sync between devices, team or manager features, Slack ingestion, local embeddings.
 
 ## 13. Owner to-dos (external)
 
