@@ -51,7 +51,7 @@ macos/Runner/  Swift: EventKit bridge
 |---|---|
 | State | Riverpod |
 | Storage | drift + bundled SQLite (`sqlite3` native assets), per-profile DB file |
-| Secrets | OS keychain (macOS Keychain / Windows Credential Manager / libsecret, with an encrypted-file fallback on Linux) |
+| Secrets | OS keychain (macOS Keychain / Windows Credential Manager / libsecret). **Linux requires libsecret**: no fallback, clear error if missing (#77). |
 | HTTP | `dio`, SSE streaming |
 | Heavy work | Isolates (git log parsing, ICS/RRULE expansion, prompt assembly) |
 | Desktop shell | `window_manager`, `tray_manager`, `hotkey_manager`, `launch_at_startup`, `local_notifier` |
@@ -68,6 +68,8 @@ Every integration implements one interface: `connect/validate`, `sync(since, unt
 
 - **Multiple profiles** (e.g. "Work", "Side projects"), switched from the sidebar.
   Each profile has its own DB file, sources, identities, model routing, templates and schedule.
+- **Only the active profile runs** (#77): the tray syncs and runs schedules for the profile you're on. Other profiles
+  catch up when you switch to them.
 - Each profile holds several **identities** (emails, GitHub/GitLab usernames, Jira/Linear accounts).
   These are suggested automatically from scanned repos and connected accounts and decide which evidence is "mine".
 
@@ -78,12 +80,12 @@ Every integration implements one interface: `connect/validate`, `sync(since, unt
 | Local git | — (system `git`) | n/a | Commits on all branches by your identities, diffs, stats |
 | GitHub | PAT / device flow | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed, review comments, issues |
 | GitLab | PAT | Self-managed (custom URL) | MRs, approvals, comments, issues |
-| Google Calendar | OAuth (built-in client + BYO override) | — | Events you attended |
+| Google Calendar | OAuth (built-in client only, #76) | — | Events you attended |
 | Apple Calendar | EventKit (macOS only) | — | Everything synced into Calendar.app |
-| Outlook / M365 | MS Graph OAuth (built-in client + BYO override) | — | Events |
+| Outlook / M365 | **ICS feed only** (paste the calendar's ICS link, #82). No Graph OAuth. | — | Events |
 | ICS | URL or file | — | Events, RRULE expanded |
 | Linear | API key | — (cloud only) | Issues created / completed / commented |
-| Jira | Cloud: email + API token | Data Center: PAT on custom URL (separate adapter) | Issues transitioned / commented / assigned |
+| Jira | Cloud: email + API token | **None: Jira Cloud only** (#81) | Issues transitioned / commented / assigned |
 | Meeting transcripts | Drag-drop `.vtt` / `.srt` / `.txt` | — | Matched to the overlapping calendar event, summarized |
 | Notes & context | — | — | Generic notes (see §7): standalone, or attached to a day, project, narrative, win or review. May carry images. |
 | Recognition | — | — | Praise and kudos: a screenshot (quick-capture region or drag-drop) + **optional link to the original message** + who/where/date. Text extracted by the image-understanding model. Treated as ordinary evidence (star it to make it a win). No Slack/Teams APIs in v1. |
@@ -107,14 +109,15 @@ Every integration implements one interface: `connect/validate`, `sync(since, unt
   - **Test connection** lists the endpoint's models and detects capabilities (vision, context length where reported);
     model names can also be typed by hand when `/models` isn't supported.
   - **Auto-detect** stays as a convenience: `localhost:11434` (Ollama) and `localhost:1234` (LM Studio) are offered at setup.
-  - **Privacy label:** endpoints on loopback/private ranges (127.0.0.0/8, 10/8, 172.16/12, 192.168/16, `.local`) are labelled
-    "Private network"; anything else "Remote". Remote custom endpoints get the same one-time consent notice as cloud providers.
+  - **Consent:** every provider that isn't on this machine (anything but `localhost`/loopback, LAN included) gets the
+    one-time consent notice. No private/remote network classification (#74).
   - **macOS Local Network permission:** since macOS 15, reaching LAN hosts triggers a system prompt; the app ships
     `NSLocalNetworkUsageDescription` and explains the prompt before the first LAN connection.
   - Custom endpoints work anywhere a model can be chosen (default model, per-task overrides, image understanding).
 - Model pickers list live models. OpenRouter shows price and context length.
-- **Per-task routing:** one default model, plus optional overrides per task
-  (commit summary, transcript summary, **image understanding**, daily, weekly, monthly, Wins, review export).
+- **Routing: four routes only** (#75): **Default** (the global model), plus optional overrides for **Vision**
+  (image understanding), **Extraction** (importance, enrichment text, facts, win suggestions) and **Reports**.
+  Unset routes inherit Default.
 - **Image understanding** (screenshots in notes and recognition) uses a vision-capable model. If the chosen model
   can't read images, the UI says so and suggests a vision-capable one (e.g. a local `llava`/`qwen2.5-vl` or a cloud model).
   There is no OS OCR. With a cloud model, screenshots leave the machine; the cloud consent notice covers this.
@@ -171,7 +174,7 @@ maintained from it, and every output reads from that Narrative.
   period and renders it with a template. Reports are **not editable**. **Lock** freezes a report as a snapshot (never
   regenerated, shows "facts changed since lock", can be unlocked). Version history is kept.
 - **Generation:** automatic on a configurable schedule (e.g. daily at 18:00, weekly on Monday 09:00) when the tray app
-  is running, plus on demand. Missed runs catch up on next launch.
+  is running, plus on demand. Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79).
 - Every claim in a report links to the **facts and evidence** behind it.
 - **Wins = a view** over Outcome facts + starred evidence, plus model-suggested wins you accept or reject. Filterable
   by period and project.
@@ -189,23 +192,18 @@ maintained from it, and every output reads from that Narrative.
   - **Restorable backup:** an `.antbackup` bundle per profile (a consistent SQLite snapshot via `VACUUM INTO` +
     settings, templates, projects, rules, narrative version history, plus a manifest with app/schema version, item counts and a checksum).
   - **Readable export (optional):** Markdown + JSON of narratives, the Wins log, notes, annotations and evidence metadata.
-- **Destinations (any combination, configured per profile):**
-  - Local folder: any folder, including Drive / iCloud / Dropbox / OneDrive sync folders and external drives.
-  - Google Drive API: `drive.file` scope (non-sensitive), reusing the Google OAuth client.
-  - OneDrive API: Graph app folder (`Files.ReadWrite.AppFolder`), reusing the Azure registration.
-  - Dropbox: OAuth PKCE, app-folder access.
-  - WebDAV: covers Nextcloud and other self-hosted storage.
-  - S3-compatible: AWS, R2, B2, MinIO, using the user's own keys.
-- **Schedule:** daily by default (run by the tray app; catches up if missed), plus "Back up now". Rotation keeps
-  7 daily / 4 weekly / 12 monthly copies (configurable). Warns when the last successful backup is older than a threshold.
+- **Destination: a local folder only** (#80): any folder, including Google Drive / iCloud / Dropbox / OneDrive sync
+  folders and external drives. Cloud backup = pick a synced folder. No cloud-storage API connectors.
+- **Schedule:** daily by default (run by the tray app; catches up once if missed), plus "Back up now". **Keeps the last
+  N backups** (default 14) (#78). Warns when the last successful backup is older than a threshold.
   Destination status (last success, last error) appears in Settings.
 - **Secrets are never included.** API keys and OAuth tokens stay in the OS keychain; after a restore you sign in again.
-- **Restore:** pick a backup (from a file or a configured destination), preview it (profile, date range, item counts,
+- **Restore:** pick a backup file, preview it (profile, date range, item counts,
   backup date), then restore into a new profile or replace an existing one. Newer schema versions refuse to restore with a clear message.
   Backups from older versions are migrated on restore.
 - **Not sync.** Restoring on another machine is a one-time copy; the live DB must never sit in a shared folder.
-- **No encryption in v1:** backups are plaintext. The UI warns when a cloud destination is chosen, since backups
-  contain full diffs and meeting details.
+- **No encryption in v1:** backups are plaintext. Settings states this, since a synced folder puts full diffs and
+  meeting details in that cloud.
 
 ## 10. App shell & UX
 
@@ -265,6 +263,5 @@ Tracked as a checklist in [OWNER_TODO.md](./OWNER_TODO.md). Summary:
 - Apple Developer ID (signing + notarization) and a Windows code-signing cert, when available.
 - Google Cloud project: Calendar read-only scope, OAuth consent screen, **verification** (100-user cap with an
   "unverified app" warning until approved; needs a privacy policy URL and a demo video).
-- Azure app registration (multi-tenant, public client) for Microsoft Graph.
 - Sentry project (DSN) for opt-in crash reports.
-- Trial instances for testing GitHub Enterprise and Jira Data Center (GitLab CE runs in Docker).
+- A trial instance for testing GitHub Enterprise (GitLab CE runs in Docker).

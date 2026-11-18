@@ -151,3 +151,32 @@ Full model: [lld/02-entities.md](./lld/02-entities.md).
 | 65 | **Workstream is an entity** (a thread facts belong to), not a fact type. | Facts need a container to form the "timeline of sorts" the owner described. Refines #48. Owner agreed. |
 | 66 | **Regenerating a report may take a style instruction** ("shorter", "less jargon"), stored on the snapshot. It changes wording only, never facts. | Consistent with read-only reports (#49): templates and style shape presentation, facts shape content. Owner agreed. |
 
+## 11. Class design (LLD step 3, 2026-11-18)
+
+Full design: [lld/03-class-design.md](./lld/03-class-design.md).
+
+| # | Decision | Rationale / context |
+|---|---|---|
+| 67 | **Guiding principle: simple over complete.** Support the common path well; don't implement every edge case. Prefer not supporting, failing clearly, or asking the user over adding branches, settings and fallbacks. Applies to the whole LLD and implementation. | Owner: "keep the implementations simpler by not supporting every plethora of edge cases … Apply this principle everywhere." |
+| 68 | **Dedicated engine isolate** owns the database writer, job queue, sources and LLM calls; the UI reads via drift's cross-isolate reactive queries and sends commands. | The tray keeps working with no window; no UI jank; single DB writer. Owner agreed. |
+| 69 | **Sources are pull-based** (sync from a cursor; idempotent). Optional change watchers only *trigger* a sync, never write. | One write path (the Ingestor) for all capture. Owner agreed. |
+| 70 | **All models must support native structured output** (JSON schema). Verified by a probe when a model is added; unsupported models are rejected. No prompt-only fallback or repair retries. | Owner's choice over a fallback path. Applies #67: one code path, predictable failures. Cost: some small local models can't be used. |
+| 71 | **Expose drift-generated data classes** as the read model; no separate domain classes. Writes only through `AntEngine` commands. | Owner's choice: less code. Cost accepted: the DB schema is visible to the app layer. Invariants stay safe because the write path is still closed. |
+| 72 | **Fact extraction runs per day** (incremental), with a separate workstream-assignment pass across days. | Bounded prompts and natural incremental units. Owner agreed. |
+
+### Simplification pass (applying #67, 2026-11-18)
+
+| # | Decision | Rationale / context |
+|---|---|---|
+| 73 | **Capture behaviour kept as designed** (simplification offered, declined): optional change watchers (git file watching, EventKit change events) that trigger syncs, suggested attach by time overlap, payload split, and automatic grouping by both iCal UID and commit SHA. | Owner: "keep all current capture behaviour". Prompt capture (before squash or force-push) and accurate grouping matter more here than the extra code. |
+| 74 | **Consent notice for every non-localhost provider**, LAN included. No private/remote network classification. | Simpler, and errs on the side of privacy. Replaces the "Privacy label" rule from the custom-endpoints decision (#15). |
+| 75 | **Four task routes only:** Default, Vision, Extraction (importance, enrichment, facts, wins), Reports. | Fewer settings; still separates the expensive and vision-capable cases. Refines #16. |
+| 76 | **No bring-your-own OAuth client**: only the built-in Google client. | Removes an advanced setting. Refines #11. |
+| 77 | **Linux requires libsecret** (no encrypted-file fallback), and **only the active profile runs** in the background; others catch up on switch. | Fewer code paths. Refines #5 and #9. |
+| 78 | **Backups keep the last N** (default 14), with no daily/weekly/monthly rotation. | Simpler retention. Refines #37. |
+| 79 | **Missed schedules catch up once** (the latest due run). | No backfill of every missed occurrence. Refines #22 and #37. |
+| 80 | **Backups go to a local folder only.** Cloud backup = choose a synced folder (Drive, iCloud, Dropbox, OneDrive). | Owner cut the five cloud API connectors. Supersedes #35. Removes several owner to-dos (Drive scope, Azure permission, Dropbox app). |
+| 81 | **Jira Cloud only.** No Jira Data Center adapter. | Owner cut it. Refines #13 (GitHub Enterprise and GitLab self-managed stay). |
+| 82 | **Outlook via ICS feed only.** No Microsoft Graph OAuth or Azure app registration. | Owner cut it. Refines #10 and #11. |
+| — | *Kept as-is (simplification offered, declined):* custom CA + self-signed toggle per endpoint (#15), and readable Markdown/JSON export alongside backups (#34). | Owner chose to keep them. |
+

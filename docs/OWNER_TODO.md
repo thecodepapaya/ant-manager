@@ -16,23 +16,15 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] Publish a **privacy policy URL** and **home page** (the `web/` site can host both).
 - [ ] Submit for **sensitive-scope verification**: demo video plus written justification. Takes weeks. Until approved: an "unverified app" warning and a 100-user cap.
 
-## Microsoft / Outlook
-- [ ] **Azure app registration**: multi-tenant + personal accounts, *public client*, loopback redirect `http://localhost`, delegated `Calendars.Read` + `offline_access`. Give me the client ID.
-- [ ] Optional: **publisher verification** (needs a Microsoft Partner ID) to remove the "unverified" label in consent prompts.
-
-## Backup destinations
-- [ ] Google: add the **`drive.file`** scope to the same consent screen (non-sensitive, no extra verification) and enable the Drive API.
-- [ ] Azure: add the delegated **`Files.ReadWrite.AppFolder`** permission to the same app registration.
-- [ ] **Dropbox app** (App Console → scoped access, *App folder*, PKCE). Give me the app key.
-- [ ] (WebDAV / S3: nothing needed. Users supply their own server or keys. For testing I'll use MinIO and Nextcloud in Docker.)
+~~Microsoft / Outlook (Azure app registration)~~: **removed.** Outlook is supported via ICS links only (DECISIONS #82).
+~~Backup destinations (Drive scope, Azure permission, Dropbox app)~~: **removed.** Backups go to a local folder only (#80).
 
 ## Crash reporting
 - [ ] Create a **Sentry project** (free tier is fine) and give me the DSN. Reports stay opt-in in the app.
 
 ## Testing infrastructure
 - [ ] **GitHub Enterprise Server** trial licence (or access to a real GHES instance) for self-hosted testing.
-- [ ] **Jira Data Center** trial licence (Atlassian offers 30-day trials) for testing the DC adapter.
-- [ ] Test accounts: Linear workspace, Jira Cloud site, an Outlook / M365 account and a Google account with sample calendar data.
+- [ ] Test accounts: Linear workspace, Jira Cloud site, an Outlook / M365 account (for its ICS link) and a Google account with sample calendar data.
 - [ ] (GitLab self-managed: I'll run GitLab CE in Docker. Nothing needed from you.)
 
 ## Content & legal

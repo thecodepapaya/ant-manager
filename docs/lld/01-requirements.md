@@ -43,12 +43,13 @@ Sources ──► EVIDENCE ──► NARRATIVE ──► tool layer ──► Re
 7. **Timeline** of all evidence, filterable by source, project and date.
 8. **Wins:** a view over Outcome facts + starred evidence; star manually, or accept or reject model-suggested wins.
 9. **Model choice:** local models, network endpoints (OpenAI-compatible or Ollama on localhost, LAN or remote), or cloud
-   providers with the user's own keys. One default model plus optional per-task overrides.
+   providers with the user's own keys. One default model plus optional overrides for Vision, Extraction and Reports.
 10. **Background (tray) operation:**
     - It captures evidence promptly. Repos are watched so that commits later removed by squash, rebase or force-push are still recorded.
     - It keeps the Narrative up to date and runs scheduled jobs (reports, nudge, backup).
     - It hosts the quick-capture hotkey.
-    - **Quitting is safe:** everything catches up on the next launch.
+    - **Quitting is safe:** everything catches up on the next launch (missed schedules run once).
+    - Only the **active profile** runs in the background.
 11. **Profiles:** separate data, sources, identities, models and schedules per profile.
 12. **Projects & curation:** group evidence and facts into projects (auto-suggested, user-confirmed), hide or exclude
     evidence (including rules), annotate evidence.
@@ -62,9 +63,9 @@ These must fit the core abstractions without changing them. The extensibility st
 - **Chat interface** over the Narrative (uses the tool layer)
 - **MCP server** exposing the tool layer to external agents (deferred; off by default when built)
 - Full-text **search UI** (the FTS5 index itself is core) and semantic search with embeddings
-- Additional sources: Linear, Jira (Cloud + Data Center), meeting transcripts, ICS, Apple / Google / Outlook specifics
+- Additional sources: Linear, Jira Cloud, meeting transcripts, ICS (also how Outlook is supported), Apple / Google calendar specifics
 - Share and export formats (Slack, rich text, Markdown, PDF)
-- Backup and restore destinations
+- Backup and restore (local folder only)
 - Scheduled-generation settings UI, end-of-day nudge, quick-capture UI
 - Prompt-template editor
 - Onboarding flow

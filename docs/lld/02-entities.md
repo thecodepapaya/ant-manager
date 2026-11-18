@@ -199,7 +199,7 @@ erDiagram
         json capabilities "vision, context_length"
     }
     TASK_ROUTE {
-        string task PK "default, importance, fact_extraction, report..."
+        string task PK "default, vision, extraction, reports"
         string model_id FK "null = inherit default"
     }
     JOB {
@@ -237,7 +237,7 @@ erDiagram
 ### Capture
 | Entity | Purpose | Key attributes |
 |---|---|---|
-| **Source** | A connector instance: where payloads come from. | id, profile, kind (github, github_enterprise, gitlab, google_calendar, apple_calendar, outlook, ics, git_repo, screenshot_capture, manual_note, linear, jira, transcript…), config (JSON), credential ref (keychain key), enabled |
+| **Source** | A connector instance: where payloads come from. | id, profile, kind (github, github_enterprise, gitlab, google_calendar, apple_calendar, ics (incl. Outlook), git_repo, screenshot_capture, manual_note, linear, jira, transcript…), config (JSON), credential ref (keychain key), enabled |
 | **SyncCursor** | Incremental sync position per source (and sub-scope, e.g. per repo or calendar). | source, scope, cursor (opaque), last_success_at, last_error |
 | **Evidence** | A *moment of work*. Usually holds one payload; sometimes several (see grouping). | id (ULID), profile, occurred_start, occurred_end?, title, project?, starred, hidden, **importance** {score, reason, set_by: model\|user\|rule}, created_at, updated_at |
 | **Payload** | One typed piece of content inside an evidence item, from exactly one source. | id, evidence, **kind**, source, **external_id**, content (typed JSON per kind), **content_hash**, **revision**, tombstoned_at? |
@@ -267,7 +267,7 @@ erDiagram
 |---|---|---|
 | **Provider** | An AI endpoint: OpenRouter, OpenAI, Anthropic, Gemini, or a custom endpoint (local, LAN, remote). | id, kind, base_url, protocol (openai \| ollama \| native), credential ref, network class (private \| remote), tls options |
 | **Model** | A model offered by a provider. | provider, model_id, capabilities (vision, context length), pricing? |
-| **TaskRoute** | Which model handles a task. The `default` route is the global model; other tasks inherit unless overridden. | profile, task (default, importance, enrichment.image, enrichment.transcript, fact_extraction, report, win_suggestion…), model? (null = inherit default) |
+| **TaskRoute** | Which model handles a task. The `default` route is the global model; other tasks inherit unless overridden. | profile, task (**default \| vision \| extraction \| reports**), model? (null = inherit default) |
 
 ### Background & staleness machinery
 | Entity | Purpose | Key attributes |
