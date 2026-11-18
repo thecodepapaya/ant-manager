@@ -1,0 +1,247 @@
+# Ant Manager v1 — Product & Technical Spec
+
+Status: **Scope locked** (2026-11-18). Greenfield rewrite; no backward compatibility with the Python/Go versions.
+
+## 1. Goal
+
+A polished, self-contained desktop app that builds an evidence-backed timeline of your work and turns it
+into narratives (daily / weekly / monthly / custom), Wins lists and review documents.
+
+- One download per OS, **no runtime dependencies** (no Python, no Go sidecar, no venv).
+- Only external expectation: a system `git`, detected automatically with a guided install if missing.
+- Philosophy unchanged — see [PHILOSOPHY.md](../PHILOSOPHY.md): reflection, not surveillance; no scores.
+
+## 2. Platforms & distribution
+
+| Platform | Artifact | Min OS | Notes |
+|---|---|---|---|
+| macOS | Universal (arm64 + x64) `.app` in `.dmg` | 10.15+ | Sparkle auto-update |
+| Windows | Inno Setup `.exe` installer (x64) | Windows 10+ | WinSparkle auto-update |
+| Linux | AppImage (x64) | Ubuntu 22.04-class | "Update available" notice; tray lib bundled |
+
+- **Signing:** pipeline built now (Developer ID + notarization, Authenticode), runs ad-hoc/unsigned until certs exist.
+  Release notes document the Gatekeeper / SmartScreen workaround meanwhile.
+- **Releases:** GitHub Actions matrix builds all three, publishes to GitHub Releases + appcast feeds.
+- **Delivery:** single v1 release with the full scope below (no milestone split).
+
+## 3. Architecture
+
+**Pure Dart in a single Flutter process.** No backend process, no IPC.
+
+**Code layout: Dart pub workspace** (see DECISIONS #45). The folder sketch below shows the logical layers;
+the physical split is `app/` (Flutter shell + platform glue), `packages/core` (pure Dart, no Flutter dependency),
+`packages/ui` (tokens + components). Exact module boundaries will be settled in the low-level design.
+
+```
+lib/
+  core/        pure Dart, no Flutter imports, unit-tested
+    db/          drift schema, migrations, DAOs (one SQLite file per profile)
+    sources/     EvidenceSource interface + one adapter per integration
+    llm/         provider clients, model routing, streaming
+    narrative/   evidence selection, prompt templates, generation jobs
+    scheduler/   sync + auto-generation scheduling
+    secrets/     keychain-backed credential store
+  features/    timeline, notes, narratives, wins, review, sources, settings, onboarding, profiles
+  ui/          design system: tokens, theme, components, motion, icons
+  platform/    tray, hotkey, window, updater, notifications, platform channels
+macos/Runner/  Swift: EventKit bridge
+```
+
+| Concern | Choice |
+|---|---|
+| State | Riverpod |
+| Storage | drift + bundled SQLite (`sqlite3` native assets), per-profile DB file |
+| Secrets | OS keychain (macOS Keychain / Windows Credential Manager / libsecret, with an encrypted-file fallback on Linux) |
+| HTTP | `dio`, SSE streaming |
+| Heavy work | Isolates (git log parsing, ICS/RRULE expansion, prompt assembly) |
+| Desktop shell | `window_manager`, `tray_manager`, `hotkey_manager`, `launch_at_startup`, `local_notifier` |
+| Updates | `auto_updater` (Sparkle / WinSparkle) |
+| OAuth | Loopback redirect + PKCE in the system browser |
+| Crash reports | Sentry, **opt-in**, off by default, stack traces only (no content) |
+
+### EvidenceSource contract
+
+Every integration implements one interface: `connect/validate`, `sync(since, until) -> Stream<EvidenceItem>`,
+`identityMatchers`, `detailFor(item)`. Items are upserted by `(source, sourceId)`, so syncs are idempotent and incremental.
+
+## 4. Profiles & identity
+
+- **Multiple profiles** (e.g. "Work", "Side projects"), switched from the sidebar.
+  Each profile has its own DB file, sources, identities, model routing, templates and schedule.
+- Each profile holds several **identities** (emails, GitHub/GitLab usernames, Jira/Linear accounts).
+  These are suggested automatically from scanned repos and connected accounts and decide which evidence is "mine".
+
+## 5. Evidence sources
+
+| Source | Auth | Self-hosted | Captures |
+|---|---|---|---|
+| Local git | — (system `git`) | n/a | Commits on all branches by your identities, diffs, stats |
+| GitHub | PAT / device flow | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed, review comments, issues |
+| GitLab | PAT | Self-managed (custom URL) | MRs, approvals, comments, issues |
+| Google Calendar | OAuth (built-in client + BYO override) | — | Events you attended |
+| Apple Calendar | EventKit (macOS only) | — | Everything synced into Calendar.app |
+| Outlook / M365 | MS Graph OAuth (built-in client + BYO override) | — | Events |
+| ICS | URL or file | — | Events, RRULE expanded |
+| Linear | API key | — (cloud only) | Issues created / completed / commented |
+| Jira | Cloud: email + API token | Data Center: PAT on custom URL (separate adapter) | Issues transitioned / commented / assigned |
+| Meeting transcripts | Drag-drop `.vtt` / `.srt` / `.txt` | — | Matched to the overlapping calendar event, summarized |
+| Notes & context | — | — | Generic notes (see §7): standalone, or attached to a day, project, narrative, win or review. May carry images. |
+| Recognition | — | — | Praise and kudos: a screenshot (quick-capture region or drag-drop) + **optional link to the original message** + who/where/date. Text extracted by the image-understanding model. Treated as ordinary evidence (star it to make it a win). No Slack/Teams APIs in v1. |
+
+- **Git setup:** scan watched root folders (e.g. `~/Projects`), list repos showing recent activity by your identities,
+  tick to include. New repos under watched roots are suggested automatically. Manual add also works.
+- **Git detection:** PATH, Homebrew, Xcode CLT, Git for Windows default paths. Detects the macOS `/usr/bin/git` stub
+  without triggering it. If git is missing, show a friendly install screen.
+- **Self-hosted networking:** a per-connection "trust custom CA certificate" option (plus an explicit insecure toggle with a warning).
+
+## 6. AI providers & routing
+
+- Providers: **OpenRouter**, **OpenAI**, **Anthropic**, **Gemini**, **Local / custom URL**
+  (Ollama native + any OpenAI-compatible endpoint; auto-detect `localhost:11434` and `localhost:1234`).
+- Model pickers list live models. OpenRouter shows price and context length.
+- **Per-task routing:** one default model, plus optional overrides per task
+  (commit summary, transcript summary, **image understanding**, daily, weekly, monthly, Wins, review export).
+- **Image understanding** (screenshots in notes and recognition) uses a vision-capable model. If the chosen model
+  can't read images, the UI says so and suggests a vision-capable one (e.g. a local `llava`/`qwen2.5-vl` or a cloud model).
+  There is no OS OCR. With a cloud model, screenshots leave the machine; the cloud consent notice covers this.
+- Streaming output into the editor, with cancel. Token and cost estimate shown before long runs (where pricing is known).
+- **Data sent:** full evidence (including diffs and meeting details) goes to whichever provider is configured.
+  A one-time consent notice appears when a cloud provider is first enabled. PRIVACY.md and THREAT_MODEL.md get updated to match.
+
+## 7. Core product flow
+
+```
+ CAPTURE (passive)        REVIEW (2 min/day)          NARRATE                  SHARE
+ git, PRs, calendar,  →   Today page: evidence   →   Daily draft at your  →   Slack / rich text /
+ tickets, transcripts     by project; star, hide,    scheduled time;          Markdown / PDF
+ + quick-capture notes    annotate, add notes        edit in place
+                                                     ↓ hybrid roll-up
+                                                     daily → weekly → monthly → custom / review
+```
+
+- **Home = Today page.** A journal-style day view: the day's evidence grouped by project, next to the day's narrative
+  draft. Notes are added inline. `←/→` (or `[`/`]`) moves between days, and a date picker jumps anywhere.
+- **Navigation (sidebar):** profile switcher at the top · Today · Timeline · Narratives · Wins · Projects · Reviews ·
+  then Sources and Settings at the bottom. Notes have no separate tab; they live in Today and Timeline.
+- **Notes & context (generic):** notes can be standalone or attached to a day, project, narrative, win or review.
+  They can include dropped/pasted images and an optional link. Add-note is visible in Today, Timeline and on every
+  narrative/win/review, plus the quick-capture hotkey.
+- **Regenerate anything with context:** every generated item that is **not locked** has "Add context & regenerate".
+  Its attached notes + an optional one-off instruction feed the next generation. Locked items must be unlocked first,
+  and previous versions are always kept in history.
+- **Quick capture** has a text mode and a **screenshot-region mode** (needs Screen Recording permission on macOS,
+  the screenshot portal on Linux Wayland). Fields: note, optional link, project, tags (e.g. Recognition).
+- **Curation on any evidence item:**
+  - **Star / mark as win:** always included in narratives, and added to the Wins log.
+  - **Hide / exclude:** left out of generation. Bulk rules supported (e.g. "ignore events titled *Lunch*", "ignore merge commits").
+  - **Annotate:** add context the model sees ("took 3 days because of flaky CI").
+  - **Projects:** evidence is grouped into projects/themes, auto-suggested from repo, ticket project and the LLM, then
+    confirmed or edited by the user. Narratives and reviews are organized by project.
+- **Daily nudge:** a gentle notification at the chosen time ("Your day is drafted, 2-minute review?") that opens Today.
+  Snooze or skip. Skipped automatically on days with no evidence and on weekends (configurable). No streaks, no scores.
+- **Share:** Slack mrkdwn, rich text/HTML for email or Docs, Markdown (copy or file), PDF. Every format is available;
+  the default copy format is configurable per profile.
+
+## 8. Narratives, Wins, Review export
+
+- Periods: **daily, weekly, monthly, custom range**.
+- **Hybrid roll-up:** weekly is built from the week's (edited) dailies + starred evidence + annotations, using raw
+  evidence for days without a daily. Monthly is built from weeklies the same way. Custom ranges and reviews use the
+  best available level. User edits therefore carry forward, and prompts stay bounded over long ranges.
+- **Generation:** automatic on a configurable schedule (e.g. daily at 18:00, weekly on Monday 09:00) when the tray app
+  is running, plus on demand at any time. Missed runs catch up on next launch.
+- **Editable:** rich-text / Markdown editing in place. A manual edit locks the narrative against auto-regeneration.
+  Regenerate takes an optional instruction ("shorter", "focus on the migration"). Version history with restore.
+- Every claim links back to its **evidence citations** (commit, PR, meeting, note).
+- **Wins = a living Wins log**, not a per-period generation. It holds starred items plus wins the model suggests
+  (each accepted or rejected by you), each with citations, project and date. It can be filtered by period and project, and it feeds review export.
+- **Review / brag doc:** quarter, half-year or custom range. Built from the Wins log + narratives, grouped by project,
+  with citations. Exported in any share format.
+- **Templates:** built-in templates (Standup, Manager update, Weekly review, Wins, Brag doc) that can be duplicated and
+  edited, with `{variables}`, a live preview against real evidence, and reset to default.
+
+## 9. Backup & export
+
+- **Two outputs per run:**
+  - **Restorable backup:** an `.antbackup` bundle per profile (a consistent SQLite snapshot via `VACUUM INTO` +
+    settings, templates, projects, rules, narrative version history, plus a manifest with app/schema version, item counts and a checksum).
+  - **Readable export (optional):** Markdown + JSON of narratives, the Wins log, notes, annotations and evidence metadata.
+- **Destinations (any combination, configured per profile):**
+  - Local folder: any folder, including Drive / iCloud / Dropbox / OneDrive sync folders and external drives.
+  - Google Drive API: `drive.file` scope (non-sensitive), reusing the Google OAuth client.
+  - OneDrive API: Graph app folder (`Files.ReadWrite.AppFolder`), reusing the Azure registration.
+  - Dropbox: OAuth PKCE, app-folder access.
+  - WebDAV: covers Nextcloud and other self-hosted storage.
+  - S3-compatible: AWS, R2, B2, MinIO, using the user's own keys.
+- **Schedule:** daily by default (run by the tray app; catches up if missed), plus "Back up now". Rotation keeps
+  7 daily / 4 weekly / 12 monthly copies (configurable). Warns when the last successful backup is older than a threshold.
+  Destination status (last success, last error) appears in Settings.
+- **Secrets are never included.** API keys and OAuth tokens stay in the OS keychain; after a restore you sign in again.
+- **Restore:** pick a backup (from a file or a configured destination), preview it (profile, date range, item counts,
+  backup date), then restore into a new profile or replace an existing one. Newer schema versions refuse to restore with a clear message.
+  Backups from older versions are migrated on restore.
+- **Not sync.** Restoring on another machine is a one-time copy; the live DB must never sit in a shared folder.
+- **No encryption in v1:** backups are plaintext. The UI warns when a cloud destination is chosen, since backups
+  contain full diffs and meeting details.
+
+## 10. App shell & UX
+
+- **Design direction: Linear.** Dense, keyboard-first, crisp type, subtle depth. Dark-first with a full light theme.
+  One unified design system on all OSes, with native window chrome, menu bar and shortcuts per platform.
+  Branding keeps the **Ant Manager** name and the current ant logo; the palette is derived from the logo.
+- **Design tokens, one source of truth.** Every visual value is a named token defined in exactly one place
+  (`lib/ui/tokens/`). Widgets read tokens only, never literals. Changing a token restyles the whole app.
+  - **Colour:** semantic roles (`bg`, `surface`, `raised`, `border`, `text`, `muted`, `accent`, `success`, `danger`…),
+    with a **dark** and a **light** set. Accent variants (`accentHover`, `accentText`, `onAccent`) are **derived from one
+    `accent` seed**, so changing the brand colour is a one-line edit.
+  - **Radius:** one `radius` base; the scale (`xs` / `sm` / `md` / `lg` / `xl`) is derived from it. Setting it to 0 makes
+    everything square; 10 makes everything rounder.
+  - **Also tokenized:** spacing scale, type scale (Inter + JetBrains Mono), elevation/shadows, motion durations and curves,
+    icon sizes, and density.
+  - **Flutter shape:** an `AntTokens` `ThemeExtension` (with `lerp` for animated theme switches), accessed through
+    `context.tokens`. Light and dark are built from the same seed values.
+  - **Enforced:** a CI check fails on `Color(0x…)`, `Colors.*`, `BorderRadius.circular(<number>)`, raw `EdgeInsets`
+    numbers or `TextStyle(fontSize:)` outside `lib/ui/tokens/`. A widget gallery screen (debug builds) shows every
+    component in both themes.
+  - Mockup reference: `tokens.css` in the design canvas uses the same names.
+- **UX principles (from mockup review, 2026-11-18).** The mockup sets the design *language* only; the final UI must fix these:
+  - **Not intimidating.** Progressive disclosure: a new user sees a calm, mostly empty Today and one obvious next action.
+    Advanced controls (per-task models, self-hosted URLs, bulk hide rules, roll-up provenance, template editing) sit
+    behind "Advanced" or appear only when relevant. Every screen has a helpful empty state. The first week is guided.
+  - **Spacing and padding** come from the spacing tokens on a consistent rhythm. Polish the density, alignment and
+    hierarchy screen by screen, with a visual review in both themes.
+  - **Model settings:** one obvious global model at the top ("Use X for everything"). Per-task overrides are an optional,
+    collapsed "Customize per task" section, with an "inherits default" state, so changing the global model updates every inheriting task.
+  - **Notes are first-class and easy to find:** a visible "Add note" in Today and Timeline, the quick-capture hotkey,
+    and notes with any date, project and tags (exact scope to be confirmed).
+- Keyboard: navigation, actions and a command menu for commands (not full-text search, which is out of v1).
+- **Menu bar / tray app:** keeps running when the window is closed. Handles sync, scheduled generation,
+  "write your day?" nudge notifications and the quick-capture hotkey. Launch at login is optional.
+- **Quick capture:** a global hotkey opens a floating note box from anywhere.
+- **Onboarding:** create profile → add identities → scan repos → connect optional sources → pick AI provider
+  → first generation. Each step can be skipped.
+- Diagnostics: a "Copy diagnostics" button with local rotating logs.
+
+## 11. Repo layout
+
+- **Done (2026-11-18):** all previous code moved to `legacy/`: the Flutter app (`legacy/app`, including the Python core
+  `legacy/app/core` and the logo assets), the untracked Go port (`legacy/core-go`), the Go docs (`legacy/docs`), and the old
+  README / PRIVACY / THREAT_MODEL (to be rewritten for v1). `legacy/` is reference only; nothing new imports from it.
+- Root now: `docs/` (SPEC, DECISIONS, OWNER_TODO, design/), `PHILOSOPHY.md` (unchanged), `LICENSE`, `.gitignore`,
+  and `web/` + `wrangler.json` (Cloudflare Pages landing site; left in place so deploys keep working).
+- The new Flutter project will be created fresh (location set in the low-level design). Firebase is not used.
+
+## 12. Out of scope for v1
+
+Full-text search, backup encryption, mobile, cloud sync between devices, team or manager features, Slack ingestion, local embeddings.
+
+## 13. Owner to-dos (external)
+
+Tracked as a checklist in [OWNER_TODO.md](./OWNER_TODO.md). Summary:
+
+- Apple Developer ID (signing + notarization) and a Windows code-signing cert, when available.
+- Google Cloud project: Calendar read-only scope, OAuth consent screen, **verification** (100-user cap with an
+  "unverified app" warning until approved; needs a privacy policy URL and a demo video).
+- Azure app registration (multi-tenant, public client) for Microsoft Graph.
+- Sentry project (DSN) for opt-in crash reports.
+- Trial instances for testing GitHub Enterprise and Jira Data Center (GitLab CE runs in Docker).
