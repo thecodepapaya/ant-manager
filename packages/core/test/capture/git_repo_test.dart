@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:core/core.dart';
 import 'package:core/src/capture/ingestor.dart';
-import 'package:core/src/capture/sources/git_detect.dart';
 import 'package:core/src/capture/sources/git_repo.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;

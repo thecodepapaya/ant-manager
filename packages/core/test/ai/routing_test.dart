@@ -1,8 +1,5 @@
 import 'package:core/core.dart';
 import 'package:core/src/ai/clients/openai_compatible.dart';
-import 'package:core/src/ai/consent.dart';
-import 'package:core/src/ai/probe.dart';
-import 'package:core/src/ai/router.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:test/test.dart';
