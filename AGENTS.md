@@ -19,6 +19,8 @@ Guidance for coding agents in this repo.
 
 ## Working rules
 - Simple over complete (#67): no fallbacks or settings for edge cases.
+- **Tests are never written by the agent that wrote the code** (#99): a different agent writes them; `sarvam-code`
+  (DeepSeek v4.1 flash, read-only) verifies them.
 - Record every decision in DECISIONS + SPEC + the relevant LLD doc (+ OWNER_TODO if external).
 - Explain tradeoffs briefly before asking. Keep responses concise.
 - Git: agents work on short branches merged into `v1`; push allowed; tagged releases are public and unsigned.
