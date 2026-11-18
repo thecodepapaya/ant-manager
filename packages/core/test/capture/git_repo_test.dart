@@ -85,7 +85,7 @@ void main() {
     final db = ProfileDb(NativeDatabase.memory());
     addTearDown(db.close);
     await db.into(db.sources).insert(SourcesCompanion.insert(id: 's1', kind: SourceKind.gitRepo, name: 'r'));
-    final ingestor = Ingestor(db, utcOffset: () => Duration.zero);
+    final ingestor = Ingestor(db, utcOffset: (_) => Duration.zero);
     final c = ctx();
 
     final r1 = await ingestor.ingest('s1', await sync(c));

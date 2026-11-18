@@ -104,7 +104,7 @@ void main() {
     final db = ProfileDb(NativeDatabase.memory());
     addTearDown(db.close);
     await db.into(db.sources).insert(SourcesCompanion.insert(id: 'gl', kind: SourceKind.gitlab, name: 'gl'));
-    final ingestor = Ingestor(db, utcOffset: () => Duration.zero);
+    final ingestor = Ingestor(db, utcOffset: (_) => Duration.zero);
     final c = ctx();
     expect((await ingestor.ingest('gl', await GitLabSource().sync(c).toList())).created, 4);
     c.commit();

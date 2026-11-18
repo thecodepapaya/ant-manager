@@ -119,7 +119,7 @@ void main() {
     final db = ProfileDb(NativeDatabase.memory());
     addTearDown(db.close);
     await db.into(db.sources).insert(SourcesCompanion.insert(id: 'gh', kind: SourceKind.github, name: 'gh'));
-    final ingestor = Ingestor(db, utcOffset: () => Duration.zero);
+    final ingestor = Ingestor(db, utcOffset: (_) => Duration.zero);
     final c = ctx();
     expect((await ingestor.ingest('gh', await GitHubSource().sync(c).toList())).created, 3);
     c.commit();

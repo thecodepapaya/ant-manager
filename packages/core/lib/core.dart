@@ -3,8 +3,15 @@
 library;
 
 export 'src/ai/llm.dart';
+export 'src/ai/consent.dart' show requiresConsent;
+export 'src/ai/probe.dart' show probeModel;
+export 'src/ai/register.dart' show createClient;
+export 'src/ai/router.dart' show DbModelRouter;
 export 'src/ai/structured.dart' show StructuredOutput;
 export 'src/capture/source.dart';
+export 'src/capture/sources/git_detect.dart' show GitDetector, ProcessGitExecutable;
+export 'src/capture/sources/git_repo.dart' show scanForRepos, parseRemote, GitRemote;
+export 'src/capture/sources/register.dart' show registerCodeSources;
 export 'src/data/app_db.dart';
 export 'src/data/profile_db.dart';
 export 'src/domain/enums.dart';
