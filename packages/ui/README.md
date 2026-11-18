@@ -1,39 +1,9 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# ui
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+Ant Manager design tokens and components (SPEC §10, DECISIONS #39–#42). No dependency on `core`.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
-
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
-
-## Features
-
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
-
-## Usage
-
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
-
-```dart
-const like = 'sample';
-```
-
-## Additional information
-
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+- `MaterialApp(theme: antTheme(AntTokens.dark()), darkTheme: …)`, then `context.tokens` in widgets.
+- Literals live only in `lib/src/tokens/`. Check: `dart run packages/ui/tool/check_tokens.dart` (repo root).
+- Gallery: `cd example && flutter run -d macos`.
+- Fonts: Inter 4.1 (rsms/inter release, static 400–700) and JetBrains Mono (google/fonts, variable), both SIL OFL 1.1;
+  licenses in `assets/fonts/*/OFL.txt`.
