@@ -54,7 +54,6 @@ class JobQueue {
       await (db.update(db.jobs)..where((t) => t.id.equals(j.id))).write(JobsCompanion(
         state: const Value(JobState.running),
         leaseUntil: Value(now.add(leaseTtl)),
-        attempts: Value(j.attempts + 1),
       ));
       return j;
     });
@@ -66,11 +65,13 @@ class JobQueue {
       await (db.update(db.jobs)..where((t) => t.id.equals(job.id)))
           .write(const JobsCompanion(state: Value(JobState.done), leaseUntil: Value(null)));
     } catch (e) {
-      final attempt = job.attempts + 1;
+      final attempt = job.attempts + 1; // attempts count failures, not leases
       final failed = attempt > backoff.length;
+      final failedAt = clock.now();
       await (db.update(db.jobs)..where((t) => t.id.equals(job.id))).write(JobsCompanion(
         state: Value(failed ? JobState.failed : JobState.queued),
-        runAfter: Value(failed ? now : now.add(backoff[attempt - 1])),
+        attempts: Value(attempt),
+        runAfter: Value(failed ? failedAt : failedAt.add(backoff[attempt - 1])),
         leaseUntil: const Value(null),
         lastError: Value(e.toString()),
       ));

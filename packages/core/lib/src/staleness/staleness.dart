@@ -12,7 +12,13 @@ class DependencyRecorder {
   DependencyRecorder(this.db);
   final ProfileDb db;
 
+  /// Inputs must be revisioned entities: payload, enrichment or fact.
+  static const revisioned = {EntityType.payload, EntityType.enrichment, EntityType.fact};
+
   Future<void> record(EntityRef dependent, int dependentRevision, List<InputRef> inputs) async {
+    for (final i in inputs) {
+      if (!revisioned.contains(i.type)) throw ArgumentError('Unrevisioned dependency input: ${i.type}');
+    }
     await (db.delete(db.dependencies)
           ..where((d) => d.dependentType.equalsValue(dependent.type) & d.dependentId.equals(dependent.id)))
         .go();
@@ -68,24 +74,27 @@ class RecomputeWorker {
 
   void on(EntityType type, RecomputeHandler handler) => _handlers[type] = handler;
 
-  /// Returns the number of entities processed.
+  /// Returns the number of entities processed. Entries whose type has no handler stay queued (#61).
   Future<int> drain() async {
     var processed = 0;
     while (true) {
+      if (_handlers.isEmpty) return processed;
       final next = await (db.select(db.recomputeQueue)
+            ..where((q) => q.entityType.isIn(_handlers.keys.map((t) => t.name)))
             ..orderBy([(q) => OrderingTerm.asc(q.seq)])
             ..limit(1))
           .getSingleOrNull();
       if (next == null) return processed;
-      final handler = _handlers[next.entityType];
+      final handler = _handlers[next.entityType]!;
       await db.transaction(() async {
-        // De-duplicate: everything queued for this entity so far is covered by this run.
+        // De-duplicate: everything queued for this entity so far is covered by this run;
+        // rows enqueued during the handler (seq > maxSeq) are processed on a later pass.
         final maxSeq = await db
             .customSelect('SELECT MAX(seq) AS m FROM recompute_queue WHERE entity_type = ? AND entity_id = ?',
                 variables: [Variable.withString(next.entityType.name), Variable.withString(next.entityId)])
             .map((r) => r.read<int>('m'))
             .getSingle();
-        if (handler != null) await handler(next.entityId);
+        await handler(next.entityId);
         await (db.delete(db.recomputeQueue)
               ..where((q) =>
                   q.entityType.equalsValue(next.entityType) &

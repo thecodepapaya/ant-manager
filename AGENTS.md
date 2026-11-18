@@ -22,3 +22,4 @@ Guidance for coding agents in this repo.
 - Record every decision in DECISIONS + SPEC + the relevant LLD doc (+ OWNER_TODO if external).
 - Explain tradeoffs briefly before asking. Keep responses concise.
 - Git: agents work on short branches merged into `v1`; push allowed; tagged releases are public and unsigned.
+

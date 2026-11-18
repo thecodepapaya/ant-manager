@@ -22,7 +22,7 @@ void main() {
 
   setUp(() async {
     db = ProfileDb(NativeDatabase.memory());
-    ingestor = Ingestor(db, utcOffset: () => Duration.zero);
+    ingestor = Ingestor(db, utcOffset: (_) => Duration.zero);
     await db.into(db.sources).insert(SourcesCompanion.insert(id: 's1', kind: SourceKind.gitRepo, name: 'repo'));
     await db.into(db.sources).insert(SourcesCompanion.insert(id: 's2', kind: SourceKind.github, name: 'gh'));
   });
@@ -62,6 +62,7 @@ void main() {
     final p = await db.select(db.payloads).getSingle();
     expect(p.tombstonedAt, isNotNull);
     expect(p.revision, 2);
+    expect((await db.select(db.payloadRevisions).get()).map((r) => r.revision), [1, 2]);
   });
 
   test('staleness is computed from recorded input revisions', () async {

@@ -43,7 +43,7 @@ class AntEngine {
     required this.profileId,
     required this.ports,
     required this.router,
-    required Duration Function() utcOffset,
+    required Duration Function(DateTime at) utcOffset,
   })  : ingestor = Ingestor(db, utcOffset: utcOffset),
         deps = DependencyRecorder(db),
         staleness = StalenessService(db),
@@ -65,7 +65,7 @@ class AntEngine {
   final sources = SourceRegistry();
   final enrichments = EnrichmentRegistry();
   final tools = ToolRegistry();
-  final Duration Function() _utcOffset;
+  final Duration Function(DateTime at) _utcOffset;
 
   ToolContext get toolContext => ToolContext(db: db, profileId: profileId);
 
@@ -89,7 +89,7 @@ class AntEngine {
         await db.into(db.evidences).insert(EvidencesCompanion.insert(
           id: evidenceId,
           occurredStart: at.toUtc(),
-          day: dayOf(at, _utcOffset()),
+          day: dayOf(at, _utcOffset(at)),
           title: text.split('\n').first,
           projectId: Value(projectId),
           createdAt: now,
@@ -105,7 +105,19 @@ class AntEngine {
         externalId: payloadId,
         content: content,
         contentHash: sha256Hex(content),
+        title: Value(text.split('\n').first),
       ));
+      for (final path in attachmentPaths) {
+        final bytes = await ports.blobs.get(path);
+        await db.into(db.attachments).insert(AttachmentsCompanion.insert(
+          id: newId(at),
+          payloadId: payloadId,
+          path: path,
+          mime: path.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          sha256: sha256Hex(String.fromCharCodes(bytes)),
+          size: bytes.length,
+        ));
+      }
       await db.into(db.payloadRevisions).insert(PayloadRevisionsCompanion.insert(
         payloadId: payloadId,
         revision: 1,
@@ -118,21 +130,22 @@ class AntEngine {
     });
   }
 
-  Future<void> setStarred(String evidenceId, bool starred) =>
-      (db.update(db.evidences)..where((e) => e.id.equals(evidenceId))).write(EvidencesCompanion(
-        starred: Value(starred),
-        importance: Value(starred ? 1.0 : 0.5),
-        importanceSetBy: Value(starred ? ImportanceSetBy.user : null),
-        updatedAt: Value(ports.clock.now()),
-      ));
+  Future<void> setStarred(String evidenceId, bool starred) => _curate(evidenceId, starred: starred);
+  Future<void> setHidden(String evidenceId, bool hidden) => _curate(evidenceId, hidden: hidden);
 
-  Future<void> setHidden(String evidenceId, bool hidden) =>
-      (db.update(db.evidences)..where((e) => e.id.equals(evidenceId))).write(EvidencesCompanion(
-        hidden: Value(hidden),
-        importance: Value(hidden ? 0.0 : 0.5),
-        importanceSetBy: Value(hidden ? ImportanceSetBy.user : null),
-        updatedAt: Value(ports.clock.now()),
-      ));
+  /// Importance derives from the combined user state: hidden → 0, starred → 1, else back to model/rule (re-scored).
+  Future<void> _curate(String id, {bool? starred, bool? hidden}) => db.transaction(() async {
+        final e = await (db.select(db.evidences)..where((x) => x.id.equals(id))).getSingle();
+        final s = starred ?? e.starred, h = hidden ?? e.hidden;
+        final userSet = s || h;
+        await (db.update(db.evidences)..where((x) => x.id.equals(id))).write(EvidencesCompanion(
+          starred: Value(s),
+          hidden: Value(h),
+          importance: Value(h ? 0.0 : (s ? 1.0 : 0.5)),
+          importanceSetBy: Value(userSet ? ImportanceSetBy.user : null), // null = re-score by model/rule
+          updatedAt: Value(ports.clock.now()),
+        ));
+      });
 
   // ---------- Narrative commands (user-touched rules, #50 #62 #63) ----------
 
@@ -143,14 +156,14 @@ class AntEngine {
 
   Future<void> rejectFact(String factId) => db.transaction(() async {
         final f = await _fact(factId);
-        await _writeFact(f, origin: FactOrigin.userEdited, retired: true, by: 'user');
+        await _writeFact(f, origin: FactOrigin.userEdited, retired: true, winStatus: WinStatus.rejected, by: 'user');
       });
 
-  Future<void> setWinStatus(String factId, WinStatus status) =>
-      (db.update(db.facts)..where((f) => f.id.equals(factId))).write(FactsCompanion(
-        winStatus: Value(status),
-        updatedAt: Value(ports.clock.now()),
-      ));
+  Future<void> setWinStatus(String factId, WinStatus status) => db.transaction(() async {
+        final f = await _fact(factId);
+        final origin = f.origin.isUserTouched ? f.origin : FactOrigin.confirmed;
+        await _writeFact(f, origin: origin, winStatus: status, by: 'user');
+      });
 
   /// Accepts or dismisses a pending model proposal on a user-touched fact.
   Future<void> resolveReview(String factId, {required bool accept}) => db.transaction(() async {
@@ -202,6 +215,7 @@ class AntEngine {
       String? statement,
       Map<String, Object?>? details,
       bool? retired,
+      WinStatus? winStatus,
       required String by}) async {
     final rev = f.revision + 1;
     final now = ports.clock.now();
@@ -212,8 +226,12 @@ class AntEngine {
       details: Value(det),
       origin: Value(origin),
       retired: Value(retired ?? f.retired),
+      winStatus: Value(winStatus ?? f.winStatus),
       revision: Value(rev),
       updatedAt: Value(now),
+      // A user write supersedes any pending model proposal.
+      reviewState: by == 'user' ? const Value(ReviewState.ok) : const Value.absent(),
+      reviewProposal: by == 'user' ? const Value(null) : const Value.absent(),
     ));
     await db.into(db.factRevisions).insert(FactRevisionsCompanion.insert(
       factId: f.id,

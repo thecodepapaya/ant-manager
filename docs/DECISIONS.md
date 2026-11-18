@@ -210,4 +210,5 @@ Full algorithms: [lld/04-implementation.md](./lld/04-implementation.md).
 | 94 | **CI:** pushes are allowed; CI tests every push and builds **unsigned** macOS .dmg / Windows .exe / Linux AppImage; **tagged versions publish public GitHub Releases**. Signing is added later (OWNER_TODO). | Owner's choice. The repo is public. |
 | 95 | **No review checkpoint:** foundation and features are built in one run. | Owner's choice (faster); accepted risk that foundation mistakes propagate. |
 | 96 | **End-to-end testing uses OpenRouter**, with a key the owner enters in the app (never in chat or the repo). Unit tests use fakes. | Owner's choice. |
+| 97 | **Second-opinion reviews** with `sarvam-code` (DeepSeek v4.1 flash), read-only, on each merged area; valid findings are fixed with tests. The first review of the foundation found 25 issues; fixes landed with 18 new tests. Day boundaries take a **per-instant offset function** (DST-correct); v1 uses the system zone, while custom IANA zones per profile need a tz database (later). | Owner instruction in CLAUDE.md. Refines #87. |
 

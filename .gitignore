@@ -10,3 +10,8 @@ core/.venv/
 .open_router_key
 *.key
 .env
+
+# Claude Code agent worktrees
+.claude/worktrees/
+
+.open_router_key.claude/settings.local.json
