@@ -5,13 +5,13 @@ import 'desktop_shell.dart';
 
 /// Sidebar sections (SPEC §7, tentative order).
 enum ShellSection {
-  today('Today', Icons.today_outlined),
-  timeline('Timeline', Icons.view_timeline_outlined),
-  narrative('Narrative', Icons.auto_stories_outlined),
-  reports('Reports', Icons.description_outlined),
-  wins('Wins', Icons.emoji_events_outlined),
+  today('Today', Icons.wb_sunny_outlined),
+  timeline('Timeline', Icons.format_list_bulleted_rounded),
+  narrative('Narrative', Icons.article_outlined),
+  reports('Reports', Icons.fact_check_outlined),
+  wins('Wins', Icons.star_outline_rounded),
   projects('Projects', Icons.folder_outlined),
-  sources('Sources', Icons.hub_outlined),
+  sources('Sources', Icons.power_outlined),
   settings('Settings', Icons.settings_outlined);
 
   const ShellSection(this.label, this.icon);

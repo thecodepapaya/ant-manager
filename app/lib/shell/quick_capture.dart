@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ui/ui.dart';
 
 import '../engine/commands.dart';
 import '../platform/screen_capture.dart';
@@ -80,6 +81,7 @@ class _QuickCaptureViewState extends ConsumerState<QuickCaptureView> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     final projects = ref.watch(projectsProvider).value ?? const [];
     return CallbackShortcuts(
       bindings: {
@@ -87,60 +89,59 @@ class _QuickCaptureViewState extends ConsumerState<QuickCaptureView> {
         const SingleActivator(LogicalKeyboardKey.enter, meta: true): _save,
         const SingleActivator(LogicalKeyboardKey.enter, control: true): _save,
       },
-      child: Scaffold(
-        body: Padding(
-          padding: const EdgeInsets.all(16),
+      child: Material(
+        color: t.bg,
+        child: Padding(
+          padding: EdgeInsets.all(t.space.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: TextField(
+                child: AntTextField(
                   controller: _text,
                   autofocus: true,
                   maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  decoration: const InputDecoration(hintText: 'What happened?', border: OutlineInputBorder()),
+                  minLines: 4,
+                  placeholder: 'What happened? Blockers, context, offline work…',
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: t.space.md),
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _link,
-                      decoration: const InputDecoration(hintText: 'Link (optional)', isDense: true),
-                    ),
+                    child: AntTextField(controller: _link, placeholder: 'Link (optional)', leadingIcon: Icons.link_rounded),
                   ),
-                  const SizedBox(width: 8),
-                  DropdownButton<String?>(
+                  SizedBox(width: t.space.md),
+                  AntSelect<String?>(
                     value: _projectId,
-                    hint: const Text('Project'),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('No project')),
-                      for (final p in projects) DropdownMenuItem(value: p.id, child: Text(p.name)),
+                    options: [
+                      const AntOption(null, 'No project'),
+                      for (final p in projects) AntOption(p.id, p.name),
                     ],
                     onChanged: (v) => setState(() => _projectId = v),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: t.space.md),
               Row(
                 children: [
                   if (_capture.supported)
-                    TextButton.icon(
+                    AntButton.ghost(
                       onPressed: _saving ? null : _captureRegion,
-                      icon: Icon(_screenshot == null ? Icons.crop : Icons.check),
-                      label: Text(_screenshot == null ? 'Capture screenshot region' : 'Screenshot attached'),
+                      icon: _screenshot == null ? Icons.crop_rounded : Icons.check_rounded,
+                      label: _screenshot == null ? 'Capture screenshot region' : 'Screenshot attached',
                     ),
                   const Spacer(),
-                  TextButton(onPressed: _close, child: const Text('Cancel')),
-                  const SizedBox(width: 8),
-                  FilledButton(onPressed: _saving ? null : _save, child: const Text('Save')),
+                  AntButton.ghost(label: 'Cancel', onPressed: _close),
+                  SizedBox(width: t.space.sm),
+                  AntButton.primary(label: 'Save', trailing: const AntKbd(['⌘', '⏎']), onPressed: _saving ? null : _save),
                 ],
               ),
               if (_error != null)
-                Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error), maxLines: 2),
+                Padding(
+                  padding: EdgeInsets.only(top: t.space.sm),
+                  child: Text(_error!, maxLines: 2, style: t.typo.small.copyWith(color: t.dangerText)),
+                ),
             ],
           ),
         ),

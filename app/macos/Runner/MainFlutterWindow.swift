@@ -15,10 +15,38 @@ class MainFlutterWindow: NSWindow {
     let messenger = flutterViewController.engine.binaryMessenger
     calendar.register(messenger: messenger)
     registerLaunchAtLogin(messenger: messenger)
+    registerClipboard(messenger: messenger)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()
+  }
+
+  /// `ant/clipboard`: rich-text copy (HTML + plain fallback) and reading a pasted image as PNG.
+  private func registerClipboard(messenger: FlutterBinaryMessenger) {
+    FlutterMethodChannel(name: "ant/clipboard", binaryMessenger: messenger)
+      .setMethodCallHandler { call, result in
+        let pb = NSPasteboard.general
+        switch call.method {
+        case "setHtml":
+          let args = call.arguments as? [String: Any] ?? [:]
+          pb.clearContents()
+          pb.setString(args["html"] as? String ?? "", forType: .html)
+          pb.setString(args["text"] as? String ?? "", forType: .string)
+          result(nil)
+        case "readImage":
+          if let png = pb.data(forType: .png) {
+            result(FlutterStandardTypedData(bytes: png))
+          } else if let tiff = pb.data(forType: .tiff), let rep = NSBitmapImageRep(data: tiff),
+                    let png = rep.representation(using: .png, properties: [:]) {
+            result(FlutterStandardTypedData(bytes: png))
+          } else {
+            result(nil)
+          }
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
   }
 
   /// Answers the `launch_at_startup` plugin's macOS channel with SMAppService (macOS 13+).
