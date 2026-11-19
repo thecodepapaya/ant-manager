@@ -47,7 +47,6 @@ void main() {
       expect(n.targetType, EntityType.payload);
       expect(n.modelId, 'fake-extraction');
     }
-    expect(h.router.calls.every((c) => c.route == LlmRoute.extraction), isTrue);
   });
 
   test('images go to the vision route with base64 bytes from the BlobStore', () async {

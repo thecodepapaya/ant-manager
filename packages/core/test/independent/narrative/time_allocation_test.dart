@@ -86,7 +86,7 @@ void main() {
     expect(await minutes(), {(null, 'estimated'): 149});
   });
 
-  test('estimated time excludes meeting overlap: sessions 100 − 30 overlap… = 60', () async {
+  test('estimated time excludes meeting overlap: sessions 100 − 40 overlap = 60', () async {
     // Sessions 9:30–10:40 and 12:30–13:00; meeting 10:00–11:00 cuts 10:00–10:40.
     await h.commit('a1', at(10));
     await h.commit('a2', at(10, 40));

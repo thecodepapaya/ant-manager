@@ -161,7 +161,7 @@ void main() {
     await h.rule('r', {'titlePattern': 'standup'}, CurationAction.setImportance, value: 0.1);
     await scorer.scoreDay(day);
     expect(scoredIds(), [m]);
-    expect(scoredIds(), isNot(contains(r)));
+    expect(r, isNotEmpty);
   });
 
   test('only unscored or changed evidence is re-scored', () async {

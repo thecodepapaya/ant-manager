@@ -1,5 +1,6 @@
 import 'package:core/core.dart';
 import 'package:core/src/narrative/importance.dart';
+import 'package:core/src/narrative/reconciler.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:test/test.dart';
 
@@ -80,8 +81,13 @@ void main() {
 
   test('the created win is protected from later model updates', () async {
     final id = await wins.starEvidence(e1);
+    await FactReconciler(h.ctx).apply(
+      FactChangeSet(day, [
+        UpdateFact(factId: id, statement: 'Model rewrite.', citations: [p1]),
+      ]),
+    );
     final f = await h.fact(id);
-    expect(f.origin.isUserTouched, isTrue);
+    expect((f.statement, f.revision, f.reviewState), ('Shipped the thing.', 1, ReviewState.needsReview));
   });
 
   test('starring hidden evidence keeps importance 0', () async {
@@ -89,8 +95,29 @@ void main() {
       h.db.evidences,
     )..where((e) => e.id.equals(e1))).write(const EvidencesCompanion(hidden: Value(true)));
     await wins.starEvidence(e1);
-    expect((await h.evidence(e1)).importance, 0.0);
+    final ev = await h.evidence(e1);
+    expect((ev.importance, ev.starred, ev.importanceSetBy), (0.0, true, ImportanceSetBy.user));
   });
+
+  test(
+    'evidence deleted while the win call runs: no uncited fact is written',
+    () async {
+      h.router.onCall = (c) async {
+        if (c.schema == 'win') await EvidenceDeleter(h.ctx).permanentDelete(e1);
+      };
+      try {
+        await wins.starEvidence(e1);
+      } catch (_) {
+        // failing is acceptable; writing an uncited fact is not
+      }
+      for (final f in await h.facts()) {
+        expect(await h.citations(f.id), isNotEmpty, reason: 'invariant 4: every fact has >= 1 citation');
+      }
+    },
+    skip:
+        'BUG: wins.dart starEvidence writes after the model call without re-checking the evidence; '
+        'FactWriter._pin drops missing payloads, so a zero-citation accepted win is created',
+  );
 
   test(
     'starring an item a rule hid: the user star beats the rule (importance 1, visible)',
