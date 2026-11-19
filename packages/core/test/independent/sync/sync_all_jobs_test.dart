@@ -109,8 +109,7 @@ void main() {
       await svc.removeSource(id);
       await h.engine.jobs.runOne(JobLane.io);
       expect(await h.externalIds(id), isEmpty);
-    }, skip: 'BUG: a sources.sync job queued by scheduler/watcher still syncs a source after removeSource: '
-        'neither syncSource (sync_service.dart:49-53) checks enabled nor removeSource (:195) drops pending jobs');
+    });
 
     test('both jobs are on the IO lane', () async {
       registerSyncJobs(h.engine);
