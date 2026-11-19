@@ -9,6 +9,8 @@ export 'src/ai/register.dart' show createClient;
 export 'src/ai/router.dart' show DbModelRouter;
 export 'src/ai/structured.dart' show StructuredOutput;
 export 'src/capture/source.dart';
+export 'src/capture/ingestor.dart' show IngestResult;
+export 'src/capture/sync_service.dart' show SyncService, SyncScheduler, SourceSyncResult, registerSyncJobs;
 export 'src/capture/sources/git_detect.dart' show GitDetector, ProcessGitExecutable;
 export 'src/capture/sources/git_repo.dart' show scanForRepos, parseRemote, GitRemote;
 export 'src/capture/sources/register.dart' show registerCodeSources;

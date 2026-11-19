@@ -22,9 +22,6 @@ const pausedSettingKey = 'collection.paused';
 /// Backup destination folder; default `<dataDir>/backups/<profileId>`.
 const backupFolderSettingKey = 'backup.folder';
 
-/// Job kind the sync orchestrator (core, not built yet) registers to sync every enabled source.
-const syncAllJobKind = 'sources.syncAll';
-
 /// Isolate entry point. Spawned by `EngineHandle.start`.
 Future<void> engineMain(EngineBoot boot) async {
   final rx = ReceivePort('ant-engine');
@@ -72,8 +69,8 @@ Future<void> engineMain(EngineBoot boot) async {
 
 /// What a command sees inside the engine isolate.
 class EngineRuntime {
-  EngineRuntime._(
-      this.config, this.appDb, this.db, this.profile, this.engine, this.scheduler, this.reports, this.paused);
+  EngineRuntime._(this.config, this.appDb, this.db, this.profile, this.engine, this.scheduler, this.sync,
+      this.reports, this.paused);
 
   final EngineConfig config;
   final AppDb appDb;
@@ -81,6 +78,8 @@ class EngineRuntime {
   final Profile profile;
   final AntEngine engine;
   final Scheduler scheduler;
+  final SyncService sync;
+  late final syncScheduler = SyncScheduler(sync);
 
   /// On-demand report generation (Reports and Today screens).
   final ReportGenerator reports;
@@ -115,6 +114,7 @@ class EngineRuntime {
     );
     registerCodeSources(engine.sources);
     registerOtherSources(engine.sources);
+    final sync = registerSyncJobs(engine); // sources.syncAll / sources.sync, IO lane
     registerBuiltinTools(engine.tools);
     registerNarrativePipeline(engine);
     await TemplateService(db).seedBuiltins();
@@ -139,7 +139,7 @@ class EngineRuntime {
 
     final pausedRow =
         await (db.select(db.settings)..where((s) => s.key.equals(pausedSettingKey))).getSingleOrNull();
-    return EngineRuntime._(config, appDb, db, profile, engine, scheduler, generator, pausedRow?.value == 'true');
+    return EngineRuntime._(config, appDb, db, profile, engine, scheduler, sync, generator, pausedRow?.value == 'true');
   }
 
   static QueryExecutor _open(EngineConfig config, String path) {
@@ -198,14 +198,10 @@ class EngineRuntime {
     await db.into(db.settings).insertOnConflictUpdate(SettingsCompanion.insert(key: pausedSettingKey, value: '$value'));
   }
 
-  /// Returns false when no sync orchestrator is registered yet.
+  /// Enqueues a sync of every enabled source.
   Future<bool> syncNow() async {
-    try {
-      await engine.jobs.enqueue(syncAllJobKind);
-      return true;
-    } on StateError {
-      return false;
-    }
+    await engine.jobs.enqueue(SyncService.syncAllJob);
+    return true;
   }
 
   // ---------- loops ----------
@@ -215,13 +211,18 @@ class EngineRuntime {
       ..add(_laneLoop(JobLane.io))
       ..add(_laneLoop(JobLane.llm))
       ..add(_schedulerLoop());
+    unawaited(sync.startWatching(onEnqueue: kick).catchError((Object e, StackTrace st) {
+      stderr.writeln('engine watchers: $e\n$st');
+    }));
   }
 
   /// Scheduler tick on launch and every minute (missed runs catch up once, #79).
   Future<void> _schedulerLoop() async {
     while (!_stopped) {
       try {
-        if ((await scheduler.tick()).isNotEmpty) kick();
+        final reports = await scheduler.tick();
+        final syncs = await syncScheduler.tick(); // per-source polls when due (LLD 04 §4.3)
+        if (reports.isNotEmpty || syncs.isNotEmpty) kick();
       } catch (e, st) {
         stderr.writeln('engine scheduler: $e\n$st');
       }
@@ -257,6 +258,7 @@ class EngineRuntime {
 
   Future<void> stop() async {
     _stopped = true;
+    await sync.stopWatching();
     kick();
     for (final w in [..._stopWaiters]) {
       w.complete();
