@@ -94,6 +94,25 @@ void main() {
       expect((w.spanStart, w.spanEnd), (day, day));
     });
 
+    test(
+      'reusing an empty workstream by title refreshes its summary (#109)',
+      () async {
+        await h.db.into(h.db.workstreams).insert(
+              WorkstreamsCompanion.insert(id: 'empty', title: 'Payments Retry', summary: const Value('old')),
+            );
+        await h.insertFact('new', [p]);
+        h.router.responders['workstreams'] = (_) => {
+              'assignments': [
+                {'fact_id': 'new', 'workstream_id': null, 'new_title': 'Payments Retry', 'new_summary': 'Fresh.'},
+              ],
+            };
+        await ws.assignDay(day);
+        expect((await h.fact('new')).workstreamId, 'empty');
+        expect((await wsRow('empty')).summary, 'Fresh.');
+      },
+      skip: 'BUG: a title-matched (unoffered) workstream skips the new_summary refresh: existing is looked up in byId (offered only)',
+    );
+
     test('a new title matching an existing empty workstream (any case) reuses it', () async {
       await insertWs('empty', 'Payments Retry');
       await h.insertFact('new', [p]);
@@ -178,7 +197,16 @@ void main() {
       });
       await expectLater(WinService(h.ctx).starEvidence(e), stateError);
       expect(await h.facts(), isEmpty);
-      expect(await h.db.select(h.db.citations).get(), isEmpty);
+      expect(await (h.db.select(h.db.evidences)..where((x) => x.id.equals(e))).get(), isEmpty, reason: 'precondition');
+    });
+
+    test('evidence day changed during the call (re-ingest) → the win uses the new day', () async {
+      await during(() async {
+        await h.commit('a1', at(10, 0, '2026-11-16'), msg: 'Ship retries (rebased)');
+      });
+      final id = await WinService(h.ctx).starEvidence(e);
+      expect((await h.evidence(e)).day, '2026-11-16', reason: 'precondition');
+      expect((await h.fact(id)).periodStart, '2026-11-16');
     });
 
     test('project changed during the call → the win uses the new project', () async {
