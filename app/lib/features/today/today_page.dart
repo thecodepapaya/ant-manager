@@ -305,8 +305,8 @@ class _DayNarrative extends ConsumerWidget {
                 SizedBox(height: t.space.xs),
                 Muted(
                   facts.isEmpty
-                      ? 'It’s written from the facts below once there are some. Scheduled reports run at 18:00.'
-                      : 'Generate it now from ${plural(facts.length, 'fact')}, or wait for the 18:00 run.',
+                      ? 'It’s written from the facts below once there are some, on schedule or on demand.'
+                      : 'Generate it now from ${plural(facts.length, 'fact')}, or wait for the scheduled run.',
                   style: t.typo.small,
                 ),
               ]),

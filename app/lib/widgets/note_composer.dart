@@ -149,7 +149,6 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
                       controller: _text,
                       focusNode: _focus,
                       size: AntSize.lg,
-                      leadingIcon: Icons.edit_note_rounded,
                       placeholder: widget.placeholder ?? 'Add a note to this day — blockers, context, offline work…',
                       maxLines: _expanded ? 4 : 1,
                       minLines: 1,

@@ -99,10 +99,10 @@ class _ProjectCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final p = s.p;
-    Widget stat(int n, String label) => Text.rich(
+    Widget stat(int n, String one) => Text.rich(
           TextSpan(children: [
             TextSpan(text: '$n', style: t.typo.bodyStrong.copyWith(color: t.text)),
-            TextSpan(text: ' $label', style: TextStyle(color: t.muted)),
+            TextSpan(text: ' ${plural(n, one).split(' ').last}', style: TextStyle(color: t.muted)),
           ]),
           style: t.typo.small,
         );
@@ -146,11 +146,11 @@ class _ProjectCard extends ConsumerWidget {
             ]),
             SizedBox(height: t.space.lg),
             Row(children: [
-              stat(s.evidence, 'items'),
+              stat(s.evidence, 'item'),
               SizedBox(width: t.space.xl),
-              stat(s.facts, 'facts'),
+              stat(s.facts, 'fact'),
               SizedBox(width: t.space.xl),
-              stat(s.wins, s.wins == 1 ? 'win' : 'wins'),
+              stat(s.wins, 'win'),
             ]),
             SizedBox(height: t.space.lg),
             Wrap(

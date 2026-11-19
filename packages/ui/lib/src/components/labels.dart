@@ -186,9 +186,7 @@ class AntCitationChip extends StatelessWidget {
         borderRadius: radius,
         child: AnimatedContainer(
           duration: t.motion.fast,
-          height: t.density.chipHeight - t.space.xxs,
-          alignment: Alignment.center,
-          padding: EdgeInsets.symmetric(horizontal: t.space.sm),
+          padding: EdgeInsets.symmetric(horizontal: t.space.sm, vertical: t.space.xxs),
           decoration: BoxDecoration(
             color: highlighted ? t.accentSoft : t.chipBg,
             borderRadius: radius,

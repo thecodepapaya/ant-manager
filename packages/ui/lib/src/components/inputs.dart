@@ -74,8 +74,12 @@ class AntTextField extends StatelessWidget {
         style: base.copyWith(color: t.text),
         cursorColor: t.accent,
         cursorWidth: t.stroke.hairline,
+        textAlignVertical: single ? TextAlignVertical.center : null,
         decoration: InputDecoration(
           isDense: true,
+          constraints: single
+              ? BoxConstraints.tightFor(height: antControlHeight(t, size))
+              : null,
           filled: true,
           fillColor: t.inputBg,
           hoverColor: t.hover.withValues(alpha: 0),
