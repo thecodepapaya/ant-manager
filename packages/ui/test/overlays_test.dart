@@ -104,7 +104,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Rename'), findsNothing);
       expect(log, isEmpty);
-    }, skip: bugSkip);
+    });
 
     testWidgets('mouse-opened: arrow keys + Enter select ($_bugMenuFocus)', (
       tester,
@@ -118,7 +118,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
       expect(log, hasLength(1));
-    }, skip: bugSkip);
+    });
 
     testWidgets('builds in dark and light', (tester) async {
       for (final t in [AntTokens.dark(), AntTokens.light()]) {
@@ -494,7 +494,6 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Saved'), findsOneWidget);
     },
-    skip: bugSkip,
   );
 
   group('AntTooltip', () {

@@ -50,6 +50,9 @@ class AntCard extends StatelessWidget {
                 Expanded(
                   child: Semantics(
                     header: true,
+                    // Interactive cards announce the title as their label.
+                    excludeSemantics:
+                        onPressed != null && semanticLabel == null,
                     child: Text(
                       title ?? '',
                       style: t.typo.title.copyWith(color: t.text),
