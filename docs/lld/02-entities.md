@@ -205,7 +205,7 @@ erDiagram
     }
     JOB {
         string id PK
-        string kind "sync, enrich, score, extract, report, backup"
+        string kind "sources.sync, sources.syncAll, report:<period>, backup, nudge"
         json args
         string state
         int attempts
@@ -232,14 +232,14 @@ erDiagram
 ### Profile & identity
 | Entity | Purpose | Key attributes |
 |---|---|---|
-| **Profile** | Top-level scope (e.g. Work, Side projects). Everything below belongs to one profile. | id, name, colour, **time zone** (#87), schedule settings |
+| **Profile** | Top-level scope (e.g. Work, Side projects). Everything below belongs to one profile. | id, name, colour, **time zone** (IANA name, #87; v1 applies the system offset, #97), schedule settings |
 | **Identity** | Decides which evidence is "mine". | profile, kind (email / github login / gitlab username / jira account…), value |
 
 ### Capture
 | Entity | Purpose | Key attributes |
 |---|---|---|
 | **Source** | A connector instance: where payloads come from. | id, profile, kind (github, github_enterprise, gitlab, google_calendar, apple_calendar, ics (incl. Outlook), git_repo, screenshot_capture, manual_note, linear, jira, transcript…), config (JSON), credential ref (keychain key), enabled |
-| **SyncCursor** | Incremental sync position per source (and sub-scope, e.g. per repo or calendar). | source, scope, cursor (opaque), last_success_at, last_error |
+| **SyncCursor** | Incremental sync position per source (and sub-scope, e.g. per repo, calendar or `issue`). The `''`-scope row holds the source's sync status (#102). | source, scope, cursor (opaque), last_success_at, last_error |
 | **Evidence** | A *moment of work*. Usually holds one payload; sometimes several (see grouping). | id (ULID), profile, occurred_start, occurred_end?, **day** (local date in the profile's time zone, set at ingest), title, project?, starred, hidden, **importance** {score, reason, set_by: model\|user\|rule}, created_at, updated_at |
 | **Payload** | One typed piece of content inside an evidence item, from exactly one source. | id, evidence, **kind**, source, **external_id**, content (typed JSON per kind), **content_hash**, **revision**, tombstoned_at? |
 | **PayloadRevision** | Append-only change log: what each payload looked like at each revision. | payload, revision, content, content_hash, observed_at, cause (sync \| user \| merge \| split) |
@@ -261,7 +261,7 @@ erDiagram
 |---|---|---|
 | **Report** | A period report: daily, weekly, monthly, quarterly or custom. Read-only. | id, profile, period_kind, period start/end, template, **locked**, locked_snapshot? |
 | **ReportSnapshot** | One rendered version of a report. Immutable. Facts used are recorded via Dependency. | id, report, version, content (Markdown + citation markers), model, style_instruction?, generated_at |
-| **Template** | How a report is structured and worded (Standup, Manager update, Brag doc…). Never changes facts. | id, profile?, name, period kinds, prompt, built_in, version |
+| **Template** | How a report is structured and worded (Standup, Manager update, Brag doc…). Never changes facts. Built-in ids are `builtin.<name>`; a copy of one is `<builtinId>/<ulid>` (#108). | id, profile?, name, period kinds, prompt, built_in, version |
 
 ### Models
 | Entity | Purpose | Key attributes |
@@ -273,7 +273,7 @@ erDiagram
 ### Background & staleness machinery
 | Entity | Purpose | Key attributes |
 |---|---|---|
-| **Job** | Durable background work: sync, enrichment, importance scoring, fact extraction, report generation, backup. Survives restarts. | id, kind, args, state, attempts, run_after, last_error |
+| **Job** | Durable background work: sync, scheduled report generation, backup, nudge (#108). Survives restarts. Importance, enrichment and extraction run from the RecomputeQueue instead. | id, kind, args, state, attempts, run_after, last_error |
 | **Dependency** | Records exactly which input revisions a derived thing was built from. | dependent (type, id, revision), input (type, id, revision) |
 | **RecomputeQueue** | Dirty entries written **by SQLite triggers in the same transaction** as the change that caused them. | entity (type, id), reason, enqueued_at |
 

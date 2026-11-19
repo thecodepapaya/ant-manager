@@ -295,10 +295,6 @@ void main() {
         await EvidenceDeleter(h.ctx).permanentDelete(e);
         expect([await stale('sp'), await stale('sn')], [true, true]);
       },
-      skip:
-          'BUG: delete.dart permanentDelete deletes every Dependency row whose input is a deleted payload or '
-          'enrichment, including other dependents\' rows (it keeps them only for facts), so such a snapshot '
-          'loses its record and reads as fresh',
     );
   });
 

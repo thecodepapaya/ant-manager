@@ -18,8 +18,11 @@ class PortBridgeException implements Exception {
 }
 
 class UiBridge {
-  UiBridge(this._ui);
+  UiBridge(this._ui, this._reply);
   final SendPort _ui;
+
+  /// Where the UI isolate sends [PortReply]s (the engine's command port).
+  final SendPort _reply;
   var _next = 0;
   final _pending = <int, Completer<Object?>>{};
   final _events = StreamController<String>.broadcast();
@@ -28,7 +31,7 @@ class UiBridge {
     final id = _next++;
     final c = Completer<Object?>();
     _pending[id] = c;
-    _ui.send(PortCall(id, port, method, args));
+    _ui.send(PortCall(id, port, method, args, _reply));
     return c.future;
   }
 
@@ -77,7 +80,6 @@ class BridgedNotifier implements Notifier {
 class BridgedCalendar implements CalendarBridge {
   BridgedCalendar(this._b);
   final UiBridge _b;
-  var _watching = false;
 
   @override
   Future<bool> requestAccess() async => await _b.call('calendar', 'requestAccess') as bool;
@@ -88,13 +90,12 @@ class BridgedCalendar implements CalendarBridge {
     return raw.cast<Map<String, Object?>>();
   }
 
-  /// The UI host subscribes to EventKit change notifications on the first listen.
+  /// On listen, asks the UI host to subscribe to EventKit change notifications (a repeat watch is a
+  /// no-op there). A host error (e.g. no EventKit access) arrives as a stream error instead of an
+  /// unhandled error in the engine isolate.
   @override
-  Stream<void> changes() {
-    if (!_watching) {
-      _watching = true;
-      unawaited(_b.call('calendar', 'watch'));
-    }
-    return _b.events('calendar.changes');
+  Stream<void> changes() async* {
+    await _b.call('calendar', 'watch');
+    yield* _b.events('calendar.changes');
   }
 }

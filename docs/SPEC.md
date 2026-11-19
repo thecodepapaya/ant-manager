@@ -1,6 +1,7 @@
 # Ant Manager v1 — Product & Technical Spec
 
-Status: **Scope locked** (2026-11-18). Greenfield rewrite; no backward compatibility with the Python/Go versions.
+Status: **Scope locked** (2026-11-18); **implemented on `v1`**, independent tests and e2e in progress (known gaps:
+[lld/README.md](./lld/README.md)). Greenfield rewrite; no backward compatibility with the Python/Go versions.
 
 ## 1. Goal
 
@@ -38,13 +39,13 @@ owns the database, jobs, sources and LLM calls; the UI isolate reads via reactiv
 |---|---|
 | State | Riverpod |
 | Storage | drift + bundled SQLite (`sqlite3` native assets), per-profile DB file |
-| Secrets | OS keychain (macOS Keychain / Windows Credential Manager / libsecret). **Linux requires libsecret**: no fallback, clear error if missing (#77). |
+| Secrets | OS keychain (macOS Keychain / Windows Credential Manager / libsecret). **Linux requires libsecret**: no fallback, clear error if missing (#77). macOS uses the login keychain until signing exists; App Sandbox is off (#101). |
 | HTTP | `dio`, SSE streaming |
 | Heavy work | The engine isolate (#68); the UI isolate never does IO or parsing |
 | Desktop shell | `window_manager`, `tray_manager`, `hotkey_manager`, `launch_at_startup`, `local_notifier` |
 | Updates | `auto_updater` (Sparkle / WinSparkle) |
 | OAuth | Loopback redirect + PKCE in the system browser |
-| Crash reports | Sentry, **opt-in**, off by default, stack traces only (no content) |
+| Crash reports | Sentry, **opt-in**, off by default, stack traces only (no content). v1 stores the preference only; DSN pending (#105). |
 
 ### Source contract
 
@@ -61,14 +62,15 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 - Each profile holds several **identities** (emails, GitHub/GitLab usernames, Jira/Linear accounts).
   These are suggested automatically from scanned repos and connected accounts and decide which evidence is "mine".
 - Each profile has **one time zone** (defaults to the system's) that defines day boundaries for evidence, facts and
-  reports (#87).
+  reports (#87). Day boundaries use a per-instant offset (DST-correct); v1 uses the system zone's offset, custom
+  IANA zones need a tz database (later, #97).
 
 ## 5. Evidence sources
 
 | Source | Auth | Self-hosted | Captures |
 |---|---|---|---|
 | Local git | — (system `git`) | n/a | Commits on all branches by your identities, diffs, stats |
-| GitHub | PAT (device flow later, #106) | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed, review comments, issues opened / closed / commented (#104) |
+| GitHub | PAT (device flow later, #106) | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed, review comments, issues opened / closed / commented (#106) |
 | GitLab | PAT | Self-managed (custom URL) | MRs, approvals, comments, issues opened / closed / commented (#106) |
 | Google Calendar | OAuth (built-in client only, #76) | — | Events you attended |
 | Apple Calendar | EventKit (macOS only) | — | Everything synced into Calendar.app |
@@ -84,7 +86,9 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   tick to include. New repos under watched roots are suggested automatically. Manual add also works.
 - **Git detection:** PATH, Homebrew, Xcode CLT, Git for Windows default paths. Detects the macOS `/usr/bin/git` stub
   without triggering it. If git is missing, show a friendly install screen.
-- **Self-hosted networking:** a per-connection "trust custom CA certificate" option (plus an explicit insecure toggle with a warning).
+- **Self-hosted networking:** a per-connection "trust custom CA certificate" option (plus an explicit insecure toggle with a warning). *Not built yet for sources; providers have it (§6).*
+- **Sync:** each source is due 15 min after its last success (ICS 60 min), watched sources included; status (last success,
+  last error) is shown per source. Removing a source only disables it (evidence kept) (#102).
 
 ## 6. AI providers & routing
 
@@ -95,14 +99,14 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   - **Protocol per endpoint:** OpenAI-compatible (`/v1/models`, `/v1/chat/completions`) or Ollama native (`/api/tags`, `/api/chat`).
   - **Optional auth:** API key (Bearer) and/or custom headers, stored in the keychain.
   - **Networking:** plain HTTP allowed (warning shown for any non-localhost host); a per-endpoint custom CA
-    or "allow self-signed" toggle; configurable timeout (local models can be slow to load).
+    or "Disable TLS verification" toggle (`allowSelfSigned`, with a warning, #108); configurable timeout (local models can be slow to load).
   - **Test connection** lists the endpoint's models and detects capabilities (vision, context length where reported);
     model names can also be typed by hand when `/models` isn't supported.
   - **Structured output is required** (#70): adding any model (local, network or cloud) runs a probe call; models without
     native JSON-schema output are rejected with a clear message.
   - **Auto-detect** stays as a convenience: `localhost:11434` (Ollama) and `localhost:1234` (LM Studio) are offered at setup.
   - **Consent:** every provider that isn't on this machine (anything but `localhost`/loopback, LAN included) gets the
-    one-time consent notice. No private/remote network classification (#74).
+    one-time consent notice, per base URL (changing the URL asks again, #105). No private/remote network classification (#74).
   - **macOS Local Network permission:** since macOS 15, reaching LAN hosts triggers a system prompt; the app ships
     `NSLocalNetworkUsageDescription` and explains the prompt before the first LAN connection.
   - Custom endpoints work anywhere a model can be chosen (Default, Vision, Extraction, Reports).
@@ -155,9 +159,11 @@ maintained from it, and every output reads from that Narrative.
     the evidence, all its payload revisions, attachments, enrichments and index entries; facts left with no citations are
     deleted with their history. Existing backups are not touched (the UI says so).
 - **Daily nudge:** a gentle notification at the chosen time ("Your day is drafted, 2-minute review?") that opens Today.
-  Snooze or skip. Skipped automatically on days with no evidence and on weekends (configurable). No streaks, no scores.
+  Snooze or skip (snooze not built yet). Default weekdays 18:05; skipped automatically on days with no evidence;
+  "Include weekends" adds Sat/Sun to it and the daily report (#105). No streaks, no scores.
 - **Share:** Slack mrkdwn, rich text/HTML for email or Docs, Markdown (copy or file), PDF. Every format is available;
-  the default copy format is configurable per profile.
+  the default copy format is configurable per profile. Rich-text copy and image paste use a small native clipboard
+  channel on macOS (#107).
 
 ## 8. Narrative, Reports, Wins
 
@@ -170,13 +176,14 @@ maintained from it, and every output reads from that Narrative.
   regenerated, shows "facts changed since lock", can be unlocked). Version history is kept. A report is **out of date**
   when any input under it changed (transitively, down to payloads) or a new fact appeared in its period (#104).
 - **Generation:** automatic on a configurable schedule (e.g. daily at 18:00, weekly on Monday 09:00) when the tray app
-  is running, plus on demand. Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79).
-- Every claim in a report links to the **facts and evidence** behind it.
+  is running, plus on demand. Scheduled runs use the period kind's default built-in template (#108). Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79).
+- Every claim in a report links to the **facts and evidence** behind it (Markdown footnotes `[^fN]: <statement> (fact:<id>)`, #108).
 - **Wins = a view** over Outcome facts + starred evidence, plus model-suggested wins you accept or reject. Filterable
   by period and project.
 - **Review / brag doc** = a quarterly or custom report with a review template.
-- **Templates:** built-in templates (Standup, Manager update, Weekly review, Wins, Brag doc) that can be duplicated and
-  edited, with `{variables}`, a live preview against real data, and reset to default. Templates shape wording and
+- **Templates:** built-in templates (Standup, Manager update, Weekly review, Monthly recap, Wins summary, Brag doc) that
+  can be duplicated and edited (editing a built-in duplicates it; copies keep their origin for reset, #108), with
+  `{period_label}`, `{period_kind}`, `{start}`, `{end}`, a live preview against real data, and reset to default. Templates shape wording and
   structure only, never facts.
 - **Retrieval-ready:** a full-text index (FTS5) over evidence and facts ships in v1. A query **tool layer**
   (search evidence, get facts, time breakdown, workstream timeline) serves reports and Wins now, and will serve chat
@@ -187,15 +194,16 @@ maintained from it, and every output reads from that Narrative.
 - **Two outputs per run:**
   - **Restorable backup:** an `.antbackup` bundle per profile (a consistent SQLite snapshot via `VACUUM INTO` +
     settings, templates, projects, rules, narrative version history, plus a manifest with app/schema version, item counts and a checksum).
-  - **Readable export (optional):** Markdown + JSON of facts, report snapshots, the Wins log, notes and evidence metadata.
+  - **Readable export (optional):** Markdown + JSON of facts, report snapshots, the Wins log, notes and evidence metadata,
+    rewritten each run into `<profile>-export/` next to the backups (layout: #108).
 - **Destination: a local folder only** (#80): any folder, including Google Drive / iCloud / Dropbox / OneDrive sync
   folders and external drives. Cloud backup = pick a synced folder. No cloud-storage API connectors.
 - **Schedule:** daily by default (run by the tray app; catches up once if missed), plus "Back up now". **Keeps the last
   N backups** (default 14) (#78). Warns when the last successful backup is older than a threshold.
-  Backup status (last success, last error) appears in Settings.
+  Backup status (last success, last error) appears in Settings; options live in profile Settings (#105).
 - **Secrets are never included.** API keys and OAuth tokens stay in the OS keychain; after a restore you sign in again.
 - **Restore:** pick a backup file, preview it (profile, date range, item counts,
-  backup date), then restore into a new profile or replace an existing one. Newer schema versions refuse to restore with a clear message.
+  backup date), then restore into a **new profile** ("… (restored)"), never over an existing one (#105). Newer schema versions refuse to restore with a clear message.
   Backups from older versions are migrated on restore.
 - **Not sync.** Restoring on another machine is a one-time copy; the live DB must never sit in a shared folder.
 - **No encryption in v1:** backups are plaintext. Settings states this, since a synced folder puts full diffs and
@@ -207,7 +215,7 @@ maintained from it, and every output reads from that Narrative.
   One unified design system on all OSes, with native window chrome, menu bar and shortcuts per platform.
   Branding keeps the **Ant Manager** name and the current ant logo; the palette is derived from the logo.
 - **Design tokens, one source of truth.** Every visual value is a named token defined in exactly one place
-  (`lib/ui/tokens/`). Widgets read tokens only, never literals. Changing a token restyles the whole app.
+  (`packages/ui/lib/src/tokens/`). Widgets read tokens only, never literals. Changing a token restyles the whole app.
   - **Colour:** semantic roles (`bg`, `surface`, `raised`, `border`, `text`, `muted`, `accent`, `success`, `danger`…),
     with a **dark** and a **light** set. Accent variants (`accentHover`, `accentText`, `onAccent`) are **derived from one
     `accent` seed**, so changing the brand colour is a one-line edit.
@@ -218,7 +226,7 @@ maintained from it, and every output reads from that Narrative.
   - **Flutter shape:** an `AntTokens` `ThemeExtension` (with `lerp` for animated theme switches), accessed through
     `context.tokens`. Light and dark are built from the same seed values.
   - **Enforced:** a CI check fails on `Color(0x…)`, `Colors.*`, `BorderRadius.circular(<number>)`, raw `EdgeInsets`
-    numbers or `TextStyle(fontSize:)` outside `lib/ui/tokens/`. A widget gallery screen (debug builds) shows every
+    numbers or `TextStyle(fontSize:)` outside the tokens folder (`packages/ui/tool/check_tokens.dart`). A widget gallery screen (debug builds) shows every
     component in both themes.
   - Mockup reference: `tokens.css` in the design canvas uses the same names.
 - **UX principles (from mockup review, 2026-11-18).** The mockup sets the design *language* only; the final UI must fix these:
@@ -234,9 +242,10 @@ maintained from it, and every output reads from that Narrative.
 - Keyboard: navigation, actions and a command menu for commands (not full-text search, which is out of v1).
 - **Menu bar / tray app:** keeps running when the window is closed. Handles sync, scheduled generation,
   "write your day?" nudge notifications and the quick-capture hotkey. Launch at login is optional.
-- **Quick capture:** a global hotkey opens a floating note box from anywhere.
+- **Quick capture:** a global hotkey opens a floating note box from anywhere (on macOS the main window shrinks to it, #101).
 - **Onboarding:** create profile → add identities → scan repos → connect optional sources → pick AI provider
-  (structured-output probe) → first import and report. Each step can be skipped.
+  (structured-output probe) → first import and report. Each step can be skipped. Shown once for a profile with no
+  identities and no sources, until finished or skipped (#105).
 - Diagnostics: a "Copy diagnostics" button with local rotating logs.
 - **English only** in v1 (#87); no localization framework.
 
@@ -245,9 +254,9 @@ maintained from it, and every output reads from that Narrative.
 - **Done (2026-11-18):** all previous code moved to `legacy/`: the Flutter app (`legacy/app`, including the Python core
   `legacy/app/core` and the logo assets), the untracked Go port (`legacy/core-go`), the Go docs (`legacy/docs`), and the old
   README / PRIVACY / THREAT_MODEL (to be rewritten for v1). `legacy/` is reference only; nothing new imports from it.
-- Root now: `docs/` (SPEC, DECISIONS, OWNER_TODO, design/), `PHILOSOPHY.md` (unchanged), `LICENSE`, `.gitignore`,
-  and `web/` + `wrangler.json` (Cloudflare Pages landing site; left in place so deploys keep working).
-- The new code goes in `app/`, `packages/core` and `packages/ui` (#45). Firebase is not used.
+- Root: `docs/`, `PHILOSOPHY.md`, `LICENSE`, `web/` + `wrangler.json` (Cloudflare Pages site; left in place),
+  v1 code in `app/`, `packages/core`, `packages/ui` (#45), plus `packaging/`, `scripts/` and `.github/workflows/`.
+  Firebase is not used. Dev builds can use `--dart-define=ANT_DATA_DIR=…` for a separate data folder (#107).
 
 ## 12. Out of scope for v1
 
@@ -261,4 +270,6 @@ Tracked as a checklist in [OWNER_TODO.md](./OWNER_TODO.md). Summary:
 - Google Cloud project: Calendar read-only scope, OAuth consent screen, **verification** (100-user cap with an
   "unverified app" warning until approved; needs a privacy policy URL and a demo video).
 - Sentry project (DSN) for opt-in crash reports.
+- A GitHub OAuth App with device flow (until then GitHub is PAT only, #106).
+- Sparkle EdDSA keys + appcast hosting for auto-update.
 - A trial instance for testing GitHub Enterprise (GitLab CE runs in Docker).

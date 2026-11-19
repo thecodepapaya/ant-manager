@@ -138,8 +138,5 @@ void main() {
       final w = await (h.db.select(h.db.workstreams)..where((w) => w.id.equals('w0'))).getSingle();
       expect(w.spanEnd, '2026-11-10');
     },
-    skip:
-        'BUG: spans are recomputed only for newly assigned facts (workstreams.dart assignDay); retiring '
-        'or deleting a fact leaves the workstream span covering it',
   );
 }

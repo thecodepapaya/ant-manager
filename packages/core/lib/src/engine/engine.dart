@@ -9,6 +9,7 @@ import '../capture/source.dart';
 import '../data/profile_db.dart';
 import '../domain/enums.dart';
 import '../jobs/job_queue.dart';
+import '../narrative/fact_writer.dart' show updateWorkstreamSpan;
 import '../narrative/interfaces.dart';
 import '../ports/ports.dart';
 import '../staleness/staleness.dart';
@@ -134,9 +135,12 @@ class AntEngine {
   Future<void> setHidden(String evidenceId, bool hidden) => _curate(evidenceId, hidden: hidden);
 
   /// Importance derives from the combined user state: hidden → 0, starred → 1, else back to model/rule (re-scored).
+  /// Starring evidence a rule hid unhides it.
   Future<void> _curate(String id, {bool? starred, bool? hidden}) => db.transaction(() async {
         final e = await (db.select(db.evidences)..where((x) => x.id.equals(id))).getSingle();
-        final s = starred ?? e.starred, h = hidden ?? e.hidden;
+        // A star beats a rule's hide (only the user's own hide keeps starred evidence hidden).
+        final ruleHidden = e.hidden && e.importanceSetBy == ImportanceSetBy.rule;
+        final s = starred ?? e.starred, h = hidden ?? (starred == true && ruleHidden ? false : e.hidden);
         final userSet = s || h;
         await (db.update(db.evidences)..where((x) => x.id.equals(id))).write(EvidencesCompanion(
           starred: Value(s),
@@ -222,18 +226,7 @@ class AntEngine {
         await _updateSpan(intoId);
       });
 
-  Future<void> _updateSpan(String workstreamId) async {
-    final row = await db
-        .customSelect(
-          'SELECT MIN(period_start) AS s, MAX(period_end) AS e FROM facts WHERE workstream_id = ? AND retired = 0',
-          variables: [Variable.withString(workstreamId)],
-          readsFrom: {db.facts},
-        )
-        .getSingle();
-    await (db.update(db.workstreams)..where((w) => w.id.equals(workstreamId))).write(
-      WorkstreamsCompanion(spanStart: Value(row.read<String?>('s')), spanEnd: Value(row.read<String?>('e'))),
-    );
-  }
+  Future<void> _updateSpan(String workstreamId) => updateWorkstreamSpan(db, workstreamId);
 
   // ---------- Narrative commands (user-touched rules, #50 #62 #63) ----------
 
@@ -354,6 +347,7 @@ class AntEngine {
       changedBy: by,
       changedAt: now,
     ));
+    if (retired != null && retired != f.retired && f.workstreamId != null) await _updateSpan(f.workstreamId!);
     return rev;
   }
 

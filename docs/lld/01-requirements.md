@@ -73,6 +73,9 @@ These must fit the core abstractions without changing them. The extensibility st
 - Onboarding flow
 - Auto-update, crash reporting
 
+*As built:* everything above except chat, MCP, the search UI and embeddings ships in v1; auto-update and crash
+reporting are not wired yet (see [README.md](./README.md) known gaps).
+
 ## Non-functional requirements
 
 | # | Requirement | Target / definition |

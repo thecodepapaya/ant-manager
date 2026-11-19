@@ -40,6 +40,7 @@ void main() {
       final path = h.uri.path;
       if (fail[path] != null) return fail[path];
       if (path == '/api/v4/user') return const Res({'username': 'Me'});
+      if (path == '/api/v4/issues' || path == '/api/v4/events') return const Res([]);
       if (path == '/api/v4/merge_requests') {
         final role = byRole.keys.firstWhere((k) => h.uri.queryParameters.containsKey(k));
         return Res(page(byRole[role]!, h));

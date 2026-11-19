@@ -114,9 +114,6 @@ void main() {
         expect(await h.citations(f.id), isNotEmpty, reason: 'invariant 4: every fact has >= 1 citation');
       }
     },
-    skip:
-        'BUG: wins.dart starEvidence writes after the model call without re-checking the evidence; '
-        'FactWriter._pin drops missing payloads, so a zero-citation accepted win is created',
   );
 
   test(
@@ -129,8 +126,5 @@ void main() {
       final ev = await h.evidence(e1);
       expect((ev.importance, ev.hidden), (1.0, false));
     },
-    skip:
-        'BUG: wins.dart starEvidence gives importance 0 when e.hidden, even if a rule (not the user) hid it, '
-        'and marks it user-set so the rule can never release it; user per-item should beat the rule',
   );
 }

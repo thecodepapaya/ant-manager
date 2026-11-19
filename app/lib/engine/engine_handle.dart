@@ -53,9 +53,9 @@ class EngineHandle {
         case PortCall():
           final h = handle;
           if (h == null || h._host == null) {
-            h?._commands.send(PortReply(msg.id, error: 'no UI port host'));
+            msg.reply.send(PortReply(msg.id, error: h == null ? 'engine not ready' : 'no UI port host'));
           } else {
-            unawaited(h._host.handle(msg, h._commands));
+            unawaited(h._host.handle(msg, msg.reply));
           }
         case [final Object? error, final Object? stack]:
           // Uncaught error in the engine isolate (Isolate.addErrorListener format).

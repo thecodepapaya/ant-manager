@@ -7,6 +7,7 @@ import '../domain/enums.dart';
 import '../util/ids.dart';
 import 'context.dart';
 import 'extractor.dart';
+import 'fact_writer.dart';
 
 /// Puts a day's new facts into workstreams (LLD 04 §4.8) on the Extraction route.
 /// Only model-owned facts without a workstream are assigned, so a fact the user moved (or moved
@@ -147,16 +148,5 @@ Facts that belong together get the same new_title. Don't create a workstream per
   }
 
   /// Span = first..last day of the workstream's live facts.
-  Future<void> updateSpan(String workstreamId) async {
-    final row = await db
-        .customSelect(
-          'SELECT MIN(period_start) AS s, MAX(period_end) AS e FROM facts WHERE workstream_id = ? AND retired = 0',
-          variables: [Variable.withString(workstreamId)],
-          readsFrom: {db.facts},
-        )
-        .getSingle();
-    await (db.update(db.workstreams)..where((w) => w.id.equals(workstreamId))).write(
-      WorkstreamsCompanion(spanStart: Value(row.read<String?>('s')), spanEnd: Value(row.read<String?>('e'))),
-    );
-  }
+  Future<void> updateSpan(String workstreamId) => updateWorkstreamSpan(db, workstreamId);
 }

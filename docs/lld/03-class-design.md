@@ -1,6 +1,7 @@
 # LLD 03 — Class design
 
-Step 3 of the low-level design. **Status: Part 1 agreed, simplification pass done (2026-11-18).** Sections marked
+Step 3 of the low-level design. **Status: Part 1 agreed, simplification pass done (2026-11-18); implemented. Part 2
+(app/ui) was built directly, see the end of this doc.** Sections marked
 **[agreed]** have been accepted by the owner; everything else is a proposal to challenge.
 Builds on [01-requirements.md](./01-requirements.md) and [02-entities.md](./02-entities.md).
 
@@ -218,3 +219,17 @@ class AntEngine {
 | 3 | Structured output strategy | **Require native structured-output support from every model** (local, network, cloud). Probe on add, reject if unsupported; no fallback path. |
 | 4 | Fact extraction per day + separate workstream pass? | **Yes.** |
 | 5 | Domain classes vs drift data classes | **Expose drift-generated data classes.** Writes still go only through `AntEngine`. |
+
+## Part 2: app and ui (as built)
+
+Not designed up front; built under #67 and recorded as decisions. Layout: [app/README.md](../../app/README.md).
+
+- **Engine isolate:** `EngineHandle` spawns the engine; UI commands are closures run in the engine (`commands.dart`,
+  `setup_commands.dart`); plugin-backed ports (keychain, notifications, EventKit) are proxied back to the UI isolate.
+  Switching profile restarts the engine isolate (#101).
+- **macOS:** App Sandbox off, login keychain until signing, quick capture reuses the main window (#101); native
+  channels `ant/calendar` (EventKit) and `ant/clipboard` (rich copy, image paste, #107).
+- **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105). New
+  `AntEngine` commands cover projects/workstreams and starring via `WinService` (#107).
+- **ui tokens:** density/type tokens for sidebar, top bar, chips and prose (#107); `packages/ui/tool/check_tokens.dart`
+  enforces no literals.

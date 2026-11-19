@@ -109,10 +109,12 @@ final class CommandResult {
 }
 
 /// The engine asks the UI isolate to run a plugin-backed port method
-/// (`secrets.read`, `notifier.show`, `calendar.events`, ...).
+/// (`secrets.read`, `notifier.show`, `calendar.events`, ...). The [PortReply] goes to [reply],
+/// so a call can be answered even before [EngineReady] has handed over the command port.
 final class PortCall {
-  const PortCall(this.id, this.port, this.method, this.args);
+  const PortCall(this.id, this.port, this.method, this.args, this.reply);
   final int id;
+  final SendPort reply;
   final String port;
   final String method;
   final List<Object?> args;
