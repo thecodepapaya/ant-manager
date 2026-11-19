@@ -16,12 +16,22 @@ class FakeLlmServer {
   FakeLlmServer._(this._server);
   final HttpServer _server;
   final calls = <FakeLlmCall>[];
+  final errors = <String>[];
 
   static const model = 'fake/e2e-model';
 
   static Future<FakeLlmServer> start() async {
     final s = FakeLlmServer._(await HttpServer.bind(InternetAddress.loopbackIPv4, 0));
-    s._server.listen(s._handle);
+    s._server.listen((req) async {
+      try {
+        await s._handle(req);
+      } catch (e) {
+        s.errors.add('$e');
+        req.response.statusCode = 500;
+        req.response.write(jsonEncode({'error': {'message': '$e'}}));
+        await req.response.close();
+      }
+    });
     return s;
   }
 
@@ -153,7 +163,7 @@ class FakeLlmServer {
   }
 
   /// Creates one outcome (commits) and one invisible-work fact (notes/images) per day; on later passes
-  /// updates the outcome to cite the day's current commits.
+  /// updates the model-owned outcome to cite the day's current commits (user-owned facts are left alone).
   static List<Map<String, Object?>> _factOps(String user) {
     final payloads = [
       for (final m in RegExp(r'^- payload_id=(\S+) kind=(\w+)', multiLine: true).allMatches(user))
@@ -162,8 +172,8 @@ class FakeLlmServer {
     final commits = [for (final p in payloads) if (p.kind == 'commit') p.id];
     final notes = [for (final p in payloads) if (p.kind == 'note' || p.kind == 'image') p.id];
     final existing = [
-      for (final m in RegExp(r'^- fact_id=(\S+) type=(\S+) model', multiLine: true).allMatches(user))
-        (id: m.group(1)!, type: m.group(2)!),
+      for (final m in RegExp(r'^- fact_id=(\S+) type=(\S+) (model|user-owned)', multiLine: true).allMatches(user))
+        (id: m.group(1)!, type: m.group(2)!, model: m.group(3) == 'model'),
     ];
     Map<String, Object?> op(String op, {String? id, String? type, String? statement, List<String> cites = const []}) =>
         {
@@ -181,9 +191,11 @@ class FakeLlmServer {
     final outcome = existing.where((f) => f.type == 'outcome').firstOrNull;
     if (commits.isNotEmpty) {
       final statement = 'Shipped checkout payment changes across ${commits.length} commits.';
-      ops.add(outcome == null
-          ? op('create', type: 'outcome', statement: statement, cites: commits)
-          : op('update', id: outcome.id, statement: statement, cites: commits));
+      if (outcome == null) {
+        ops.add(op('create', type: 'outcome', statement: statement, cites: commits));
+      } else if (outcome.model) {
+        ops.add(op('update', id: outcome.id, statement: statement, cites: commits)); // user-owned: leave alone
+      }
     }
     if (notes.isNotEmpty && !existing.any((f) => f.type == 'invisible_work')) {
       ops.add(op('create', type: 'invisible_work', statement: 'Paired with a teammate on refund edge cases.', cites: notes));

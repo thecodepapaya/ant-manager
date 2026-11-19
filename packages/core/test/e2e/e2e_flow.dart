@@ -105,7 +105,7 @@ int _crc32(List<int> data) {
 }
 
 /// Registers the e2e group. [endpoint] is called once in setUpAll (e.g. to start a fake server).
-/// [live] relaxes nothing structural but prints model output for review.
+/// [live] prints model output for review and relaxes only workstream coverage (model may skip facts).
 void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoint, bool live = false}) {
   group(name, () {
     late Directory tmp;
@@ -136,7 +136,9 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
         if (at != null) 'GIT_AUTHOR_DATE': at.toIso8601String(),
         if (at != null) 'GIT_COMMITTER_DATE': at.toIso8601String(),
       };
-      final r = await Process.run('git', ['-C', repo, '-c', 'commit.gpgsign=false', ...args], environment: env);
+      final r = await Process.run('git', ['-C', repo, '-c', 'commit.gpgsign=false', ...args],
+          environment: {...env, 'PATH': Platform.environment['PATH'] ?? '/usr/bin', 'HOME': tmp.path},
+          includeParentEnvironment: false); // keeps OPENROUTER_API_KEY out of child processes
       if (r.exitCode != 0) throw StateError('git ${args.join(' ')}: ${r.stderr}');
     }
 
@@ -153,7 +155,11 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
         var worked = await e.jobs.runOne(JobLane.io);
         worked = await e.jobs.runOne(JobLane.llm) || worked;
         worked = await e.recompute.drain() > 0 || worked;
-        if (!worked) return;
+        if (!worked) {
+          final bad = (await db.select(db.jobs).get()).where((j) => j.state == JobState.failed || j.lastError != null);
+          expect(bad.map((j) => '${j.kind}: ${j.lastError}'), isEmpty, reason: 'jobs failed');
+          return;
+        }
       }
       fail('engine did not settle');
     }
@@ -170,6 +176,13 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
             ..where((c) => c.sourceId.equals(sourceId) & c.scope.equals('')))
           .getSingle();
       expect(status.lastError, isNull);
+      final cursor = await (db.select(db.syncCursors)
+            ..where((c) => c.sourceId.equals(sourceId) & c.scope.equals('')))
+          .getSingle();
+      final latest = (await (db.select(db.payloads)..where((x) => x.kind.equalsValue(PayloadKind.commit))).get())
+          .map((pl) => DateTime.parse((jsonDecode(pl.content) as Map)['committedAt'] as String))
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+      expect(DateTime.parse(cursor.cursor!), latest, reason: 'cursor = latest commit time');
     }
 
     Future<List<Fact>> liveFacts({bool time = false}) async => (await (db.select(db.facts)
@@ -197,7 +210,7 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
       final sections = (json['sections'] as List).cast<Map<String, Object?>>();
       final items = [for (final sec in sections) ...(sec['items'] as List).cast<Map<String, Object?>>()];
       expect(items, isNotEmpty, reason: 'report has no items:\n${s.markdown}');
-      final factIds = {for (final f in await db.select(db.facts).get()) f.id};
+      final factIds = {for (final f in await db.select(db.facts).get()) if (!f.retired) f.id};
       for (final i in items) {
         final ids = (i['fact_ids'] as List).cast<String>();
         expect(ids, isNotEmpty, reason: 'uncited bullet: ${i['text']}');
@@ -205,6 +218,7 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
       }
       expect(s.markdown.trim(), isNotEmpty);
       for (final sec in sections) {
+        expect((sec['heading'] as String).trim(), isNotEmpty);
         expect(s.markdown, contains(sec['heading'] as String));
       }
       expect(await stale(s), isFalse);
@@ -385,7 +399,8 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
           );
         }
         expect(f.origin, FactOrigin.inferred);
-        expect(f.workstreamId, isNotNull, reason: 'unassigned: ${f.statement}');
+        // A real model may leave a fact without a workstream (it isn't re-asked); the fake assigns all.
+        if (!live) expect(f.workstreamId, isNotNull, reason: 'unassigned: ${f.statement}');
       }
       expect(facts.map((f) => f.periodStart).toSet(), {day1, day2});
 
@@ -402,6 +417,9 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
 
       final ws = await db.select(db.workstreams).get();
       expect(ws, isNotEmpty);
+      final assigned = facts.where((f) => f.workstreamId != null).length;
+      expect(assigned, greaterThanOrEqualTo((facts.length / 2).ceil()), reason: 'most facts get a workstream');
+      if (live) print('workstreams assigned: $assigned/${facts.length} facts');
       for (final w in ws) {
         expect(w.title.trim(), isNotEmpty);
       }
@@ -409,7 +427,8 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
         printOnFailure('facts: ${facts.map((f) => '${f.type.name}: ${f.statement}').join('\n')}');
         print('--- live facts ---');
         for (final f in facts) {
-          print('${f.periodStart} ${f.type.name} (${f.importance}) win=${f.winStatus.name}: ${f.statement}');
+          final w = ws.where((x) => x.id == f.workstreamId).firstOrNull?.title;
+          print('${f.periodStart} ${f.type.name} (${f.importance}) win=${f.winStatus.name} ws=$w: ${f.statement}');
         }
         print('--- workstreams ---\n${ws.map((w) => '${w.title}: ${w.summary}').join('\n')}');
         print('--- enrichments ---\n${enr.map((n) => '${n.kind}: ${n.output}').join('\n')}');
@@ -479,6 +498,28 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
       expect(ev.starred, isTrue);
       expect(ev.importance, 1.0);
 
+      // Starring evidence an Outcome already cites accepts that fact (no model call, no new fact).
+      final outcomes = (await db.select(db.facts).get())
+          .where((f) => f.type == FactType.outcome && !f.retired && f.winStatus != WinStatus.accepted && f.id != factId)
+          .toList();
+      final cited = outcomes.isEmpty
+          ? <Citation>[]
+          : await (db.select(db.citations)..where((c) => c.factId.equals(outcomes.first.id))).get();
+      if (cited.isEmpty) {
+        if (!live) fail('fake model always creates an outcome citing commits');
+        print('no unaccepted outcome to star; existing-outcome path not exercised');
+      } else {
+        final target = await (db.select(db.payloads)..where((x) => x.id.equals(cited.first.payloadId))).getSingle();
+        final before = (await db.select(db.facts).get()).length;
+        await e.setStarred(target.evidenceId, true);
+        expect((await db.select(db.facts).get()).length, before, reason: 'starring itself creates no fact');
+        await settle(); // the day re-runs (curation trigger); the accepted fact is user-touched now
+        final accepted = await (db.select(db.facts)..where((f) => f.id.equals(outcomes.first.id))).getSingle();
+        expect(accepted.winStatus, WinStatus.accepted);
+        expect(accepted.origin, FactOrigin.confirmed);
+        expect(accepted.retired, isFalse);
+      }
+
       final week = Period.containing(PeriodKind.weekly, day2);
       final range = {'start': week.start, 'end': week.end};
       final ctx = e.toolContext;
@@ -486,15 +527,18 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
       expect(wins.map((w) => (w as Map)['fact_id']), contains(factId));
 
       final facts = ((await e.tools['get_facts'].call(range, ctx))['facts'] as List).cast<Map<String, Object?>>();
-      final dbLive = (await db.select(db.facts).get()).where((f) => !f.retired).length;
+      final dbLive = (await db.select(db.facts).get())
+          .where((f) => !f.retired && f.periodStart.compareTo(week.end) <= 0 && f.periodEnd.compareTo(week.start) >= 0)
+          .length;
       expect(facts, hasLength(dbLive));
       final imps = [for (final f in facts) f['importance'] as num];
       expect(imps, orderedEquals([...imps]..sort((a, b) => b.compareTo(a))), reason: 'ordered by importance');
 
       final found = await e.tools['search_evidence'].call({'query': 'idempotency'}, ctx);
       final hits = (found['evidence'] as List).cast<Map<String, Object?>>();
-      expect(hits, isNotEmpty);
-      expect(hits.every((h) => h['day'] == day2), isTrue);
+      // The hidden "Add tests for idempotency key reuse" commit is excluded.
+      expect(hits.map((h) => h['title']).toSet(),
+          {'Implement idempotency keys for checkout API', 'Handle expired idempotency keys'});
 
       final commitEv = await (db.select(db.evidences)
             ..where((x) => x.title.equals('Implement idempotency keys for checkout API')))
@@ -509,7 +553,7 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
       final ws = (await e.tools['workstream_timeline'].call(range, ctx))['workstreams'] as List;
       expect(ws, isNotEmpty);
       expect(() => e.tools['get_facts'].call({'start': week.start, 'end': week.end, 'bogus': 1}, ctx),
-          throwsA(anything));
+          throwsA(isA<ArgumentError>()));
       if (live) print('--- win ---\n${win.statement}');
     });
 
@@ -524,6 +568,7 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
       expect(m.counts['attachment_files'], 1);
 
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+      addTearDown(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false);
       final restored = ProfileDb(NativeDatabase(File(target)));
       addTearDown(restored.close);
       Future<Map<String, int>> counts(ProfileDb d) async {
