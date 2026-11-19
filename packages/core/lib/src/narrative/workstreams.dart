@@ -119,11 +119,14 @@ summary (covering its earlier work too); otherwise new_summary null.''';
     };
     final changed = <String>{};
     final summaries = <String, String>{};
+    // Created in this batch with a blank summary: the first later non-blank summary fills it.
+    final createdBlank = <String>{};
     for (final a in (out['assignments'] as List? ?? const []).whereType<Map>()) {
       final f = factById.remove(a['fact_id']);
       if (f == null) continue;
       var wsId = byId.containsKey(a['workstream_id']) ? a['workstream_id'] as String : null;
       final title = (a['new_title'] as String?)?.trim();
+      final summary = (a['new_summary'] as String?)?.trim() ?? '';
       if (wsId == null && title != null && title.isNotEmpty) {
         wsId = byTitle[title.toLowerCase()];
         if (wsId == null) {
@@ -135,19 +138,21 @@ summary (covering its earlier work too); otherwise new_summary null.''';
                   id: wsId,
                   title: title,
                   projectId: Value(f.projectId),
-                  summary: Value((a['new_summary'] as String?) ?? ''),
+                  summary: Value(summary),
                   spanStart: Value(day),
                   spanEnd: Value(day),
                 ),
               );
           byTitle[title.toLowerCase()] = wsId;
+          if (summary.isEmpty) createdBlank.add(wsId);
+        } else if (summary.isNotEmpty && createdBlank.remove(wsId)) {
+          summaries[wsId] = summary;
         }
       }
       if (wsId == null) continue;
-      final summary = (a['new_summary'] as String?)?.trim();
-      // Any existing workstream (offered or reused by title); a just-created one already has its summary.
+      // Any existing workstream (offered or reused by title); just-created ones are handled above.
       final existing = all.where((w) => w.id == wsId).firstOrNull;
-      if (existing != null && !existing.userTouched && summary != null && summary.isNotEmpty) {
+      if (existing != null && !existing.userTouched && summary.isNotEmpty) {
         summaries[wsId] = summary;
       }
       // Workstream membership isn't fact content: no revision bump.

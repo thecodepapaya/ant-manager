@@ -181,7 +181,8 @@ After a day's extraction, new facts without a workstream go to the Extraction ro
 (last 30 days: id, title, summary). Structured output: per fact, an existing workstream id **or** a new title. Users can
 rename, merge or move facts between workstreams (user changes are never overwritten). Workstream span updates from its
 facts; the same call refreshes an existing workstream's summary (`new_summary` on an assignment to it, by id or
-by a reused title, ignored for user-touched workstreams, #109, #115). A workstream with no live facts has a null span and is not active (#110).
+by a reused title, ignored for user-touched workstreams, #109, #115). A workstream created in the same batch with a
+blank summary takes the first later non-blank one (#116). A workstream with no live facts has a null span and is not active (#110).
 
 ## 4.9 Report generation
 
