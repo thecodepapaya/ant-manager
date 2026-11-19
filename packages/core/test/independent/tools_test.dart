@@ -82,9 +82,6 @@ void main() {
           await expectLater(call('get_facts', {'start': bad, 'end': '2026-11-30'}), throwsA(anything), reason: bad);
         }
       },
-      skip:
-          'BUG: tools/builtin/common.dart reqString only checks non-empty; the schema pattern ^\\d{4}-\\d{2}-\\d{2}\$ '
-          'is not enforced, so malformed days are compared as strings and silently give wrong results',
     );
 
     test(
@@ -96,9 +93,6 @@ void main() {
           throwsA(anything),
         );
       },
-      skip:
-          'BUG: tools ignore unknown keys despite additionalProperties:false; an agent typo such as '
-          '"projectId" silently drops the project filter',
     );
   });
 

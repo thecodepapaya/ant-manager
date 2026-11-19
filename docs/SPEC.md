@@ -167,7 +167,8 @@ maintained from it, and every output reads from that Narrative.
   overwritten by the model.
 - **Reports** cover **daily, weekly, monthly, quarterly and custom** ranges. Each report queries the Narrative for its
   period and renders it with a template. Reports are **not editable**. **Lock** freezes a report as a snapshot (never
-  regenerated, shows "facts changed since lock", can be unlocked). Version history is kept.
+  regenerated, shows "facts changed since lock", can be unlocked). Version history is kept. A report is **out of date**
+  when any input under it changed (transitively, down to payloads) or a new fact appeared in its period (#104).
 - **Generation:** automatic on a configurable schedule (e.g. daily at 18:00, weekly on Monday 09:00) when the tray app
   is running, plus on demand. Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79).
 - Every claim in a report links to the **facts and evidence** behind it.

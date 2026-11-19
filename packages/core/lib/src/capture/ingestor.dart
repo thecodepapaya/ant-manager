@@ -102,6 +102,21 @@ class Ingestor {
       title: Value(o.title),
     ));
     await _revision(existing.id, rev, json, hash, now);
+    // §4.1: evidence title/time come from its first live payload (a rescheduled meeting moves).
+    final first = await (db.select(db.payloads)
+          ..where((p) => p.evidenceId.equals(existing.evidenceId) & p.tombstonedAt.isNull())
+          ..orderBy([(p) => OrderingTerm.asc(p.id)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (first?.id == existing.id) {
+      await (db.update(db.evidences)..where((e) => e.id.equals(existing.evidenceId))).write(EvidencesCompanion(
+        occurredStart: Value(o.occurredStart.toUtc()),
+        occurredEnd: Value(o.occurredEnd?.toUtc()),
+        day: Value(dayOf(o.occurredStart, utcOffset(o.occurredStart))),
+        title: Value(o.title),
+        updatedAt: Value(now),
+      ));
+    }
     r.updated++;
   }
 

@@ -175,7 +175,10 @@ from their facts.
    prompt + optional style instruction.
 4. **Validate:** every `fact_ids` entry must be in the gathered set; items with none are dropped (no uncited claims, N9).
 5. **Render** to Markdown deterministically (citation markers from fact ids), store a ReportSnapshot (JSON + Markdown)
-   and Dependency rows (snapshot ← fact revisions).
+   and Dependency rows (snapshot ← fact revisions). The snapshot's fact inputs are **all** live facts in the period
+   (`get_facts` has no limit), so that set is its period fingerprint: the snapshot is stale when a recorded input
+   changed (transitively, invariant 5) **or** a live fact in the period isn't among its inputs, e.g. evidence added
+   for a past day (#104).
 6. **When:** on schedule, when opened if stale, or on demand. **Locked** reports skip steps 1–6 and only show staleness.
 
 ## 4.10 Wins

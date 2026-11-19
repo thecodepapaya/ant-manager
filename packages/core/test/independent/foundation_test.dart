@@ -258,9 +258,6 @@ void main() {
         expect(e.day, '2026-11-20');
         expect(e.occurredStart.toUtc(), DateTime.utc(2026, 11, 20, 10));
       },
-      skip:
-          'BUG: ingestor.dart:95 update path never updates evidence occurredStart/day/title (LLD 04 §4.1: '
-          'evidence time comes from its first payload), so a rescheduled meeting stays on the old day',
     );
   });
 
@@ -378,10 +375,6 @@ void main() {
         expect(await stale.isStale((type: EntityType.fact, id: f)), isTrue);
         expect(await stale.isStale((type: EntityType.reportSnapshot, id: 's')), isTrue);
       },
-      skip:
-          'BUG: StalenessService.isStale (staleness.dart:61) only compares direct inputs; invariant 5 says '
-          'staleness is transitive payload → enrichment → fact → report, so a snapshot reads fresh until '
-          'every intermediate recompute has run',
     );
 
     test('re-recording at current revisions clears staleness', () async {
@@ -631,9 +624,6 @@ void main() {
         expect(a.size, bytes.length);
         expect(a.sha256, sha256.convert(bytes).toString());
       },
-      skip:
-          'BUG: engine.dart:117 addNote hashes sha256Hex(String.fromCharCodes(bytes)) (UTF-8 of char codes), '
-          'not the raw bytes, so Attachment.sha256 is wrong for any byte >= 0x80 (every PNG)',
     );
 
     test('confirm/edit bump revision, append history and make dependent snapshots stale', () async {
@@ -739,9 +729,6 @@ void main() {
         await engine.setStarred(e.evidence, true);
         expect((await factById(f)).winStatus, WinStatus.accepted);
       },
-      skip:
-          'BUG: AntEngine.setStarred (engine.dart:133) only updates evidence importance; LLD 04 §4.10 says an '
-          'Outcome fact already citing its payload becomes accepted (not implemented)',
     );
 
     test('lock pins the latest snapshot; unlock clears it; locking with no snapshot fails', () async {
@@ -855,9 +842,6 @@ void main() {
         expect(await hits('second'), 1);
         expect(await hits('tabbed'), 1);
       },
-      skip:
-          'BUG: fts_payloads indexes raw canonical JSON (profile_db.dart:326), so "\\n" / "\\t" escapes glue '
-          'onto the next word ("nsecond", "ttabbed") and words after a line break are unfindable',
     );
 
     test(
@@ -868,9 +852,6 @@ void main() {
         expect(await hits('link'), 0);
         expect(await hits('null'), 0);
       },
-      skip:
-          'BUG: fts_payloads indexes JSON keys and literals (profile_db.dart:326): searching "link", '
-          '"attachments" or "null" matches every note',
     );
 
     test('tombstoned payloads and hidden evidence are excluded; revived payloads come back', () async {
