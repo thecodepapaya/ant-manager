@@ -36,16 +36,36 @@ class NarrativePipeline {
   /// Result of the last extraction per day (for logs and evals); null when it was skipped.
   final lastReconcile = <String, ReconcileResult?>{};
 
+  /// Runs outside any transaction: model calls happen between short write transactions, and each
+  /// write re-checks its inputs (LLD 04 §4.2).
   Future<void> runDay(String day) async {
     await importance.scoreDay(day);
     await Enricher(ctx, enrichments).enrichDay(day);
     final input = await DayInput.load(db, day);
     final current = await input.isCurrent(db);
-    lastReconcile[day] = current ? null : await reconciler.apply(await extractor.extract(day));
-    await time.computeDay(day);
+    lastReconcile[day] = null;
+    if (!current) {
+      final cs = await extractor.extract(day);
+      final applied = await db.transaction(() async {
+        // The day's inputs moved during the model call: discard and re-queue the day.
+        if ((await DayInput.load(db, day)).fingerprint != input.fingerprint) return false;
+        lastReconcile[day] = await reconciler.apply(cs);
+        // Committed with the facts, so a failure before workstream assignment retries it.
+        await db.into(db.settings).insertOnConflictUpdate(SettingsCompanion.insert(key: _wsKey(day), value: '1'));
+        return true;
+      });
+      if (!applied) return ctx.enqueue(EntityType.day, day, 'inputs changed during extraction');
+    }
+    await db.transaction(() => time.computeDay(day));
     // Only after a real extraction: facts the model left unassigned aren't re-asked on no-op passes.
-    if (!current) await workstreams.assignDay(day);
+    final key = _wsKey(day);
+    if (await (db.select(db.settings)..where((s) => s.key.equals(key))).getSingleOrNull() != null) {
+      await workstreams.assignDay(day);
+      await (db.delete(db.settings)..where((s) => s.key.equals(key))).go();
+    }
   }
+
+  static String _wsKey(String day) => 'narrative.workstreams_pending.$day';
 
   Future<void> onEvidence(String evidenceId) async {
     final e = await (db.select(db.evidences)..where((x) => x.id.equals(evidenceId))).getSingleOrNull();

@@ -114,7 +114,7 @@ class AntEngine {
           payloadId: payloadId,
           path: path,
           mime: path.endsWith('.png') ? 'image/png' : 'image/jpeg',
-          sha256: sha256Hex(String.fromCharCodes(bytes)),
+          sha256: sha256BytesHex(bytes),
           size: bytes.length,
         ));
       }
@@ -145,6 +145,26 @@ class AntEngine {
           importanceSetBy: Value(userSet ? ImportanceSetBy.user : null), // null = re-score by model/rule
           updatedAt: Value(ports.clock.now()),
         ));
+        // §4.10 / invariant 9: starring makes an Outcome fact already citing this evidence an accepted win.
+        if (starred == true && !e.starred) {
+          final facts = await (db.select(db.facts)
+                ..where((f) =>
+                    f.type.equalsValue(FactType.outcome) &
+                    f.retired.equals(false) &
+                    f.winStatus.equalsValue(WinStatus.accepted).not() &
+                    f.id.isInQuery(db.selectOnly(db.citations).join([
+                      innerJoin(db.payloads, db.payloads.id.equalsExp(db.citations.payloadId), useColumns: false),
+                    ])
+                      ..addColumns([db.citations.factId])
+                      ..where(db.payloads.evidenceId.equals(id)))))
+              .get();
+          for (final f in facts) {
+            await _writeFact(f,
+                origin: f.origin.isUserTouched ? f.origin : FactOrigin.confirmed,
+                winStatus: WinStatus.accepted,
+                by: 'user');
+          }
+        }
       });
 
   // ---------- Narrative commands (user-touched rules, #50 #62 #63) ----------
@@ -165,16 +185,24 @@ class AntEngine {
         await _writeFact(f, origin: origin, winStatus: status, by: 'user');
       });
 
-  /// Accepts or dismisses a pending model proposal on a user-touched fact.
+  /// Accepts or dismisses a pending model proposal on a user-touched fact. Accepting applies the
+  /// proposed statement/details/retire and re-pins citations to the proposal's payloads (or the
+  /// current ones when it names none) at their current revisions, so the fact isn't left stale.
   Future<void> resolveReview(String factId, {required bool accept}) => db.transaction(() async {
         final f = await _fact(factId);
         if (accept && f.reviewProposal != null) {
           final p = jsonDecode(f.reviewProposal!) as Map<String, Object?>;
-          await _writeFact(f,
+          final rev = await _writeFact(f,
               origin: f.origin,
               statement: p['statement'] as String?,
+              details: (p['details'] as Map?)?.cast<String, Object?>(),
               retired: p['retire'] == true,
               by: 'user');
+          final cited = (p['citations'] as List?)?.whereType<String>().toList() ??
+              (await (db.select(db.citations)..where((c) => c.factId.equals(factId))).get())
+                  .map((c) => c.payloadId)
+                  .toList();
+          await _pin(factId, rev, cited);
         }
         await (db.update(db.facts)..where((x) => x.id.equals(factId))).write(const FactsCompanion(
           reviewState: Value(ReviewState.ok),
@@ -209,8 +237,24 @@ class AntEngine {
         await _writeFact(f, origin: origin, statement: statement, details: details, by: 'user');
       });
 
-  /// Bumps the fact revision (fires staleness triggers) and appends a FactRevision.
-  Future<void> _writeFact(Fact f,
+  /// Pins [factId]'s citations to the current revisions of [payloadIds] and re-records the fact's
+  /// Dependency rows (same rule as FactWriter in the narrative pipeline).
+  Future<void> _pin(String factId, int factRevision, List<String> payloadIds) async {
+    final ps = payloadIds.isEmpty
+        ? const <Payload>[]
+        : await (db.select(db.payloads)..where((p) => p.id.isIn(payloadIds))).get();
+    await (db.delete(db.citations)..where((c) => c.factId.equals(factId))).go();
+    for (final p in ps) {
+      await db
+          .into(db.citations)
+          .insert(CitationsCompanion.insert(factId: factId, payloadId: p.id, payloadRevision: p.revision));
+    }
+    await deps.record((type: EntityType.fact, id: factId), factRevision,
+        [for (final p in ps) (type: EntityType.payload, id: p.id, revision: p.revision)]);
+  }
+
+  /// Bumps the fact revision (fires staleness triggers), appends a FactRevision, returns the new revision.
+  Future<int> _writeFact(Fact f,
       {required FactOrigin origin,
       String? statement,
       Map<String, Object?>? details,
@@ -242,6 +286,7 @@ class AntEngine {
       changedBy: by,
       changedAt: now,
     ));
+    return rev;
   }
 
   Future<String> _builtinSource(SourceKind kind, String name) async {

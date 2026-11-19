@@ -104,6 +104,10 @@ class SyncService {
   /// `sources.sync` [debounce] after the last event. [onEnqueue] lets the runtime wake its job loop.
   Future<void> startWatching({void Function()? onEnqueue}) async {
     await stopWatching();
+    await _subscribe(onEnqueue);
+  }
+
+  Future<void> _subscribe(void Function()? onEnqueue) async {
     _watching = true;
     _onEnqueue = onEnqueue;
     for (final row in await _syncable()) {
@@ -133,6 +137,10 @@ class SyncService {
       t.cancel();
     }
     _timers.clear();
+    await _unsubscribe();
+  }
+
+  Future<void> _unsubscribe() async {
     final subs = [..._watches];
     _watches.clear();
     for (final s in subs) {
@@ -141,19 +149,20 @@ class SyncService {
   }
 
   /// Enqueues `sources.sync` for [sourceId] unless one is already queued or running. Returns true if enqueued.
-  Future<bool> enqueueSync(String sourceId) async {
-    final args = {'source_id': sourceId};
-    final pending = await (_db.select(_db.jobs)
-          ..where((j) =>
-              j.kind.equals(syncJob) &
-              j.args.equals(jsonEncode(args)) &
-              j.state.isInValues([JobState.queued, JobState.running]))
-          ..limit(1))
-        .getSingleOrNull();
-    if (pending != null) return false;
-    await e.jobs.enqueue(syncJob, args: args);
-    return true;
-  }
+  /// Check and insert share one transaction so concurrent callers can't both enqueue.
+  Future<bool> enqueueSync(String sourceId) => _db.transaction(() async {
+        final args = {'source_id': sourceId};
+        final pending = await (_db.select(_db.jobs)
+              ..where((j) =>
+                  j.kind.equals(syncJob) &
+                  j.args.equals(jsonEncode(args)) &
+                  j.state.isInValues([JobState.queued, JobState.running]))
+              ..limit(1))
+            .getSingleOrNull();
+        if (pending != null) return false;
+        await e.jobs.enqueue(syncJob, args: args);
+        return true;
+      });
 
   // ---------- commands ----------
 
@@ -221,9 +230,19 @@ class SyncService {
     return [for (final r in rows) if (kinds.contains(r.kind)) r];
   }
 
-  Future<void> _rewatch() async {
-    if (_watching) await startWatching(onEnqueue: _onEnqueue);
+  /// Re-subscribes after a source change but keeps pending debounce timers (a disabled source's timer may
+  /// still enqueue; the `sources.sync` handler skips it). Chained so overlapping commands don't double-subscribe.
+  Future<void> _rewatch() {
+    final next = _rewatching.then((_) async {
+      if (!_watching) return;
+      await _unsubscribe();
+      await _subscribe(_onEnqueue);
+    });
+    _rewatching = next.catchError((Object _) {});
+    return next;
   }
+
+  Future<void> _rewatching = Future.value();
 
   Future<_Context> _context(SourceRow row) async {
     final ids = <String, List<String>>{};
@@ -345,10 +364,13 @@ class SyncScheduler {
 }
 
 /// Registers `sources.syncAll` and `sources.sync {source_id}` on the IO lane. `sources.sync` rethrows (job
-/// backoff); `sources.syncAll` doesn't, since per-source errors are already recorded.
+/// backoff) and skips disabled sources; `sources.syncAll` doesn't, since per-source errors are already recorded.
 SyncService registerSyncJobs(AntEngine e, {Dio? http}) {
   final s = SyncService(e, http: http);
   e.jobs.register(SyncService.syncAllJob, JobLane.io, (_) => s.syncAll());
-  e.jobs.register(SyncService.syncJob, JobLane.io, (args) => s.syncSource(args['source_id']! as String));
+  e.jobs.register(SyncService.syncJob, JobLane.io, (args) async {
+    final id = args['source_id']! as String;
+    if ((await s._row(id)).enabled) await s.syncSource(id); // removed after it was queued
+  });
   return s;
 }

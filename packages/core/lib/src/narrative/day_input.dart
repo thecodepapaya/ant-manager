@@ -41,6 +41,12 @@ class DayInput {
         .join('\n'),
   );
 
+  /// The day's input revisions + curation (not titles or workstream/project hints). Compared
+  /// before and after the extraction model call: if it moved, the result is discarded and the day re-queued.
+  late final String fingerprint = sha256Hex(
+    ([for (final r in refs) '${r.type.name}:${r.id}:${r.revision}']..sort()).followedBy([curation]).join('\n'),
+  );
+
   String get _curationKey => 'narrative.day_curation.$day';
 
   static Future<DayInput> load(ProfileDb db, String day) async {

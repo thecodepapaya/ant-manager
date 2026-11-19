@@ -118,30 +118,47 @@ Judge only from the content given. Give a short reason (under 15 words). Return 
       schemaName: 'importance',
     );
     final byId = {for (final (e, ps) in batch) e.id: (e, ps)};
-    for (final s in (out['scores'] as List? ?? const []).whereType<Map>()) {
-      final hit = byId[s['evidence_id']];
-      final score = s['score'];
-      if (hit == null || score is! num) continue;
-      final (e, ps) = hit;
-      // Re-read: a user may have starred/hidden it while the model was thinking.
-      final fresh = await (db.select(db.evidences)..where((x) => x.id.equals(e.id))).getSingleOrNull();
-      if (fresh == null ||
-          fresh.importanceSetBy == ImportanceSetBy.user ||
-          fresh.importanceSetBy == ImportanceSetBy.rule) {
-        continue;
+    // Short write transaction after the model call, re-checking each item's inputs.
+    await db.transaction(() async {
+      for (final s in (out['scores'] as List? ?? const []).whereType<Map>()) {
+        final hit = byId[s['evidence_id']];
+        final score = s['score'];
+        if (hit == null || score is! num) continue;
+        final (e, ps) = hit;
+        // Re-read: a user may have starred/hidden it while the model was thinking.
+        final fresh = await (db.select(db.evidences)..where((x) => x.id.equals(e.id))).getSingleOrNull();
+        if (fresh == null ||
+            fresh.importanceSetBy == ImportanceSetBy.user ||
+            fresh.importanceSetBy == ImportanceSetBy.rule) {
+          continue;
+        }
+        // Its payloads changed meanwhile: discard the score; the day is re-queued to score them.
+        final now = await (db.select(
+          db.payloads,
+        )..where((p) => p.evidenceId.equals(e.id) & p.tombstonedAt.isNull())).get();
+        if (!_sameRevisions(now, ps)) {
+          await ctx.enqueue(EntityType.day, fresh.day, 'payloads changed during importance scoring');
+          continue;
+        }
+        await _write(
+          fresh,
+          importance: score.toDouble().clamp(0.0, 1.0),
+          reason: s['reason'] as String?,
+          setBy: ImportanceSetBy.model,
+        );
+        await ctx.deps.record(
+          (type: EntityType.evidence, id: e.id),
+          1,
+          [for (final p in ps) (type: EntityType.payload, id: p.id, revision: p.revision)],
+        );
       }
-      await _write(
-        fresh,
-        importance: score.toDouble().clamp(0.0, 1.0),
-        reason: s['reason'] as String?,
-        setBy: ImportanceSetBy.model,
-      );
-      await ctx.deps.record(
-        (type: EntityType.evidence, id: e.id),
-        1,
-        [for (final p in ps) (type: EntityType.payload, id: p.id, revision: p.revision)],
-      );
-    }
+    });
+  }
+
+  static bool _sameRevisions(List<Payload> a, List<Payload> b) {
+    final x = {for (final p in a) '${p.id}:${p.revision}'};
+    final y = {for (final p in b) '${p.id}:${p.revision}'};
+    return x.length == y.length && x.containsAll(y);
   }
 
   /// Writes only on change, so re-running a day doesn't re-fire the curation trigger.
