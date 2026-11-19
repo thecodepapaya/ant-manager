@@ -38,18 +38,19 @@ const reportSchema = <String, Object?>{
 
 /// Keeps only fact ids in [validIds] (de-duplicated, in order); drops items left with none and
 /// sections left empty (no uncited claims, N9). Unexpected shapes are skipped, not repaired.
+/// Whitespace in text and headings collapses to single spaces, so text can't forge bullets or headings.
 Map<String, Object?> validateReport(Map<String, Object?> raw, Set<String> validIds) {
   final sections = <Map<String, Object?>>[];
-  for (final s in (raw['sections'] as List?) ?? const []) {
+  for (final s in _list(raw['sections'])) {
     if (s is! Map) continue;
-    final heading = (s['heading'] as String?)?.trim() ?? '';
+    final heading = _oneLine(_string(s['heading']));
     final items = <Map<String, Object?>>[];
-    for (final i in (s['items'] as List?) ?? const []) {
+    for (final i in _list(s['items'])) {
       if (i is! Map) continue;
-      final text = (i['text'] as String?)?.trim() ?? '';
+      final text = _oneLine(_string(i['text']));
       final ids = <String>[
         ...{
-          for (final id in (i['fact_ids'] as List?) ?? const [])
+          for (final id in _list(i['fact_ids']))
             if (id is String && validIds.contains(id)) id,
         },
       ];
@@ -73,7 +74,7 @@ String renderReportMarkdown({
   final sections = report['sections'] as List;
   if (sections.isEmpty) b.write('\n_Nothing recorded for this period._\n');
   for (final s in sections.cast<Map<String, Object?>>()) {
-    final heading = s['heading'] as String;
+    final heading = _oneLine(s['heading'] as String);
     if (heading.isNotEmpty) b.write('\n## $heading\n');
     b.write('\n');
     for (final i in (s['items'] as List).cast<Map<String, Object?>>()) {
@@ -81,7 +82,7 @@ String renderReportMarkdown({
         for (final id in (i['fact_ids'] as List).cast<String>())
           '[^f${numbers.putIfAbsent(id, () => numbers.length + 1)}]',
       ];
-      b.write('- ${i['text']} ${markers.join()}\n');
+      b.write('- ${_oneLine(i['text'] as String)} ${markers.join()}\n');
     }
   }
   if (numbers.isNotEmpty) {
@@ -94,6 +95,8 @@ String renderReportMarkdown({
 }
 
 String _oneLine(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
+List<Object?> _list(Object? v) => v is List ? v : const [];
+String _string(Object? v) => v is String ? v : '';
 
 /// Ids cited by a validated report, in first-appearance order.
 List<String> citedFactIds(Map<String, Object?> report) => [

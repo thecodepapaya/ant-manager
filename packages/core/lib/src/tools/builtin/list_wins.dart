@@ -31,8 +31,8 @@ class ListWinsTool implements HarnessTool {
                 (f) =>
                     factInPeriod(
                       f,
-                      reqString(input, 'start'),
-                      reqString(input, 'end'),
+                      reqDay(input, 'start'),
+                      reqDay(input, 'end'),
                       projectId: optString(input, 'project_id'),
                     ) &
                     f.type.equalsValue(FactType.outcome) &

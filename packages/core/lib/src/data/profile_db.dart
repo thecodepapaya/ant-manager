@@ -320,14 +320,17 @@ const profileDbExtraSql = <String>[
   'CREATE INDEX idx_fact_period ON facts(period_start, period_end)',
   'CREATE INDEX idx_dep_input ON dependencies(input_type, input_id)',
   'CREATE INDEX idx_jobs_ready ON jobs(state, lane, run_after)',
-  // Full-text index over payload content and facts.
+  // Full-text index over payload text values and facts.
   "CREATE VIRTUAL TABLE fts_payloads USING fts5(payload_id UNINDEXED, content, tokenize='unicode61')",
   "CREATE VIRTUAL TABLE fts_facts USING fts5(fact_id UNINDEXED, statement, tokenize='unicode61')",
+  // Only the payload's string values are indexed, not JSON keys, escapes or literals.
   '''CREATE TRIGGER fts_payload_ins AFTER INSERT ON payloads BEGIN
-       INSERT INTO fts_payloads(payload_id, content) VALUES (NEW.id, NEW.content); END''',
+       INSERT INTO fts_payloads(payload_id, content)
+       SELECT NEW.id, coalesce(group_concat(value, ' '), '') FROM json_tree(NEW.content) WHERE type = 'text'; END''',
   '''CREATE TRIGGER fts_payload_upd AFTER UPDATE OF content ON payloads BEGIN
        DELETE FROM fts_payloads WHERE payload_id = OLD.id;
-       INSERT INTO fts_payloads(payload_id, content) VALUES (NEW.id, NEW.content); END''',
+       INSERT INTO fts_payloads(payload_id, content)
+       SELECT NEW.id, coalesce(group_concat(value, ' '), '') FROM json_tree(NEW.content) WHERE type = 'text'; END''',
   '''CREATE TRIGGER fts_payload_del AFTER DELETE ON payloads BEGIN
        DELETE FROM fts_payloads WHERE payload_id = OLD.id; END''',
   '''CREATE TRIGGER fts_payload_tomb AFTER UPDATE OF tombstoned_at ON payloads WHEN NEW.tombstoned_at IS NOT NULL BEGIN
@@ -355,6 +358,10 @@ const profileDbExtraSql = <String>[
        INSERT INTO recompute_queue(entity_type, entity_id, reason, enqueued_at)
        SELECT 'day', e.day, 'payload moved ' || NEW.id, unixepoch() FROM evidences e
        WHERE e.id IN (OLD.evidence_id, NEW.evidence_id); END''',
+  // Staleness: evidence moved to another day (rescheduled) → old and new day.
+  '''CREATE TRIGGER stale_evidence_day AFTER UPDATE OF day ON evidences WHEN OLD.day IS NOT NEW.day BEGIN
+       INSERT INTO recompute_queue(entity_type, entity_id, reason, enqueued_at)
+       VALUES ('day', OLD.day, 'evidence moved ' || NEW.id, unixepoch()), ('day', NEW.day, 'evidence moved ' || NEW.id, unixepoch()); END''',
   // Staleness: curation of evidence → its day.
   '''CREATE TRIGGER stale_evidence_curation AFTER UPDATE OF starred, hidden, importance, project_id ON evidences
        WHEN OLD.starred IS NOT NEW.starred OR OLD.hidden IS NOT NEW.hidden
