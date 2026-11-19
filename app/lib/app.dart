@@ -10,23 +10,27 @@ import 'features/reports/reports_page.dart';
 import 'features/timeline/timeline_page.dart';
 import 'features/today/today_page.dart';
 import 'features/wins/wins_page.dart';
-import 'pages/placeholder_pages.dart';
+import 'features/onboarding/onboarding_page.dart';
+import 'features/settings/setup_providers.dart';
+import 'features/settings/settings_page.dart';
+import 'features/sources/sources_page.dart' show SourcesPage;
 import 'shell/quick_capture.dart';
 import 'shell/shell_state.dart';
 import 'state/data.dart';
 import 'state/providers.dart';
 import 'widgets/common.dart';
 
-/// The page for a sidebar section. Sources and Settings are built by another agent.
+/// The page for a sidebar section.
 Widget pageFor(ShellSection s) => switch (s) {
-      ShellSection.today => const TodayPage(),
-      ShellSection.timeline => const TimelinePage(),
-      ShellSection.narrative => const NarrativePage(),
-      ShellSection.reports => const ReportsPage(),
-      ShellSection.wins => const WinsPage(),
-      ShellSection.projects => const ProjectsPage(),
-      ShellSection.sources || ShellSection.settings => placeholderPageFor(s),
-    };
+  ShellSection.today => const TodayPage(),
+  ShellSection.timeline => const TimelinePage(),
+  ShellSection.narrative => const NarrativePage(),
+  ShellSection.reports => const ReportsPage(),
+  ShellSection.wins => const WinsPage(),
+  ShellSection.projects => const ProjectsPage(),
+  ShellSection.sources => const SourcesPage(),
+  ShellSection.settings => const SettingsPage(),
+};
 
 class AntApp extends ConsumerWidget {
   const AntApp({super.key});
@@ -54,6 +58,11 @@ class AppShell extends ConsumerWidget {
     final t = context.tokens;
     final engine = ref.watch(engineProvider);
     final section = ref.watch(shellSectionProvider);
+    // Onboarding gate: first run (no identities, no sources, never finished or skipped).
+    if (engine is AsyncData &&
+        (ref.watch(onboardingNeededProvider).value ?? false)) {
+      return const Scaffold(body: OnboardingPage());
+    }
     return Material(
       color: t.bg,
       child: Row(
@@ -62,12 +71,15 @@ class AppShell extends ConsumerWidget {
           const _Sidebar(),
           Expanded(
             child: switch (engine) {
-              AsyncData() => KeyedSubtree(key: ValueKey(section), child: pageFor(section)),
+              AsyncData() => KeyedSubtree(
+                key: ValueKey(section),
+                child: pageFor(section),
+              ),
               AsyncError(:final error) => AntEmptyState(
-                  icon: Icons.error_outline_rounded,
-                  title: 'The engine failed to start',
-                  message: '$error',
-                ),
+                icon: Icons.error_outline_rounded,
+                title: 'The engine failed to start',
+                message: '$error',
+              ),
               _ => const SizedBox.shrink(),
             },
           ),
@@ -93,29 +105,37 @@ class _Sidebar extends ConsumerWidget {
           Text(text, style: t.typo.caption.copyWith(color: color ?? t.muted));
       return switch (s) {
         ShellSection.today when today > 0 => count('$today'),
-        ShellSection.narrative when review > 0 => count('$review to review', t.accentText),
-        ShellSection.wins when suggested > 0 => count('$suggested new', t.accentText),
+        ShellSection.narrative when review > 0 => count(
+          '$review to review',
+          t.accentText,
+        ),
+        ShellSection.wins when suggested > 0 => count(
+          '$suggested new',
+          t.accentText,
+        ),
         _ => null,
       };
     }
 
     Widget item(ShellSection s) => Padding(
-          padding: EdgeInsets.only(bottom: t.space.xxs),
-          child: AntSidebarItem(
-            label: s.label,
-            icon: s.icon,
-            selected: s == current,
-            trailing: trailing(s),
-            onPressed: () => ref.read(shellSectionProvider.notifier).select(s),
-          ),
-        );
+      padding: EdgeInsets.only(bottom: t.space.xxs),
+      child: AntSidebarItem(
+        label: s.label,
+        icon: s.icon,
+        selected: s == current,
+        trailing: trailing(s),
+        onPressed: () => ref.read(shellSectionProvider.notifier).select(s),
+      ),
+    );
 
     return Container(
       width: t.density.sidebarWidth,
       padding: EdgeInsets.all(t.space.md + t.space.xxs),
       decoration: BoxDecoration(
         color: t.bgSidebar,
-        border: Border(right: BorderSide(color: t.border, width: t.stroke.hairline)),
+        border: Border(
+          right: BorderSide(color: t.border, width: t.stroke.hairline),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -150,10 +170,17 @@ class _SyncFooter extends ConsumerWidget {
     return Container(
       margin: EdgeInsets.only(top: t.space.sm),
       padding: EdgeInsets.all(t.space.md + t.space.xxs),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: t.border, width: t.stroke.hairline))),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: t.border, width: t.stroke.hairline),
+        ),
+      ),
       child: Row(
         children: [
-          AntDot(color: paused ? t.accent : (last == null ? t.raw : t.success), size: t.space.sm),
+          AntDot(
+            color: paused ? t.accent : (last == null ? t.raw : t.success),
+            size: t.space.sm,
+          ),
           SizedBox(width: t.space.md),
           Expanded(child: Muted(text, maxLines: 1, style: t.typo.chip)),
         ],
@@ -175,11 +202,18 @@ class _ProfileSwitcher extends ConsumerWidget {
         for (final p in profiles)
           AntMenuItem(
             label: p.name,
-            icon: p.id == active?.id ? Icons.check_rounded : Icons.person_outline_rounded,
-            onSelected: () => ref.read(engineProvider.notifier).switchProfile(p.id),
+            icon: p.id == active?.id
+                ? Icons.check_rounded
+                : Icons.person_outline_rounded,
+            onSelected: () =>
+                ref.read(engineProvider.notifier).switchProfile(p.id),
           ),
         const AntMenuDivider(),
-        AntMenuItem(label: 'New profile…', icon: Icons.add_rounded, onSelected: () => _create(context, ref)),
+        AntMenuItem(
+          label: 'New profile…',
+          icon: Icons.add_rounded,
+          onSelected: () => _create(context, ref),
+        ),
       ],
       builder: (context, c) => AntInteractive(
         onTap: () => c.isOpen ? c.close() : c.open(),
@@ -197,7 +231,11 @@ class _ProfileSwitcher extends ConsumerWidget {
             children: [
               ClipRRect(
                 borderRadius: t.radii.brMd,
-                child: Image.asset('assets/brand/logo.png', width: t.icon.xl, height: t.icon.xl),
+                child: Image.asset(
+                  'assets/brand/logo.png',
+                  width: t.icon.xl,
+                  height: t.icon.xl,
+                ),
               ),
               SizedBox(width: t.space.md),
               Expanded(
@@ -205,12 +243,17 @@ class _ProfileSwitcher extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(active?.name ?? '…',
-                        key: const ValueKey('active-profile'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.typo.bodyStrong.copyWith(color: t.text)),
-                    Text('Ant Manager', style: t.typo.caption.copyWith(color: t.muted)),
+                    Text(
+                      active?.name ?? '…',
+                      key: const ValueKey('active-profile'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.typo.bodyStrong.copyWith(color: t.text),
+                    ),
+                    Text(
+                      'Ant Manager',
+                      style: t.typo.caption.copyWith(color: t.muted),
+                    ),
                   ],
                 ),
               ),
@@ -223,7 +266,12 @@ class _ProfileSwitcher extends ConsumerWidget {
   }
 
   Future<void> _create(BuildContext context, WidgetRef ref) async {
-    final name = await promptText(context, title: 'New profile', placeholder: 'Name, e.g. “Side project”', action: 'Create');
+    final name = await promptText(
+      context,
+      title: 'New profile',
+      placeholder: 'Name, e.g. “Side project”',
+      action: 'Create',
+    );
     if (name == null) return;
     final h = await ref.read(engineProvider.future);
     final id = await h.runtime(createProfileCmd(name));

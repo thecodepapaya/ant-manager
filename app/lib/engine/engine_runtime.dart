@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -21,6 +22,13 @@ const pausedSettingKey = 'collection.paused';
 
 /// Backup destination folder; default `<dataDir>/backups/<profileId>`.
 const backupFolderSettingKey = 'backup.folder';
+const backupKeepSettingKey = 'backup.keep';
+const backupReadableSettingKey = 'backup.readableExport';
+const backupLastSuccessSettingKey = 'backup.lastSuccessAt';
+const backupLastErrorSettingKey = 'backup.lastError';
+
+/// Job + schedule kind of the daily nudge notification.
+const nudgeJobKind = 'nudge';
 
 /// Isolate entry point. Spawned by `EngineHandle.start`.
 Future<void> engineMain(EngineBoot boot) async {
@@ -39,7 +47,9 @@ Future<void> engineMain(EngineBoot boot) async {
           final value = await msg.body(rt!);
           boot.ui.send(CommandResult(msg.id, value: value));
         } catch (e, st) {
-          boot.ui.send(CommandResult(msg.id, error: e.toString(), stack: st.toString()));
+          boot.ui.send(
+            CommandResult(msg.id, error: e.toString(), stack: st.toString()),
+          );
         }
         rt?.kick();
       case ShutdownEngine():
@@ -53,12 +63,14 @@ Future<void> engineMain(EngineBoot boot) async {
   });
   try {
     rt = await EngineRuntime.open(boot.config, bridge);
-    boot.ui.send(EngineReady(
-      commands: rx.sendPort,
-      appDb: await rt.appDb.serializableConnection(),
-      profileDb: await rt.db.serializableConnection(),
-      profileId: rt.profile.id,
-    ));
+    boot.ui.send(
+      EngineReady(
+        commands: rx.sendPort,
+        appDb: await rt.appDb.serializableConnection(),
+        profileDb: await rt.db.serializableConnection(),
+        profileId: rt.profile.id,
+      ),
+    );
     if (boot.config.startLoops) rt.startLoops();
   } catch (e, st) {
     boot.ui.send(EngineFailed(e.toString(), st.toString()));
@@ -69,8 +81,17 @@ Future<void> engineMain(EngineBoot boot) async {
 
 /// What a command sees inside the engine isolate.
 class EngineRuntime {
-  EngineRuntime._(this.config, this.appDb, this.db, this.profile, this.engine, this.scheduler, this.sync,
-      this.reports, this.paused);
+  EngineRuntime._(
+    this.config,
+    this.appDb,
+    this.db,
+    this.profile,
+    this.engine,
+    this.scheduler,
+    this.sync,
+    this.reports,
+    this.paused,
+  );
 
   final EngineConfig config;
   final AppDb appDb;
@@ -90,10 +111,15 @@ class EngineRuntime {
   final _loops = <Future<void>>[];
   final _stopWaiters = <Completer<void>>[];
 
-  static Future<EngineRuntime> open(EngineConfig config, UiBridge bridge) async {
+  static Future<EngineRuntime> open(
+    EngineConfig config,
+    UiBridge bridge,
+  ) async {
     final appDb = AppDb(_open(config, p.join(config.dataDir, 'app.sqlite')));
     final profile = await ensureActiveProfile(appDb, config.timeZone);
-    final db = ProfileDb(_open(config, p.join(config.dataDir, 'profiles', '${profile.id}.sqlite')));
+    final db = ProfileDb(
+      _open(config, p.join(config.dataDir, 'profiles', '${profile.id}.sqlite')),
+    );
     final secrets = BridgedSecretStore(bridge);
     // System zone, DST-correct. TODO(#87): resolve the profile's IANA zone once core has tz data.
     Duration offset(DateTime t) => t.toLocal().timeZoneOffset;
@@ -114,32 +140,124 @@ class EngineRuntime {
     );
     registerCodeSources(engine.sources);
     registerOtherSources(engine.sources);
-    final sync = registerSyncJobs(engine); // sources.syncAll / sources.sync, IO lane
+    final sync = registerSyncJobs(
+      engine,
+    ); // sources.syncAll / sources.sync, IO lane
     registerBuiltinTools(engine.tools);
     registerNarrativePipeline(engine);
     await TemplateService(db).seedBuiltins();
 
     // Scheduled reports (LLM lane) and backups (IO lane), LLD 04 §4.11.
-    final generator = ReportGenerator(db: db, router: engine.router, tools: engine.tools, profileId: profile.id);
+    final generator = ReportGenerator(
+      db: db,
+      router: engine.router,
+      tools: engine.tools,
+      profileId: profile.id,
+    );
     for (final (kind, period) in const [
       (Scheduler.dailyReport, PeriodKind.daily),
       (Scheduler.weeklyReport, PeriodKind.weekly),
       (Scheduler.monthlyReport, PeriodKind.monthly),
       (Scheduler.quarterlyReport, PeriodKind.quarterly),
     ]) {
-      engine.jobs.register(kind, JobLane.llm, scheduledReportHandler(generator, period, offset));
+      engine.jobs.register(
+        kind,
+        JobLane.llm,
+        scheduledReportHandler(generator, period, offset),
+      );
     }
-    final backup = BackupService(db, profileName: profile.name, appVersion: config.appVersion, blobs: ports.blobs);
-    engine.jobs.register(Scheduler.backup, JobLane.io, (_) async {
-      final row = await (db.select(db.settings)..where((s) => s.key.equals(backupFolderSettingKey))).getSingleOrNull();
-      await backup.createBackup(row?.value ?? p.join(config.dataDir, 'backups', profile.id));
-    });
+    late final EngineRuntime rt;
+    engine.jobs.register(Scheduler.backup, JobLane.io, (_) => rt.backupNow());
+    engine.jobs.register(nudgeJobKind, JobLane.io, (_) => rt._nudge());
     final scheduler = Scheduler(db, engine.jobs, utcOffset: offset);
     await scheduler.seedDefaults();
+    // Daily nudge (SPEC §7): weekdays at 18:05 by default; edited in Settings → Schedule.
+    await db
+        .into(db.schedules)
+        .insert(
+          SchedulesCompanion.insert(
+            id: nudgeJobKind,
+            kind: nudgeJobKind,
+            rule: jsonEncode(
+              const ScheduleRule(
+                hour: 18,
+                minute: 5,
+                weekdays: [1, 2, 3, 4, 5],
+              ).toJson(),
+            ),
+            lastRunAt: Value(DateTime.now().toUtc()),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
 
-    final pausedRow =
-        await (db.select(db.settings)..where((s) => s.key.equals(pausedSettingKey))).getSingleOrNull();
-    return EngineRuntime._(config, appDb, db, profile, engine, scheduler, sync, generator, pausedRow?.value == 'true');
+    final pausedRow = await (db.select(
+      db.settings,
+    )..where((s) => s.key.equals(pausedSettingKey))).getSingleOrNull();
+    return rt = EngineRuntime._(
+      config,
+      appDb,
+      db,
+      profile,
+      engine,
+      scheduler,
+      sync,
+      generator,
+      pausedRow?.value == 'true',
+    );
+  }
+
+  Future<String?> setting(String key) async => (await (db.select(
+    db.settings,
+  )..where((s) => s.key.equals(key))).getSingleOrNull())?.value;
+
+  Future<void> putSetting(String key, String value) => db
+      .into(db.settings)
+      .insertOnConflictUpdate(SettingsCompanion.insert(key: key, value: value));
+
+  String get defaultBackupFolder =>
+      p.join(config.dataDir, 'backups', profile.id);
+
+  /// Runs a backup with the Settings → Backup options and records its status (SPEC §9).
+  /// Returns the bundle path.
+  Future<String> backupNow() async {
+    final folder = await setting(backupFolderSettingKey) ?? defaultBackupFolder;
+    final keep = int.tryParse(await setting(backupKeepSettingKey) ?? '') ?? 14;
+    final readable = await setting(backupReadableSettingKey) == 'true';
+    final service = BackupService(
+      db,
+      profileName: profile.name,
+      appVersion: config.appVersion,
+      blobs: engine.ports.blobs,
+      keep: keep,
+    );
+    try {
+      final file = await service.createBackup(folder, readableExport: readable);
+      await putSetting(
+        backupLastSuccessSettingKey,
+        DateTime.now().toUtc().toIso8601String(),
+      );
+      await putSetting(backupLastErrorSettingKey, '');
+      return file.path;
+    } catch (e) {
+      await putSetting(backupLastErrorSettingKey, '$e');
+      rethrow;
+    }
+  }
+
+  /// "Your day is drafted" nudge; skipped on days with no evidence (SPEC §7).
+  Future<void> _nudge() async {
+    final today = dayOf(DateTime.now(), DateTime.now().timeZoneOffset);
+    final any =
+        await (db.select(db.evidences)
+              ..where((e) => e.day.equals(today))
+              ..limit(1))
+            .getSingleOrNull();
+    if (any == null) return;
+    await engine.ports.notifier?.show(
+      title: 'Your day is drafted',
+      body: '2-minute review?',
+      actionId: 'open-today',
+    );
   }
 
   static QueryExecutor _open(EngineConfig config, String path) {
@@ -150,18 +268,27 @@ class EngineRuntime {
 
   /// First run creates "Work" in the system time zone; otherwise returns the active profile
   /// (activating the oldest one if none is flagged).
-  static Future<Profile> ensureActiveProfile(AppDb appDb, String timeZone) => appDb.transaction(() async {
-        final all = await (appDb.select(appDb.profiles)..orderBy([(p) => OrderingTerm.asc(p.createdAt)])).get();
+  static Future<Profile> ensureActiveProfile(AppDb appDb, String timeZone) =>
+      appDb.transaction(() async {
+        final all = await (appDb.select(
+          appDb.profiles,
+        )..orderBy([(p) => OrderingTerm.asc(p.createdAt)])).get();
         if (all.isEmpty) {
           final id = newId();
-          await appDb.into(appDb.profiles).insert(ProfilesCompanion.insert(
-                id: id,
-                name: 'Work',
-                timeZone: timeZone,
-                active: const Value(true),
-                createdAt: DateTime.now().toUtc(),
-              ));
-          return (appDb.select(appDb.profiles)..where((p) => p.id.equals(id))).getSingle();
+          await appDb
+              .into(appDb.profiles)
+              .insert(
+                ProfilesCompanion.insert(
+                  id: id,
+                  name: 'Work',
+                  timeZone: timeZone,
+                  active: const Value(true),
+                  createdAt: DateTime.now().toUtc(),
+                ),
+              );
+          return (appDb.select(
+            appDb.profiles,
+          )..where((p) => p.id.equals(id))).getSingle();
         }
         final active = all.where((p) => p.active).firstOrNull;
         if (active != null) return active;
@@ -170,24 +297,32 @@ class EngineRuntime {
       });
 
   static Future<void> _setActive(AppDb appDb, String id) async {
-    await appDb.update(appDb.profiles).write(const ProfilesCompanion(active: Value(false)));
-    await (appDb.update(appDb.profiles)..where((p) => p.id.equals(id)))
-        .write(const ProfilesCompanion(active: Value(true)));
+    await appDb
+        .update(appDb.profiles)
+        .write(const ProfilesCompanion(active: Value(false)));
+    await (appDb.update(appDb.profiles)..where((p) => p.id.equals(id))).write(
+      const ProfilesCompanion(active: Value(true)),
+    );
   }
 
   // ---------- app-level commands (profiles, collection) ----------
 
   /// Marks [id] active. The UI then restarts the engine on that profile (#77).
-  Future<void> setActiveProfile(String id) => appDb.transaction(() => _setActive(appDb, id));
+  Future<void> setActiveProfile(String id) =>
+      appDb.transaction(() => _setActive(appDb, id));
 
   Future<String> createProfile(String name) async {
     final id = newId();
-    await appDb.into(appDb.profiles).insert(ProfilesCompanion.insert(
-          id: id,
-          name: name,
-          timeZone: config.timeZone,
-          createdAt: DateTime.now().toUtc(),
-        ));
+    await appDb
+        .into(appDb.profiles)
+        .insert(
+          ProfilesCompanion.insert(
+            id: id,
+            name: name,
+            timeZone: config.timeZone,
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
     return id;
   }
 
@@ -195,7 +330,11 @@ class EngineRuntime {
   /// TODO(core): move into AntEngine once it has a settings API.
   Future<void> setPaused(bool value) async {
     paused = value;
-    await db.into(db.settings).insertOnConflictUpdate(SettingsCompanion.insert(key: pausedSettingKey, value: '$value'));
+    await db
+        .into(db.settings)
+        .insertOnConflictUpdate(
+          SettingsCompanion.insert(key: pausedSettingKey, value: '$value'),
+        );
   }
 
   /// Enqueues a sync of every enabled source.
@@ -211,9 +350,11 @@ class EngineRuntime {
       ..add(_laneLoop(JobLane.io))
       ..add(_laneLoop(JobLane.llm))
       ..add(_schedulerLoop());
-    unawaited(sync.startWatching(onEnqueue: kick).catchError((Object e, StackTrace st) {
-      stderr.writeln('engine watchers: $e\n$st');
-    }));
+    unawaited(
+      sync.startWatching(onEnqueue: kick).catchError((Object e, StackTrace st) {
+        stderr.writeln('engine watchers: $e\n$st');
+      }),
+    );
   }
 
   /// Scheduler tick on launch and every minute (missed runs catch up once, #79).
@@ -221,7 +362,8 @@ class EngineRuntime {
     while (!_stopped) {
       try {
         final reports = await scheduler.tick();
-        final syncs = await syncScheduler.tick(); // per-source polls when due (LLD 04 §4.3)
+        final syncs = await syncScheduler
+            .tick(); // per-source polls when due (LLD 04 §4.3)
         if (reports.isNotEmpty || syncs.isNotEmpty) kick();
       } catch (e, st) {
         stderr.writeln('engine scheduler: $e\n$st');
@@ -251,7 +393,10 @@ class EngineRuntime {
         stderr.writeln('engine ${lane.name} loop: $e\n$st');
       }
       if (!worked && !_stopped) {
-        await (_wake ??= Completer<void>()).future.timeout(config.idlePoll, onTimeout: () {});
+        await (_wake ??= Completer<void>()).future.timeout(
+          config.idlePoll,
+          onTimeout: () {},
+        );
       }
     }
   }
