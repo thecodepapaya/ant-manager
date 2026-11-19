@@ -40,13 +40,13 @@ class _ProjectsPageState extends ConsumerState<ProjectsPage> {
         ),
         Expanded(
           child: stats.hasValue && shown.isEmpty
-              ? AntEmptyState(
+              ? PageEmpty(AntEmptyState(
                   icon: Icons.folder_outlined,
                   title: 'No projects yet',
                   message: 'Projects group your evidence, facts and reports, e.g. “Checkout v2” or “Hiring”. '
                       'The model files new work into them; you can always move things.',
                   action: AntButton.primary(label: 'Create a project', onPressed: () => _create(context)),
-                )
+                ))
               : LayoutBuilder(
                   builder: (context, c) {
                     final cols = (c.maxWidth / t.density.columnMinWidth).floor().clamp(1, 4);

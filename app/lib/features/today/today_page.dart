@@ -262,8 +262,39 @@ class _DayNarrative extends ConsumerWidget {
           style: style,
         );
 
+    final pad = EdgeInsets.fromLTRB(t.space.xxxl, t.space.xl, t.space.xxxl, t.space.giant);
+    // Nothing to write from yet (e.g. a new profile): one calm note instead of empty controls.
+    final loaded = ref.watch(reportsProvider((kind: PeriodKind.daily, day: day))).hasValue &&
+        ref.watch(factsProvider(factQuery(start: day, end: day))).hasValue;
+    if (loaded && report == null && facts.isEmpty) {
+      return Padding(
+        padding: pad,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SectionHeader('Daily report'),
+            Panel(
+              padding: EdgeInsets.all(t.space.xxl),
+              child: Column(children: [
+                Icon(Icons.auto_awesome_outlined, size: t.icon.lg, color: t.muted),
+                SizedBox(height: t.space.md),
+                Text('Your daily report appears here', style: t.typo.bodyStrong.copyWith(color: t.text)),
+                SizedBox(height: t.space.xs),
+                Text(
+                  'Once there’s work for this day, Ant Manager writes a short report from it at 18:00 on weekdays. '
+                  'Nothing to do until then.',
+                  textAlign: TextAlign.center,
+                  style: t.typo.small.copyWith(color: t.muted),
+                ),
+              ]),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
-      padding: EdgeInsets.fromLTRB(t.space.xxxl, t.space.xl, t.space.xxxl, t.space.giant),
+      padding: pad,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

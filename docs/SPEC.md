@@ -232,6 +232,7 @@ maintained from it, and every output reads from that Narrative.
   - **Not intimidating.** Progressive disclosure: a new user sees a calm, mostly empty Today and one obvious next action.
     Advanced controls (model overrides, self-hosted URLs, curation rules, template editing) sit
     behind "Advanced" or appear only when relevant. Every screen has a helpful empty state. The first week is guided.
+    Until there is data, a page shows one explanation, not empty controls or filters (#113).
   - **Spacing and padding** come from the spacing tokens on a consistent rhythm. Polish the density, alignment and
     hierarchy screen by screen, with a visual review in both themes.
   - **Model settings:** one obvious global model at the top ("Use X for everything"). The three overrides (Vision,

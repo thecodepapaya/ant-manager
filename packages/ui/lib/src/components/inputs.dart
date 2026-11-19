@@ -77,6 +77,9 @@ class AntTextField extends StatelessWidget {
         textAlignVertical: single ? TextAlignVertical.center : null,
         decoration: InputDecoration(
           isDense: true,
+          // The app theme is compact; without this the decorator shrinks the
+          // drawn box below the control height (padding is set exactly here).
+          visualDensity: VisualDensity.standard,
           constraints: single
               ? BoxConstraints.tightFor(height: antControlHeight(t, size))
               : null,

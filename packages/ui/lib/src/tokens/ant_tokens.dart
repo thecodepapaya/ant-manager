@@ -174,7 +174,7 @@ class AntTokens extends ThemeExtension<AntTokens> {
       dangerSoft: _soft(danger, Brightness.light),
       infoSoft: _soft(info, Brightness.light),
       shadowColor: const Color(0x24281E0A), // rgba(40,30,10,.14)
-      scrim: const Color(0x4D1A1917),
+      scrim: const Color(0x731A1917), // 45%: the page recedes clearly behind dialogs
       radii: AntRadii(radius),
       typo: AntType.standard(text),
       density: density,

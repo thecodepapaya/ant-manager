@@ -34,7 +34,16 @@ class RepoScanController extends ChangeNotifier {
   GitStatus? git;
   bool checking = true;
   bool scanning = false;
-  List<String> roots = defaultScanRoots();
+  // Real paths: on a case-insensitive disk ~/Projects and ~/projects are one folder.
+  List<String> roots = {for (final r in defaultScanRoots()) _realPath(r)}.toList();
+
+  static String _realPath(String path) {
+    try {
+      return Directory(path).resolveSymbolicLinksSync();
+    } on FileSystemException {
+      return path;
+    }
+  }
   List<RepoScan> repos = const [];
   final selected = <String>{};
   bool _disposed = false;

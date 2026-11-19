@@ -298,6 +298,7 @@ Future<void> showFactDialog(BuildContext context, String factId) => showAntDialo
                       FactTile(
                         item: item,
                         showDay: true,
+                        flush: true,
                         onCitation: (c) {
                           Navigator.pop(ctx);
                           openEvidenceInToday(ref, c.day, {c.evidenceId});

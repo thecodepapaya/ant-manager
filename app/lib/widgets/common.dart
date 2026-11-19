@@ -246,16 +246,20 @@ class TopBar extends StatelessWidget {
         children: [
           for (final w in leading) Padding(padding: EdgeInsets.only(right: t.space.xs), child: w),
           if (titleWidget != null) Padding(padding: EdgeInsets.only(left: t.space.sm, right: t.space.lg), child: titleWidget),
+          // Title and subtitle on one line (mockup `.topbar`), so every page's bar is the same height.
           if (title != null)
             Padding(
               padding: EdgeInsets.only(right: t.space.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title!, style: t.typo.title.copyWith(color: t.text)),
-                  if (subtitle != null) Text(subtitle!, style: t.typo.small.copyWith(color: t.muted)),
-                ],
+              child: Text(title!, style: t.typo.title.copyWith(color: t.text)),
+            ),
+          // Bounded rather than flexible, so [middle] alone takes the free width and actions stay right.
+          if (subtitle != null)
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: t.density.columnMinWidth * 1.5),
+              child: Padding(
+                padding: EdgeInsets.only(right: t.space.lg),
+                child: Text(subtitle!,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: t.typo.small.copyWith(color: t.muted)),
               ),
             ),
           Expanded(
@@ -295,13 +299,15 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Text(label.toUpperCase(), style: t.typo.sectionLabel.copyWith(color: tone ?? t.muted)),
+          // The note takes the free width (a Spacer beside it would halve it and truncate early).
           if (note != null) ...[
             SizedBox(width: t.space.md),
-            Flexible(
-              child: Text(note!, style: t.typo.small.copyWith(color: t.muted), overflow: TextOverflow.ellipsis),
+            Expanded(
+              child: Text(note!,
+                  maxLines: 1, style: t.typo.small.copyWith(color: t.muted), overflow: TextOverflow.ellipsis),
             ),
-          ],
-          const Spacer(),
+          ] else
+            const Spacer(),
           for (final w in trailing) Padding(padding: EdgeInsets.only(left: t.space.sm), child: w),
         ],
       ),
@@ -350,6 +356,42 @@ class _HoverState extends State<Hover> {
         onEnter: (_) => setState(() => _h = true),
         onExit: (_) => setState(() => _h = false),
         child: widget.builder(context, _h),
+      );
+}
+
+/// The app logo (warm off-white tile), outlined so it stays visible on the light sidebar.
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      width: t.icon.xl,
+      height: t.icon.xl,
+      foregroundDecoration: BoxDecoration(
+        borderRadius: t.radii.brMd,
+        border: Border.all(color: t.borderStrong, width: t.stroke.hairline),
+      ),
+      child: ClipRRect(
+        borderRadius: t.radii.brMd,
+        child: Image.asset('assets/brand/logo.png', fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+/// A page-level empty state, top-aligned like the ones inside page lists (Timeline, Wins, Today).
+class PageEmpty extends StatelessWidget {
+  const PageEmpty(this.child, {super.key});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.topCenter,
+        // AntEmptyState is a Center: a min-size Column keeps it from filling the height.
+        child: Padding(
+          padding: EdgeInsets.only(top: context.tokens.space.xl),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [child]),
+        ),
       );
 }
 
