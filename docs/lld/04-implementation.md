@@ -177,7 +177,7 @@ Time facts are computed in code, so they're reproducible and defensible:
 After a day's extraction, new facts without a workstream go to the Extraction route with the active workstreams
 (last 30 days: id, title, summary). Structured output: per fact, an existing workstream id **or** a new title. Users can
 rename, merge or move facts between workstreams (user changes are never overwritten). The span updates from their
-facts; the summary is set when the workstream is created and *not refreshed yet* (known gap).
+facts; the summary is set when the workstream is created and *not refreshed yet* (known gap). A workstream with no live facts has a null span and is not active (#109).
 
 ## 4.9 Report generation
 
