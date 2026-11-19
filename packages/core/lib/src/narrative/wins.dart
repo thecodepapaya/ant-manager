@@ -97,6 +97,11 @@ Cite the payload ids that support it.''';
     if (cites.isEmpty) cites = ids.toList(); // the user starred this evidence: it supports the win
 
     return db.transaction(() async {
+      // The user may have unstarred or hidden the evidence while the model ran: don't write the win.
+      final now = await (db.select(db.evidences)..where((x) => x.id.equals(evidenceId))).getSingleOrNull();
+      if (now == null || !now.starred || (now.hidden && !e.hidden)) {
+        throw StateError('Evidence $evidenceId was unstarred or hidden during the win call');
+      }
       // The evidence may have been deleted or tombstoned while the model ran: never write an uncited win.
       final liveIds = (await (db.select(
         db.payloads,
@@ -106,9 +111,9 @@ Cite the payload ids that support it.''';
       return writer.create(
         type: FactType.outcome,
         statement: statement,
-        day: e.day,
+        day: now.day,
         citations: live,
-        projectId: e.projectId,
+        projectId: now.projectId,
         importance: 1.0,
         origin: FactOrigin.userCreated,
         winStatus: WinStatus.accepted,

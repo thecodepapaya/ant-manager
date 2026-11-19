@@ -32,7 +32,7 @@ None of these block development; placeholders are used until each is done. Tick 
 ## Testing infrastructure
 - [ ] **GitHub Enterprise Server** trial licence (or access to a real GHES instance) for self-hosted testing.
 - [ ] Test accounts: Linear workspace, Jira Cloud site, an Outlook / M365 account (for its ICS link) and a Google account with sample calendar data.
-- [ ] **Smoke-test the unsigned installers** from a CI build on a real Windows 10/11 PC and a Linux desktop (install, launch, tray icon). CI builds them but can't run them.
+- [ ] **Smoke-test the unsigned installers** from a CI build on a real Windows 10/11 PC and a Linux desktop (install, launch, tray icon). CI builds them but can't run them. On Linux also check a token saves (needs gnome-keyring or KWallet running) and the tray icon on GNOME (AppIndicator extension).
 - [ ] (GitLab self-managed: I'll run GitLab CE in Docker. Nothing needed from you.)
 
 ## Content & legal
