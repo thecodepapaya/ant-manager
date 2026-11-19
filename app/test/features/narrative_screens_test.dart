@@ -8,6 +8,7 @@ import 'package:ant_manager/engine/commands.dart';
 import 'package:ant_manager/engine/engine_handle.dart';
 import 'package:ant_manager/engine/messages.dart';
 import 'package:ant_manager/features/projects/projects_page.dart';
+import 'package:ant_manager/platform/time_zone.dart';
 import 'package:ant_manager/features/reports/reports_page.dart';
 import 'package:ant_manager/features/timeline/timeline_page.dart';
 import 'package:ant_manager/features/today/today_page.dart';
@@ -34,7 +35,7 @@ void main() {
   Finder rows() => find.byType(EvidenceRow);
 
   group('Today', () {
-    testWidgets('a note added on a past day lands on that day at local noon', (tester) async {
+    testWidgets('a note added on a past day lands on that day at noon (profile zone)', (tester) async {
       final (c, h) = await bootPage(tester, dir, const TodayPage());
       c.read(todayFocusProvider.notifier).setDay('2026-03-04');
       await settle(tester);
@@ -43,7 +44,9 @@ void main() {
       await settle(tester, until: () => rows().evaluate().isNotEmpty);
       final e = (await read(tester, () => h.db.select(h.db.evidences).get())).single;
       expect(e.day, '2026-03-04');
-      expect(e.occurredStart.toLocal(), DateTime(2026, 3, 4, 12));
+      // Noon in the profile's zone (#109), not the system zone.
+      final wall = e.occurredStart.toUtc().add(profileUtcOffset(e.occurredStart));
+      expect((wall.day, wall.hour, wall.minute), (4, 12, 0));
       expect(rows(), findsOneWidget);
       await killEngine(tester, h);
     });
