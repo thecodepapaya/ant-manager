@@ -200,6 +200,107 @@ END:VTIMEZONE''';
       ]);
     });
 
+    test('VTIMEZONE east of UTC: an ended rule still applies at its last (UNTIL) transition, then stops', () {
+      // Berlin-style: DST ended on the last Sunday of September until 1995 (UNTIL = that transition in UTC:
+      // 03:00 at +0200 = 01:00Z), last Sunday of October from 1996.
+      const berlin = '''BEGIN:VTIMEZONE
+TZID:Europe/Berlin
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+DTSTART:19810329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+DTSTART:19800928T030000
+RRULE:FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000Z
+END:STANDARD
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+DTSTART:19961027T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE''';
+      final src = cal(
+        [
+          ev('a', 'DTSTART;TZID=Europe/Berlin:19950920T090000'), // before the final Sep transition: CEST
+          ev('b', 'DTSTART;TZID=Europe/Berlin:19951001T090000'), // after it (1995-09-24): CET
+          ev('c', 'DTSTART;TZID=Europe/Berlin:19961001T090000'), // 1996: Sep rule ended → still CEST
+          ev('d', 'DTSTART;TZID=Europe/Berlin:19961101T090000'), // after 1996-10-27: CET
+          ev('e', 'DTSTART;TZID=Europe/Berlin:20261001T090000'), // today: CEST until the last Sun Oct
+        ].join('\n'),
+        tz: berlin,
+      );
+      expect(starts(src, DateTime.utc(1995), DateTime.utc(2027)), [
+        DateTime.utc(1995, 9, 20, 7),
+        DateTime.utc(1995, 10, 1, 8),
+        DateTime.utc(1996, 10, 1, 7),
+        DateTime.utc(1996, 11, 1, 8),
+        DateTime.utc(2026, 10, 1, 7),
+      ]);
+    });
+
+    test('VTIMEZONE rule whose DTSTART is in the future does not apply before it starts', () {
+      // A zone (+0300, no DST) that adopts DST from 2027; and a rule starting mid-2026 whose BYMONTH (March)
+      // occurrence in 2026 precedes its DTSTART.
+      const future = '''BEGIN:VTIMEZONE
+TZID:Test/Future
+BEGIN:STANDARD
+TZOFFSETFROM:+0300
+TZOFFSETTO:+0300
+DTSTART:19700101T000000
+END:STANDARD
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0300
+TZOFFSETTO:+0400
+DTSTART:20270328T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0400
+TZOFFSETTO:+0300
+DTSTART:20271031T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VTIMEZONE
+TZID:Test/MidYear
+BEGIN:STANDARD
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0500
+DTSTART:19700101T000000
+END:STANDARD
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+DTSTART:20260901T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+END:VTIMEZONE''';
+      final src = cal(
+        [
+          ev('a', 'DTSTART;TZID=Test/Future:20260701T120000'), // DST not yet in force
+          ev('b', 'DTSTART;TZID=Test/Future:20270101T120000'), // year before: still none
+          ev('c', 'DTSTART;TZID=Test/Future:20270701T120000'), // in force from 2027-03-28
+          ev('d', 'DTSTART;TZID=Test/Future:20271201T120000'), // back to standard
+          ev('e', 'DTSTART;TZID=Test/MidYear:20260701T120000'), // 2026-03-08 precedes DTSTART → -0500
+          ev('f', 'DTSTART;TZID=Test/MidYear:20270701T120000'), // 2027-03-14 applies → -0400
+        ].join('\n'),
+        tz: future,
+      );
+      expect(starts(src, DateTime.utc(2026), DateTime.utc(2028)), [
+        DateTime.utc(2026, 7, 1, 9),
+        DateTime.utc(2026, 7, 1, 17),
+        DateTime.utc(2027, 1, 1, 9),
+        DateTime.utc(2027, 7, 1, 8),
+        DateTime.utc(2027, 7, 1, 16),
+        DateTime.utc(2027, 12, 1, 9),
+      ]);
+    });
+
     test('all-day events: local midnight, one day long, flagged', () {
       final o = occ(cal(ev('ad', 'DTSTART;VALUE=DATE:20260310\nDTEND;VALUE=DATE:20260311'))).single;
       expect(o.allDay, true);
