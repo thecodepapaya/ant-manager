@@ -63,22 +63,28 @@ END;
 **Computed check (source of truth for "out of date" badges):**
 
 ```sql
--- stale iff any recorded input revision differs from the current one
+-- stale iff any recorded input revision differs from the current one, or the input row is gone (#103)
 SELECT EXISTS (
   SELECT 1 FROM dependency d
-  JOIN payload p ON d.input_type = 'payload' AND p.id = d.input_id
-  WHERE d.dependent_type = ? AND d.dependent_id = ? AND p.revision <> d.input_revision
+  LEFT JOIN payload p ON p.id = d.input_id
+  WHERE d.dependent_type = ? AND d.dependent_id = ? AND d.input_type = 'payload'
+    AND (p.id IS NULL OR p.revision <> d.input_revision)
   UNION ALL
   SELECT 1 FROM dependency d
-  JOIN fact f ON d.input_type = 'fact' AND f.id = d.input_id
-  WHERE d.dependent_type = ? AND d.dependent_id = ? AND f.revision <> d.input_revision
+  LEFT JOIN fact f ON f.id = d.input_id
+  WHERE d.dependent_type = ? AND d.dependent_id = ? AND d.input_type = 'fact'
+    AND (f.id IS NULL OR f.revision <> d.input_revision)
+  -- same for enrichment
 );
 ```
 
 **RecomputeWorker:** drains the queue (de-duplicated by entity, oldest first), debounced by about 30 s so a burst of
 sync changes becomes one recompute per day. It dispatches by type: `day` → importance → enrichment → fact extraction →
-time facts → workstreams. `report` → only marks it; reports regenerate lazily (invariant 6). Each handler deletes its
-queue rows **in the same transaction** as its output, so a crash simply leaves the work queued.
+time facts → workstreams. `report` → only marks it; reports regenerate lazily (invariant 6).
+**Model calls never run inside a transaction (#103):** each stage reads its inputs, calls the model, then writes in a
+short transaction that first re-checks the inputs (payload revisions; for extraction the day's input fingerprint). If
+they moved, the result is discarded and the day re-queued. The worker deletes the queue rows only **after** the
+handler's writes have committed, so a crash leaves the work queued; stages are idempotent, so a re-run is safe.
 
 ## 4.3 Capture (core sources)
 
