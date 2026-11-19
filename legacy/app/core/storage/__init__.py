@@ -1,3 +1,0 @@
-"""Storage layer (SQLite)."""
-
-

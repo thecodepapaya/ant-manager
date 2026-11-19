@@ -251,9 +251,8 @@ maintained from it, and every output reads from that Narrative.
 
 ## 11. Repo layout
 
-- **Done (2026-11-18):** all previous code moved to `legacy/`: the Flutter app (`legacy/app`, including the Python core
-  `legacy/app/core` and the logo assets), the untracked Go port (`legacy/core-go`), the Go docs (`legacy/docs`), and the old
-  README / PRIVACY / THREAT_MODEL (to be rewritten for v1). `legacy/` is reference only; nothing new imports from it.
+- **Done (2026-11-18):** all previous code moved to `legacy/`; **removed (2026-11-20, #112)**: the old app, Python core,
+  Go port and docs live only in git history (before `legacy/` was deleted). PRIVACY / THREAT_MODEL get rewritten for v1.
 - Root: `docs/`, `PHILOSOPHY.md`, `LICENSE`, `web/` + `wrangler.json` (Cloudflare Pages site; left in place),
   v1 code in `app/`, `packages/core`, `packages/ui` (#45), plus `packaging/`, `scripts/` and `.github/workflows/`.
   Firebase is not used. Dev builds can use `--dart-define=ANT_DATA_DIR=…` for a separate data folder (#107).
