@@ -26,6 +26,20 @@ String? optString(Map<String, Object?> input, String key) {
   return v is String && v.isNotEmpty ? v : null;
 }
 
+/// A real calendar day in YYYY-MM-DD form (the schema pattern, enforced).
+String reqDay(Map<String, Object?> input, String key) => _day(key, reqString(input, key));
+
+String? optDay(Map<String, Object?> input, String key) {
+  final v = input[key];
+  return v == null ? null : _day(key, v is String ? v : '');
+}
+
+String _day(String key, String v) {
+  final d = RegExp(_dayPattern).hasMatch(v) ? DateTime.tryParse(v) : null;
+  if (d == null || d.toIso8601String().substring(0, 10) != v) throw ArgumentError('"$key" must be a YYYY-MM-DD day');
+  return v;
+}
+
 int optInt(Map<String, Object?> input, String key, int fallback) {
   final v = input[key];
   return v is num ? v.toInt() : fallback;

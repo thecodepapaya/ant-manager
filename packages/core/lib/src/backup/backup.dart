@@ -145,10 +145,11 @@ class BackupService {
   Future<List<File>> list(String folder) async {
     final dir = Directory(folder);
     if (!await dir.exists()) return [];
-    final prefix = '${_safe(profileName)}-';
+    // Exact `<profile>-<stamp>.antbackup`, so "Work" never matches "Work-old" backups.
+    final name = RegExp('^${RegExp.escape(_safe(profileName))}-\\d{8}T\\d{6}Z${RegExp.escape(extension)}\$');
     final files = [
       await for (final f in dir.list())
-        if (f is File && p.basename(f.path).startsWith(prefix) && f.path.endsWith(extension)) f,
+        if (f is File && name.hasMatch(p.basename(f.path))) f,
     ]..sort((a, b) => p.basename(b.path).compareTo(p.basename(a.path)));
     return files;
   }

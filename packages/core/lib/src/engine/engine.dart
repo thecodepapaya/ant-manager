@@ -114,7 +114,7 @@ class AntEngine {
           payloadId: payloadId,
           path: path,
           mime: path.endsWith('.png') ? 'image/png' : 'image/jpeg',
-          sha256: sha256Hex(String.fromCharCodes(bytes)),
+          sha256: sha256BytesHex(bytes),
           size: bytes.length,
         ));
       }
@@ -145,6 +145,26 @@ class AntEngine {
           importanceSetBy: Value(userSet ? ImportanceSetBy.user : null), // null = re-score by model/rule
           updatedAt: Value(ports.clock.now()),
         ));
+        // §4.10 / invariant 9: starring makes an Outcome fact already citing this evidence an accepted win.
+        if (starred == true && !e.starred) {
+          final facts = await (db.select(db.facts)
+                ..where((f) =>
+                    f.type.equalsValue(FactType.outcome) &
+                    f.retired.equals(false) &
+                    f.winStatus.equalsValue(WinStatus.accepted).not() &
+                    f.id.isInQuery(db.selectOnly(db.citations).join([
+                      innerJoin(db.payloads, db.payloads.id.equalsExp(db.citations.payloadId), useColumns: false),
+                    ])
+                      ..addColumns([db.citations.factId])
+                      ..where(db.payloads.evidenceId.equals(id)))))
+              .get();
+          for (final f in facts) {
+            await _writeFact(f,
+                origin: f.origin.isUserTouched ? f.origin : FactOrigin.confirmed,
+                winStatus: WinStatus.accepted,
+                by: 'user');
+          }
+        }
       });
 
   // ---------- Narrative commands (user-touched rules, #50 #62 #63) ----------

@@ -19,7 +19,29 @@ abstract interface class HarnessTool {
 
 class ToolRegistry {
   final _tools = <String, HarnessTool>{};
-  void register(HarnessTool tool) => _tools[tool.name] = tool;
+  void register(HarnessTool tool) => _tools[tool.name] = _StrictInput(tool);
   HarnessTool operator [](String name) => _tools[name] ?? (throw StateError('Unknown tool $name'));
   Iterable<HarnessTool> get all => _tools.values;
+}
+
+/// Enforces `additionalProperties: false`: an unknown input key (an agent typo) is a tool error.
+class _StrictInput implements HarnessTool {
+  _StrictInput(this._tool);
+  final HarnessTool _tool;
+  @override
+  String get name => _tool.name;
+  @override
+  String get description => _tool.description;
+  @override
+  Map<String, Object?> get inputSchema => _tool.inputSchema;
+
+  @override
+  Future<Map<String, Object?>> call(Map<String, Object?> input, ToolContext ctx) {
+    if (inputSchema['additionalProperties'] == false) {
+      final known = (inputSchema['properties'] as Map? ?? const {}).keys.toSet();
+      final unknown = input.keys.where((k) => !known.contains(k)).toList();
+      if (unknown.isNotEmpty) return Future.error(ArgumentError('Unknown input keys: ${unknown.join(', ')}'));
+    }
+    return _tool.call(input, ctx);
+  }
 }

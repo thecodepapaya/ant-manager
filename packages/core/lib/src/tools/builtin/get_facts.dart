@@ -35,8 +35,8 @@ class GetFactsTool implements HarnessTool {
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> input, ToolContext ctx) async {
     final db = ctx.db;
-    final start = reqString(input, 'start');
-    final end = reqString(input, 'end');
+    final start = reqDay(input, 'start');
+    final end = reqDay(input, 'end');
     final project = optString(input, 'project_id');
     final types = (input['types'] as List?)?.map((t) => FactType.values.byName(t as String)).toList();
     final limit = input['limit'] is num ? (input['limit'] as num).toInt() : null;

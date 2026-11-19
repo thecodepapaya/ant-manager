@@ -263,9 +263,6 @@ void main() {
           },
         );
       },
-      skip:
-          'BUG: render.dart:43-49 casts with `as List?` / `as String?`, so a wrongly typed field throws a '
-          'TypeError and fails the whole report, despite the doc "unexpected shapes are skipped"',
     );
 
     test('markers are numbered by first appearance with one footnote per fact', () {
@@ -309,9 +306,6 @@ void main() {
         expectEveryBulletCited(md);
         expect(md, isNot(contains('\n## Fake heading')));
       },
-      skip:
-          'BUG: render.dart validateReport/renderReportMarkdown keep newlines in item text, so a model item '
-          '"A\\n- B" renders an extra bullet with no citation (violates N9 / #92)',
     );
   });
 
@@ -445,9 +439,6 @@ void main() {
         await seed.fact('Late-added outcome', '2026-11-19', cites: [e.payload]);
         expect(await engine.staleness.isStale((type: EntityType.reportSnapshot, id: s.id)), isTrue);
       },
-      skip:
-          'BUG (design gap): snapshot staleness only tracks revisions of facts it read (generator.dart records fact '
-          'inputs only), so facts created later for the period never mark the report out of date (#49, #61)',
     );
 
     test('budget: low-importance facts beyond ~60% of context are omitted and cannot be cited', () async {

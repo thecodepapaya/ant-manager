@@ -205,9 +205,6 @@ void main() {
       expect(await workOld.list(dest()), hasLength(2));
       expect(await work.list(dest()), hasLength(1));
     },
-    skip:
-        'BUG: backup.dart list() matches files by prefix "<profile>-", so profile "Work" also lists and '
-        'prunes "Work-old-…antbackup" files (keep-last-N deletes another profile\'s backups)',
   );
 
   group('restore safety', () {

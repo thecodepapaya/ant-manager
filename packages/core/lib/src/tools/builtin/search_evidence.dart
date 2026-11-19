@@ -29,8 +29,8 @@ class SearchEvidenceTool implements HarnessTool {
   Future<Map<String, Object?>> call(Map<String, Object?> input, ToolContext ctx) async {
     final match = ftsQuery(reqString(input, 'query'));
     if (match.isEmpty) return {'evidence': [], 'facts': []};
-    final start = optString(input, 'start');
-    final end = optString(input, 'end');
+    final start = optDay(input, 'start');
+    final end = optDay(input, 'end');
     final project = optString(input, 'project_id');
     final limit = optInt(input, 'limit', 20).clamp(1, 100);
     final vars = [
