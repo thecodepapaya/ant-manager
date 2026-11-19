@@ -67,6 +67,7 @@ void main() {
     }
     await settle(tester, until: () => find.text(_lastTitle).evaluate().isNotEmpty);
     expect(find.text(_lastTitle), findsOneWidget);
+    expect(_railItem(tester, 'First import').onTap, isNotNull, reason: 'reached, so pickable');
   }
 
   group('Welcome step', () {
@@ -120,12 +121,20 @@ void main() {
       await killEngine(tester, h);
     });
 
-    testWidgets('"Get started" on Welcome saves nothing (the profile keeps its name)', (tester) async {
-      final h = await boot(tester);
+    testWidgets('only Continue on Profile saves the name: Back then "Get started" does not', (tester) async {
+      final (_, h) = await bootPage(tester, dir, const AntApp());
+      await settle(tester, until: () => find.text(_welcomeTitle).evaluate().isNotEmpty);
       final before = (await read(tester, () => h.appDb.select(h.appDb.profiles).get())).single.name;
+      await tester.tap(_button('Get started'));
+      await settle(tester, until: () => _field('Profile name').evaluate().isNotEmpty);
+      await tester.enterText(_field('Profile name'), 'Typed but not continued');
+      await tester.tap(_button('Back'));
+      await settle(tester, until: () => find.text(_welcomeTitle).evaluate().isNotEmpty);
       await tester.tap(_button('Get started'));
       await settle(tester, until: () => find.text(_profileTitle).evaluate().isNotEmpty);
       expect((await read(tester, () => h.appDb.select(h.appDb.profiles).get())).single.name, before);
+      expect(tester.widget<TextField>(_field('Profile name')).controller!.text, 'Typed but not continued',
+          reason: 'the typed name survives going back');
       await killEngine(tester, h);
     });
 
@@ -170,6 +179,19 @@ void main() {
     await killEngine(tester, h);
   });
 
+  testWidgets('a blank profile name is not saved', (tester) async {
+    final (_, h) = await bootPage(tester, dir, const AntApp());
+    await settle(tester, until: () => find.text(_welcomeTitle).evaluate().isNotEmpty);
+    final before = (await read(tester, () => h.appDb.select(h.appDb.profiles).get())).single.name;
+    await tester.tap(_button('Get started'));
+    await settle(tester, until: () => _field('Profile name').evaluate().isNotEmpty);
+    await tester.enterText(_field('Profile name'), '   ');
+    await tester.tap(_button('Continue'));
+    await settle(tester, until: () => find.text('Which of these are you?').evaluate().isNotEmpty);
+    expect((await read(tester, () => h.appDb.select(h.appDb.profiles).get())).single.name, before);
+    await killEngine(tester, h);
+  });
+
   group('last step copy', () {
     testWidgets('no connector source: "Start with a note about today…"', (tester) async {
       final h = await boot(tester);
@@ -178,6 +200,10 @@ void main() {
       expect(find.text(_importing), findsNothing);
       expect(_button('Open Today'), findsOneWidget);
       expect(_button('Skip'), findsNothing);
+      // Open Today finishes onboarding.
+      await tester.tap(_button('Open Today'));
+      await settle(tester, until: () => false, max: 10);
+      expect(await read(tester, () => settingOf(h, onboardingDoneSettingKey)), 'true');
       await killEngine(tester, h);
     });
 

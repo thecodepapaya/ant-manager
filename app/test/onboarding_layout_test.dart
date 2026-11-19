@@ -142,6 +142,9 @@ void main() {
     await tester.pumpWidget(scope(const _Host()));
     final roots = tester.state<_HostState>(find.byType(_Host)).scan.roots;
     final defaults = defaultScanRoots();
+    // Depends on this machine's home folder (HOME can't be overridden in-process). On a
+    // case-insensitive disk with ~/Projects, defaults lists it twice (Projects, projects).
+    if (defaults.isEmpty) return markTestSkipped('no default scan roots under HOME');
     for (var i = 0; i < roots.length; i++) {
       for (var j = i + 1; j < roots.length; j++) {
         expect(FileSystemEntity.identicalSync(roots[i], roots[j]), isFalse,

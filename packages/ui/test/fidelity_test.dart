@@ -38,7 +38,9 @@ void main() {
           expect(tester.getSize(find.byType(InputDecorator)).height, antControlHeight(tokens, size));
         });
 
-        // Without the density override the border is drawn ~8px short (e.g. 20 in a 28 slot).
+        // Without the density override the border is drawn ~8px short (e.g. 20 in a 28 slot). The 2px
+        // tolerance only absorbs the separate 1.5px shortfall pinned by the skipped BUG test below.
+        // _borderHeight relies on the decorator's border being its CustomPaint foregroundPainter.
         testWidgets('${tokens.brightness.name} ${size.name}: border is not shrunk by compact density',
             (tester) async {
           await _pumpField(tester, tokens, size);
@@ -51,7 +53,7 @@ void main() {
           expect(_borderHeight(tester), antControlHeight(tokens, size));
         },
             // BUG: AntTextField border paints 1.5px short of antControlHeight (e.g. 26.5 in 28).
-            skip: true);
+            skip: bugSkip);
       }
     }
 

@@ -9,13 +9,15 @@ import 'package:ant_manager/engine/commands.dart';
 import 'package:ant_manager/features/narrative/narrative_page.dart';
 import 'package:ant_manager/features/settings/backup_tab.dart';
 import 'package:ant_manager/features/today/today_page.dart';
-import 'package:ant_manager/widgets/common.dart';
 import 'package:ant_manager/widgets/report_view.dart' show RegenerateButton;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ui/ui.dart';
 
 import 'support.dart';
+
+/// This year, so shortDayLabel omits the year and the expected labels can be literals.
+final _y = DateTime.now().year;
 
 const _todayCard = 'Your daily report appears here';
 const _narrativeEmpty = 'Your narrative starts here';
@@ -78,6 +80,7 @@ void main() {
       await settle(tester, until: () => find.text(_narrativeEmpty).evaluate().isEmpty);
       expect(find.text(_narrativeEmpty), findsNothing);
       expect(_filters(), findsWidgets);
+      expect(find.text('Shipped search'), findsOneWidget);
       await killEngine(tester, h);
     });
   });
@@ -118,11 +121,11 @@ void main() {
 
     testWidgets('first day without a last day and no counts: shows a one-day range and zeros', (tester) async {
       final (_, h) = await bootPage(tester, dir, const BackupTab(), size: const Size(1400, 1400));
-      final file = await bundle(tester, manifest(firstDay: '2026-03-02'));
+      final file = await bundle(tester, manifest(firstDay: '$_y-03-02'));
       await openPreview(tester, file);
       expect(tester.takeException(), isNull);
       expect(find.text('Old work'), findsOneWidget);
-      expect(find.text('${shortDayLabel('2026-03-02')} – ${shortDayLabel('2026-03-02')}'), findsOneWidget);
+      expect(find.text('Mar 2 – Mar 2'), findsOneWidget);
       expect(find.text('0 evidence · 0 facts · 0 reports'), findsOneWidget);
       expect(find.text('0.9.0'), findsOneWidget);
       await tester.tap(_button('Cancel'));
@@ -145,10 +148,11 @@ void main() {
       await openPreview(
         tester,
         await bundle(
-            tester, manifest(firstDay: '2026-03-02', lastDay: '2026-03-04', counts: {'evidences': 5, 'facts': 2, 'reports': 1})),
+            tester, manifest(firstDay: '$_y-03-02', lastDay: '$_y-03-04', counts: {'evidences': 5, 'facts': 2, 'reports': 3})),
       );
-      expect(find.text('${shortDayLabel('2026-03-02')} – ${shortDayLabel('2026-03-04')}'), findsOneWidget);
-      expect(find.text('5 evidence · 2 facts · 1 reports'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Mar 2 – Mar 4'), findsOneWidget);
+      expect(find.text('5 evidence · 2 facts · 3 reports'), findsOneWidget);
       await tester.tap(_button('Cancel'));
       await settle(tester);
       await killEngine(tester, h);
