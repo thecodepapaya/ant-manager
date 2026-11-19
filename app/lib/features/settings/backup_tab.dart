@@ -14,7 +14,7 @@ import '../../platform/time_zone.dart';
 import '../../state/providers.dart';
 import '../sources/git_setup.dart' show tildePath;
 import '../sources/sources_page.dart' show ago;
-import '../../widgets/common.dart' show shortDayLabel;
+import '../../widgets/common.dart' show plural, shortDayLabel;
 import 'kit.dart';
 import 'schedule_tab.dart';
 import 'setup_providers.dart';
@@ -193,7 +193,7 @@ class _RestorePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final c = m.counts;
-    String n(String k) => '${c[k] ?? 0}';
+    int n(String k) => (c[k] as num? ?? 0).toInt();
     Widget kv(String k, String v) => Padding(
           padding: EdgeInsets.symmetric(vertical: t.space.xxs),
           child: Row(children: [
@@ -211,7 +211,7 @@ class _RestorePreview extends StatelessWidget {
           kv('Profile', m.profile),
           kv('Backed up', '${shortDayLabel(profileDayOf(m.createdAt))}, ${hhmm(created.hour, created.minute)}'),
           kv('Covers', m.firstDay == null ? 'No evidence' : '${shortDayLabel(m.firstDay!)} – ${shortDayLabel(m.lastDay ?? m.firstDay!)}'),
-          kv('Contains', '${n('evidences')} evidence · ${n('facts')} facts · ${n('reports')} reports'),
+          kv('Contains', '${n('evidences')} evidence · ${plural(n('facts'), 'fact')} · ${plural(n('reports'), 'report')}'),
           kv('App version', m.appVersion),
           Gap(t.space.lg),
           const Text('It’s restored as a new profile; your current data isn’t touched. Sign in to sources and '
