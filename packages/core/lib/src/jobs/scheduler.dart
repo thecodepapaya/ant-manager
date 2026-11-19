@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../data/profile_db.dart';
 import '../ports/ports.dart';
+import '../util/time_zone.dart';
 import 'job_queue.dart';
 
 /// A schedule rule (Schedules.rule JSON): local wall-clock [hour]:[minute] in the profile time zone,
@@ -38,14 +39,18 @@ class ScheduleRule {
       (!quarterly || (localDate.day == 1 && (localDate.month - 1) % 3 == 0));
 
   /// The latest occurrence at or before [now] (UTC result), or null if none in the last ~13 months.
-  /// [utcOffset] is the profile's offset at [now] (#87); a DST change shifts due times from the next tick.
-  DateTime? latestDue(DateTime now, Duration utcOffset) {
-    final local = now.toUtc().add(utcOffset); // wall clock, carried in a UTC DateTime
+  /// Each occurrence is [hour]:[minute] wall time with the profile offset valid on that day (#87, #NEXT),
+  /// so catching up across a DST change still lands on local [hour]:[minute].
+  DateTime? latestDue(DateTime now, UtcOffset offsetAt) {
+    final utcNow = now.toUtc();
+    final local = utcNow.add(offsetAt(utcNow)); // today's wall-clock date, carried in a UTC DateTime
     for (var back = 0; back <= 400; back++) {
       final d = DateTime.utc(local.year, local.month, local.day - back);
-      final at = DateTime.utc(d.year, d.month, d.day, hour, minute);
-      if (at.isAfter(local) || !matchesDate(d)) continue;
-      return at.subtract(utcOffset);
+      if (!matchesDate(d)) continue;
+      final wall = DateTime.utc(d.year, d.month, d.day, hour, minute);
+      final at = wall.subtract(offsetAt(wall.subtract(offsetAt(wall)))); // offset at that instant, not now
+      if (at.isAfter(utcNow)) continue;
+      return at;
     }
     return null;
   }
@@ -68,7 +73,7 @@ class Scheduler {
   final JobQueue jobs;
 
   /// Profile time zone offset at an instant (#87).
-  final Duration Function(DateTime at) utcOffset;
+  final UtcOffset utcOffset;
   final Clock clock;
 
   static const dailyReport = 'report:daily';
@@ -96,11 +101,10 @@ class Scheduler {
   /// Job args: `{schedule_id, due}` (due = ISO-8601 UTC). Returns the enqueued job ids.
   Future<List<String>> tick([DateTime? now]) async {
     final at = (now ?? clock.now()).toUtc();
-    final offset = utcOffset(at);
     final enqueued = <String>[];
     final rows = await (db.select(db.schedules)..where((s) => s.enabled.equals(true))).get();
     for (final s in rows) {
-      final due = ScheduleRule.fromJson(jsonDecode(s.rule) as Map<String, Object?>).latestDue(at, offset);
+      final due = ScheduleRule.fromJson(jsonDecode(s.rule) as Map<String, Object?>).latestDue(at, utcOffset);
       if (due == null) continue;
       final last = s.lastRunAt;
       if (last != null && !last.isBefore(due)) continue;

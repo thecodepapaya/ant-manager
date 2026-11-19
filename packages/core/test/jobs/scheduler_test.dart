@@ -14,33 +14,33 @@ void main() {
 
     test('same day after the time, previous weekday before it', () {
       // Wed 2026-11-18.
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 19), Duration.zero), DateTime.utc(2026, 11, 18, 18));
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 17, 59), Duration.zero), DateTime.utc(2026, 11, 17, 18));
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 18), Duration.zero), DateTime.utc(2026, 11, 18, 18));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 19), (_) => Duration.zero), DateTime.utc(2026, 11, 18, 18));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 17, 59), (_) => Duration.zero), DateTime.utc(2026, 11, 17, 18));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 18), (_) => Duration.zero), DateTime.utc(2026, 11, 18, 18));
       // Sunday → Friday.
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 22, 12), Duration.zero), DateTime.utc(2026, 11, 20, 18));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 22, 12), (_) => Duration.zero), DateTime.utc(2026, 11, 20, 18));
     });
 
     test('uses the profile offset for wall-clock time and weekday', () {
       const ist = Duration(hours: 5, minutes: 30);
       // 12:00 UTC = 17:30 IST Wed → latest is Tue 18:00 IST = Tue 12:30 UTC.
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 12), ist), DateTime.utc(2026, 11, 17, 12, 30));
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 13), ist), DateTime.utc(2026, 11, 18, 12, 30));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 12), (_) => ist), DateTime.utc(2026, 11, 17, 12, 30));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 18, 13), (_) => ist), DateTime.utc(2026, 11, 18, 12, 30));
       const pst = Duration(hours: -8);
       // Sat 01:00 UTC = Fri 17:00 PST → Thu 18:00 PST = Fri 02:00 UTC.
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 21, 1), pst), DateTime.utc(2026, 11, 20, 2));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 21, 1), (_) => pst), DateTime.utc(2026, 11, 20, 2));
       // Sat 03:00 UTC = Fri 19:00 PST → Fri 18:00 PST = Sat 02:00 UTC.
-      expect(daily18.latestDue(DateTime.utc(2026, 11, 21, 3), pst), DateTime.utc(2026, 11, 21, 2));
+      expect(daily18.latestDue(DateTime.utc(2026, 11, 21, 3), (_) => pst), DateTime.utc(2026, 11, 21, 2));
     });
 
     test('weekly, monthly, quarterly rules', () {
       final weekly = defaultSchedules[Scheduler.weeklyReport]!;
-      expect(weekly.latestDue(DateTime.utc(2026, 11, 18), Duration.zero), DateTime.utc(2026, 11, 16, 9));
+      expect(weekly.latestDue(DateTime.utc(2026, 11, 18), (_) => Duration.zero), DateTime.utc(2026, 11, 16, 9));
       final monthly = defaultSchedules[Scheduler.monthlyReport]!;
-      expect(monthly.latestDue(DateTime.utc(2026, 11, 1, 8), Duration.zero), DateTime.utc(2026, 10, 1, 9));
+      expect(monthly.latestDue(DateTime.utc(2026, 11, 1, 8), (_) => Duration.zero), DateTime.utc(2026, 10, 1, 9));
       final q = defaultSchedules[Scheduler.quarterlyReport]!;
-      expect(q.latestDue(DateTime.utc(2026, 11, 18), Duration.zero), DateTime.utc(2026, 10, 1, 9));
-      expect(q.latestDue(DateTime.utc(2026, 3, 31), Duration.zero), DateTime.utc(2026, 1, 1, 9));
+      expect(q.latestDue(DateTime.utc(2026, 11, 18), (_) => Duration.zero), DateTime.utc(2026, 10, 1, 9));
+      expect(q.latestDue(DateTime.utc(2026, 3, 31), (_) => Duration.zero), DateTime.utc(2026, 1, 1, 9));
       expect(ScheduleRule.fromJson(jsonDecode(jsonEncode(q.toJson())) as Map<String, Object?>).quarterly, isTrue);
     });
   });
