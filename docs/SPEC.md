@@ -119,7 +119,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   There is no OS OCR. With a cloud model, screenshots leave the machine; the cloud consent notice covers this.
 - Streaming output into the report view, with cancel. Token and cost estimate shown before long runs (where pricing is known).
 - **Data sent:** full evidence (including diffs and meeting details) goes to whichever provider is configured.
-  A one-time consent notice appears when any non-localhost provider is first enabled (#74). PRIVACY.md and THREAT_MODEL.md get updated to match.
+  A one-time consent notice appears when any non-localhost provider is first enabled (#74). See [PRIVACY.md](../PRIVACY.md) and [THREAT_MODEL.md](../THREAT_MODEL.md).
 
 ## 7. Core product flow
 
@@ -255,7 +255,7 @@ maintained from it, and every output reads from that Narrative.
 ## 11. Repo layout
 
 - **Done (2026-11-18):** all previous code moved to `legacy/`; **removed (2026-11-20, #112)**: the old app, Python core,
-  Go port and docs live only in git history (before `legacy/` was deleted). PRIVACY / THREAT_MODEL get rewritten for v1.
+  Go port and docs live only in git history (before `legacy/` was deleted). [PRIVACY.md](../PRIVACY.md) and [THREAT_MODEL.md](../THREAT_MODEL.md) are rewritten for v1 at the root.
 - Root: `docs/`, `PHILOSOPHY.md`, `LICENSE`, `web/` + `wrangler.json` (Cloudflare Pages site; left in place),
   v1 code in `app/`, `packages/core`, `packages/ui` (#45), plus `packaging/`, `scripts/` and `.github/workflows/`.
   Firebase is not used. Dev builds can use `--dart-define=ANT_DATA_DIR=…` for a separate data folder (#107).

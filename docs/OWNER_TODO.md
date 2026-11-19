@@ -36,7 +36,7 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] (GitLab self-managed: I'll run GitLab CE in Docker. Nothing needed from you.)
 
 ## Content & legal
-- [ ] Review the updated **PRIVACY.md / THREAT_MODEL.md** (the cloud-provider "send everything" policy + opt-in crash reports change the promises).
+- [ ] Review the v1 **[PRIVACY.md](../PRIVACY.md) / [THREAT_MODEL.md](../THREAT_MODEL.md)** (rewritten 2026-11-20: "send everything" to the chosen provider, opt-in crash reports not wired yet, plaintext backups, known gaps). The `web/` landing page still says the app is "completely offline"; decide whether to reword it and link these docs.
 - [ ] Update the **web/ landing page** with new download links once release artifacts exist.
 - [ ] Approve the **design direction** (palette from the logo, Linear-style) when I present it.
 - [ ] Provide an **SVG version of the logo** (vector source for the app icon, installers, web site and in-app branding; the current logo is raster only).
