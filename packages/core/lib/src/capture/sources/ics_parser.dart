@@ -189,9 +189,12 @@ class IcsZones {
 }
 
 class _TzRule {
-  _TzRule(this.start, this.offsetTo, this.daylight, this.month, this.nth, this.weekday);
+  _TzRule(this.start, this.until, this.offsetFrom, this.offsetTo, this.daylight, this.month, this.nth, this.weekday);
   final DateTime start;
-  final Duration offsetTo;
+
+  /// Last instant (UTC) the rule applies (RRULE UNTIL); null = still in force.
+  final DateTime? until;
+  final Duration offsetFrom, offsetTo;
   final bool daylight;
   final int? month, nth, weekday; // yearly rule, e.g. BYMONTH=3;BYDAY=2SU
 
@@ -200,8 +203,10 @@ class _TzRule {
     final start = parseIcsTime(c.prop('DTSTART')?.value ?? '');
     final off = _offset(c.prop('TZOFFSETTO')?.value ?? '');
     if (start == null || off == null) return null;
+    final from = _offset(c.prop('TZOFFSETFROM')?.value ?? '') ?? off;
     int? month, nth, weekday;
     final rule = _parts(c.prop('RRULE')?.value);
+    final until = rule['UNTIL'] == null ? null : parseIcsTime(rule['UNTIL']!)?.wall;
     if (rule['FREQ'] == 'YEARLY') {
       month = int.tryParse(rule['BYMONTH'] ?? '');
       final d = _byDayRe.firstMatch(rule['BYDAY'] ?? '');
@@ -210,14 +215,19 @@ class _TzRule {
         weekday = _weekdays[d[2]];
       }
     }
-    return _TzRule(start.wall, off, c.name == 'DAYLIGHT', month, nth, weekday);
+    return _TzRule(start.wall, until, from, off, c.name == 'DAYLIGHT', month, nth, weekday);
   }
 
   DateTime? transitionIn(int year) {
     if (year < start.year) return null;
     if (month == null || nth == null || weekday == null) return year == start.year ? start : null;
     final d = _nthWeekday(year, month!, nth!, weekday!);
-    return d == null ? null : DateTime.utc(year, month!, d.day, start.hour, start.minute, start.second);
+    if (d == null) return null;
+    final at = DateTime.utc(year, month!, d.day, start.hour, start.minute, start.second);
+    // Outside [DTSTART, UNTIL] the rule is not in force (e.g. New York's retired 1987–2006 rules).
+    // The transition's wall time is in the old offset; UNTIL is UTC.
+    if (at.isBefore(start) || (until != null && at.subtract(offsetFrom).isAfter(until!))) return null;
+    return at;
   }
 
   static Duration? _offset(String v) {

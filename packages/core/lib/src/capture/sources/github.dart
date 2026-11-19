@@ -17,8 +17,14 @@ import '../source.dart';
 /// per payload (#57), so a PR never groups with its commits: the PR<->commit link is made downstream by facts
 /// citing both (the SHAs in the content let the model connect them).
 ///
-/// On 403/429 the sync stops; the cursor stays at the last fully processed PR. A PR that is gone (404/410,
-/// e.g. deleted or transferred) is skipped; any other error (401, 5xx) fails the sync.
+/// Issues (separate cursor scope `issue`): `GET /issues?filter=created|subscribed&state=all&since=<cursor>`
+/// (commenting, being assigned or mentioned subscribes you; `filter=all` would be every visible issue),
+/// ascending by update, all pages, minus entries carrying `pull_request`. Then your comments (when the issue has any) and, for a
+/// closed issue, the issue itself (for `closed_by`). Emits one `issue` payload per issue you opened, closed
+/// or commented on.
+///
+/// On 403/429 the sync stops; each cursor stays at the last fully processed item. A PR or issue that is gone
+/// (404/410, e.g. deleted or transferred) is skipped; any other error (401, 5xx) fails the sync.
 class GitHubSource implements Source {
   GitHubSource({this.kind = SourceKind.github});
 
@@ -26,6 +32,7 @@ class GitHubSource implements Source {
   final SourceKind kind; // github or githubEnterprise
 
   static const _cursorScope = '';
+  static const _issueScope = 'issue';
   static const _perPage = 100;
   static const _maxSearchPages = 10; // the search API caps results at 1000
 
@@ -69,25 +76,10 @@ class GitHubSource implements Source {
     final since = cursor ?? _iso(ctx.initialImportFrom);
 
     try {
-      final byPr = <String, Map>{};
-      for (final who in ['reviewed-by:$login', 'involves:$login']) {
-        for (var page = 1; page <= _maxSearchPages; page++) {
-          final r = await _get(ctx, token, '$base/search/issues', {
-            'q': 'is:pr $who updated:>=$since',
-            'sort': 'updated',
-            'order': 'asc',
-            'per_page': _perPage,
-            'page': page,
-          }) as Map;
-          final batch = (r['items'] as List).cast<Map>();
-          for (final item in batch) {
-            byPr['${item['repository_url']}#${item['number']}'] = item;
-          }
-          if (batch.length < _perPage) break;
-        }
-      }
-      final items = byPr.values.toList()
-        ..sort((a, b) => (a['updated_at'] as String).compareTo(b['updated_at'] as String));
+      final items = await _search(ctx, token, base, [
+        'is:pr reviewed-by:$login updated:>=$since',
+        'is:pr involves:$login updated:>=$since',
+      ]);
 
       for (final item in items) {
         final repo = _repoOf(item['repository_url'] as String);
@@ -173,9 +165,104 @@ class GitHubSource implements Source {
         }
         ctx.setCursor(_cursorScope, item['updated_at'] as String);
       }
+      // `await for`, not `yield*`: yield* would forward GitHubRateLimited past the catch below.
+      await for (final o in _issues(ctx, token, base, me)) {
+        yield o;
+      }
     } on GitHubRateLimited {
       return; // keep the cursor at the last fully processed PR; next poll resumes
     }
+  }
+
+  /// Issues you opened, closed or commented on, updated since the `issue` cursor.
+  Stream<PayloadObservation> _issues(SourceContext ctx, String token, String base, String me) async* {
+    final since = await ctx.cursor(_issueScope) ?? _iso(ctx.initialImportFrom);
+    final byKey = <String, Map>{};
+    for (final filter in const ['created', 'subscribed']) {
+      for (final i in await _getAll(ctx, token, '$base/issues', {
+        'filter': filter,
+        'state': 'all',
+        'since': since,
+        'sort': 'updated',
+        'direction': 'asc',
+      })) {
+        if (i['pull_request'] == null) byKey['${i['repository_url']}#${i['number']}'] = i;
+      }
+    }
+    final items = byKey.values.toList()
+      ..sort((a, b) => (a['updated_at'] as String).compareTo(b['updated_at'] as String));
+    for (final item in items) {
+      final repo = _repoOf(item['repository_url'] as String);
+      final number = item['number'] as int;
+      final issueUrl = '$base/repos/$repo/issues/$number';
+      final Map issue;
+      final List<Map> comments;
+      try {
+        // List results omit `closed_by`; only closed issues need the full object.
+        issue = item['state'] == 'closed' ? await _get(ctx, token, issueUrl) as Map : item;
+        comments = (item['comments'] as int? ?? 0) == 0
+            ? const []
+            : (await _getAll(ctx, token, '$issueUrl/comments')).where((c) => _isMe(c['user'], me)).toList();
+      } on GitHubGone {
+        ctx.setCursor(_issueScope, item['updated_at'] as String);
+        continue;
+      }
+      final roles = <String>[
+        if (_isMe(issue['user'], me)) 'author',
+        if (_isMe(issue['closed_by'], me)) 'closer',
+        if (comments.isNotEmpty) 'commenter',
+      ];
+      if (roles.isNotEmpty) {
+        yield PayloadObservation(
+          externalId: 'issue:$repo#$number',
+          kind: PayloadKind.issue,
+          occurredStart: DateTime.parse(issue['created_at'] as String),
+          occurredEnd: issue['closed_at'] == null ? null : DateTime.parse(issue['closed_at'] as String),
+          title: '${issue['title']} ($repo#$number)',
+          content: {
+            'repo': repo,
+            'number': number,
+            'title': issue['title'],
+            'url': issue['html_url'],
+            'body': issue['body'],
+            'state': issue['state'],
+            'stateReason': issue['state_reason'],
+            'author': (issue['user'] as Map?)?['login'],
+            'labels': [for (final l in (issue['labels'] as List? ?? const []).cast<Map>()) l['name']],
+            'createdAt': issue['created_at'],
+            'closedAt': issue['closed_at'],
+            'closedBy': (issue['closed_by'] as Map?)?['login'],
+            'roles': roles,
+            'comments': [
+              for (final c in comments) {'body': c['body'], 'createdAt': c['created_at'], 'url': c['html_url']},
+            ],
+          },
+        );
+      }
+      ctx.setCursor(_issueScope, item['updated_at'] as String);
+    }
+  }
+
+  /// Union of the search queries (all pages, capped at 1000 results each), oldest update first.
+  Future<List<Map>> _search(SourceContext ctx, String token, String base, List<String> queries) async {
+    final byKey = <String, Map>{};
+    for (final q in queries) {
+      for (var page = 1; page <= _maxSearchPages; page++) {
+        final r = await _get(ctx, token, '$base/search/issues', {
+          'q': q,
+          'sort': 'updated',
+          'order': 'asc',
+          'per_page': _perPage,
+          'page': page,
+        }) as Map;
+        final batch = (r['items'] as List).cast<Map>();
+        for (final item in batch) {
+          byKey['${item['repository_url']}#${item['number']}'] = item;
+        }
+        if (batch.length < _perPage) break;
+      }
+    }
+    return byKey.values.toList()..sort((a, b) => (a['updated_at'] as String).compareTo(b['updated_at'] as String));
   }
 
   static Map<String, Object?> _comment(Map c) => {
@@ -201,10 +288,10 @@ class GitHubSource implements Source {
       (await _request(ctx, token, url, query)).data;
 
   /// All pages of a list endpoint, following `Link: <...>; rel="next"`.
-  Future<List<Map>> _getAll(SourceContext ctx, String token, String url) async {
+  Future<List<Map>> _getAll(SourceContext ctx, String token, String url, [Map<String, Object?> q = const {}]) async {
     final out = <Map>[];
     String? next = url;
-    Map<String, Object?>? query = {'per_page': _perPage};
+    Map<String, Object?>? query = {...q, 'per_page': _perPage};
     while (next != null) {
       final r = await _request(ctx, token, next, query);
       out.addAll((r.data as List).cast<Map>());

@@ -77,28 +77,33 @@ class OpenAiCompatibleClient implements LlmClient {
     int? inTok, outTok;
     var finished = false;
     final lines = postLines(_dio, joinUrl(baseUrl, '/chat/completions'), body, headers: _headers);
-    await for (final chunk in sseEvents(lines)) {
-      if (identical(chunk, sseDone)) {
-        finished = true;
-        break;
-      }
-      throwIfError(chunk);
-      final usage = chunk['usage'] as Map<String, Object?>?;
-      if (usage != null) {
-        inTok = (usage['prompt_tokens'] as num?)?.toInt();
-        outTok = (usage['completion_tokens'] as num?)?.toInt();
-      }
-      for (final c in (chunk['choices'] as List? ?? const []).cast<Map<String, Object?>>()) {
-        final delta = (c['delta'] as Map<String, Object?>?)?['content'];
-        if (delta is String && delta.isNotEmpty) {
-          text.write(delta);
-          yield LlmDelta(delta);
+    // After `finish_reason: stop` only the usage chunk / `[DONE]` remain, so a transport drop then still completes.
+    try {
+      await for (final chunk in sseEvents(lines)) {
+        if (identical(chunk, sseDone)) {
+          finished = true;
+          break;
         }
-        final reason = c['finish_reason'];
-        if (reason == 'length') throw LlmFailure('Output truncated: max tokens reached');
-        if (reason != null && reason != 'stop') throw LlmFailure('Generation stopped: $reason');
-        if (reason == 'stop') finished = true;
+        throwIfError(chunk);
+        final usage = chunk['usage'] as Map<String, Object?>?;
+        if (usage != null) {
+          inTok = (usage['prompt_tokens'] as num?)?.toInt();
+          outTok = (usage['completion_tokens'] as num?)?.toInt();
+        }
+        for (final c in (chunk['choices'] as List? ?? const []).cast<Map<String, Object?>>()) {
+          final delta = (c['delta'] as Map<String, Object?>?)?['content'];
+          if (delta is String && delta.isNotEmpty) {
+            text.write(delta);
+            yield LlmDelta(delta);
+          }
+          final reason = c['finish_reason'];
+          if (reason == 'length') throw LlmFailure('Output truncated: max tokens reached');
+          if (reason != null && reason != 'stop') throw LlmFailure('Generation stopped: $reason');
+          if (reason == 'stop') finished = true;
+        }
       }
+    } on LlmFailure {
+      if (!finished) rethrow;
     }
     // A stream that closes before `finish_reason`/`[DONE]` was cut off: its text is partial.
     if (!finished) throw LlmFailure('Stream ended before the response was complete');

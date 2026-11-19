@@ -130,7 +130,7 @@ void main() {
       expect(await doneText(client().generate(req('m'))), '{"a":1}');
     });
 
-    test('finish_reason stop then a dropped connection still completes', skip: 'BUG: http.dart _send only maps DioException; a dropped connection raises a raw HttpException after finish_reason stop instead of completing; openai_compatible.dart also keeps reading after stop, so mapping the error alone would still fail', () async {
+    test('finish_reason stop then a dropped connection still completes', () async {
       http.on[path] = dropAfter(
         'data: ${'{"choices":[{"delta":{"content":"{\\"a\\":1}"},"finish_reason":"stop"}]}'}\n\n',
       );
@@ -142,14 +142,10 @@ void main() {
       await expectLater(client().generate(req('m')).toList(), fails());
     });
 
-    test(
-      'connection dropped mid-stream (no finish) → failure',
-      skip: 'BUG: http.dart _send lets HttpException (connection closed) escape instead of LlmFailure',
-      () async {
-        http.on[path] = dropAfter('data: ${'{"choices":[{"delta":{"content":"{\\"a\\""}}]}'}\n\n');
-        await expectLater(client().generate(req('m')).toList(), fails());
-      },
-    );
+    test('connection dropped mid-stream (no finish) → failure', () async {
+      http.on[path] = dropAfter('data: ${'{"choices":[{"delta":{"content":"{\\"a\\""}}]}'}\n\n');
+      await expectLater(client().generate(req('m')).toList(), fails());
+    });
 
     test('finish_reason length / content_filter → failure', () async {
       for (final reason in ['length', 'content_filter', 'tool_calls']) {

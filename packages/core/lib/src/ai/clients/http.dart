@@ -57,33 +57,32 @@ Stream<String> postLines(Dio dio, String url, Object body, {Map<String, String> 
 Stream<String> _send(Dio dio, String method, String url, Object? body, Map<String, String> headers) async* {
   final cancel = CancelToken();
   try {
-    final Response<ResponseBody> res;
-    try {
-      res = await dio.request<ResponseBody>(
-        url,
-        data: body,
-        cancelToken: cancel,
-        options: Options(
-          method: method,
-          headers: {if (body != null) 'content-type': 'application/json', ...headers},
-          responseType: ResponseType.stream,
-          validateStatus: (_) => true,
-        ),
-      );
-    } on DioException catch (e) {
-      throw LlmFailure(_transportMessage(e));
-    }
+    final res = await dio.request<ResponseBody>(
+      url,
+      data: body,
+      cancelToken: cancel,
+      options: Options(
+        method: method,
+        headers: {if (body != null) 'content-type': 'application/json', ...headers},
+        responseType: ResponseType.stream,
+        validateStatus: (_) => true,
+      ),
+    );
     final status = res.statusCode ?? 0;
     final lines = res.data!.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter());
     if (status >= 400) {
       final text = await lines.join('\n');
       throw LlmFailure(errorMessage(text), statusCode: status);
     }
-    try {
-      yield* lines;
-    } on DioException catch (e) {
-      throw LlmFailure(_transportMessage(e));
+    // Not `yield*`: it forwards source errors to the consumer without passing through the catches below.
+    await for (final line in lines) {
+      yield line;
     }
+  } on DioException catch (e) {
+    throw LlmFailure(_transportMessage(e));
+  } on IOException catch (e) {
+    // A connection dropped mid-body surfaces as HttpException / SocketException, not DioException.
+    throw LlmFailure('Connection failed: $e');
   } finally {
     // Stops the HTTP request when the consumer cancels the stream early.
     cancel.cancel();

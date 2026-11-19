@@ -44,6 +44,8 @@ class StructuredOutput {
     } on TypeError catch (e) {
       // A client cast an unexpected stream payload shape.
       throw LlmFailure('Unexpected response from the model: $e');
+    } on Exception catch (e) {
+      throw LlmFailure('Model call failed: $e');
     }
     throw LlmFailure('Stream ended without a result');
   }
