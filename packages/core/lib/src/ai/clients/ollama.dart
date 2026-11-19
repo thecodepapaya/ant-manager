@@ -55,7 +55,9 @@ class OllamaClient implements LlmClient {
         yield LlmDelta(delta);
       }
       if (chunk['done'] == true) {
-        if (chunk['done_reason'] == 'length') throw LlmFailure('Output truncated: max tokens reached');
+        final reason = chunk['done_reason'];
+        if (reason == 'length') throw LlmFailure('Output truncated: max tokens reached');
+        if (reason != null && reason != 'stop') throw LlmFailure('Generation stopped: $reason');
         yield LlmDone(
           text: text.toString(),
           inputTokens: (chunk['prompt_eval_count'] as num?)?.toInt(),

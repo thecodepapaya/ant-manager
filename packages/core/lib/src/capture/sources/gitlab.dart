@@ -10,7 +10,12 @@ import '../source.dart';
 /// cursor (ascending), then each MR's commits and notes. Emits one `pullRequest`
 /// payload per MR and one `review` payload per note you wrote (comments, plus the
 /// "approved this merge request" system note, which carries the approval time).
-/// On 403/429 the sync stops; the cursor stays at the last fully processed MR.
+/// Commits are recorded by SHA in `content.commits` only; no `groupKey` is set. Grouping is exact identity
+/// per payload (#57): the MR<->commit link is made downstream by facts citing both.
+///
+/// On 403/429 the sync stops; the cursor stays at the last fully processed MR. An MR or project that is gone
+/// (404/410) is skipped; any other error (401, 5xx) fails the sync. `updated_after` is exclusive, so the
+/// query starts 1 s before the cursor to re-include an unprocessed MR sharing the last timestamp.
 class GitLabSource implements Source {
   @override
   SourceKind get kind => SourceKind.gitlab;
@@ -57,7 +62,10 @@ class GitLabSource implements Source {
     if (token == null || user == null) throw StateError('GitLab source needs a token and a username');
     final me = user.toLowerCase();
     final api = _api(ctx);
-    final since = await ctx.cursor(_cursorScope) ?? ctx.initialImportFrom.toUtc().toIso8601String();
+    final cursor = await ctx.cursor(_cursorScope);
+    final since = cursor == null
+        ? ctx.initialImportFrom.toUtc().toIso8601String()
+        : DateTime.parse(cursor).subtract(const Duration(seconds: 1)).toUtc().toIso8601String();
 
     try {
       final byId = <Object, Map>{};
@@ -71,8 +79,7 @@ class GitLabSource implements Source {
             'sort': 'asc',
             'per_page': _perPage,
             'page': page,
-          }) as List)
-              .cast<Map>();
+          }) as List).cast<Map>();
           for (final mr in batch) {
             byId[mr['id'] as Object] = mr;
           }
@@ -87,12 +94,17 @@ class GitLabSource implements Source {
         final iid = mr['iid'];
         final repo = _repoOf(mr);
         final mrBase = '$api/projects/$project/merge_requests/$iid';
-        final commits = (await _get(ctx, token, '$mrBase/commits', {'per_page': _perPage}) as List).cast<Map>();
-        final notes = (await _get(ctx, token, '$mrBase/notes', {'per_page': _perPage, 'sort': 'asc'}) as List)
-            .cast<Map>()
-            .where((n) => _isMe(n['author'], me))
-            .where((n) => n['system'] != true || (n['body'] as String?) == _approved)
-            .toList();
+        final List<Map> commits, notes;
+        try {
+          commits = await _getAll(ctx, token, '$mrBase/commits');
+          notes = (await _getAll(ctx, token, '$mrBase/notes', {'sort': 'asc'}))
+              .where((n) => _isMe(n['author'], me))
+              .where((n) => n['system'] != true || (n['body'] as String?) == _approved)
+              .toList();
+        } on GitLabGone {
+          ctx.setCursor(_cursorScope, mr['updated_at'] as String);
+          continue;
+        }
 
         final roles = <String>[
           if (_isMe(mr['author'], me)) 'author',
@@ -153,8 +165,7 @@ class GitLabSource implements Source {
 
   static String? _closedAt(Map mr) => (mr['merged_at'] ?? mr['closed_at']) as String?;
 
-  static bool _isMe(Object? user, String me) =>
-      user is Map && (user['username'] as String?)?.toLowerCase() == me;
+  static bool _isMe(Object? user, String me) => user is Map && (user['username'] as String?)?.toLowerCase() == me;
 
   /// `group/sub/project` from `references.full` (`group/sub/project!12`) or the web URL.
   static String _repoOf(Map mr) {
@@ -165,21 +176,42 @@ class GitLabSource implements Source {
     return (i < 0 ? path : path.substring(0, i)).replaceFirst(RegExp('^/'), '');
   }
 
+  /// All pages of a list endpoint (until a short page).
+  Future<List<Map>> _getAll(
+    SourceContext ctx,
+    String token,
+    String url, [
+    Map<String, Object?> query = const {},
+  ]) async {
+    final out = <Map>[];
+    for (var page = 1; ; page++) {
+      final batch = (await _get(ctx, token, url, {...query, 'per_page': _perPage, 'page': page}) as List).cast<Map>();
+      out.addAll(batch);
+      if (batch.length < _perPage) return out;
+    }
+  }
+
   Future<Object?> _get(SourceContext ctx, String token, String url, [Map<String, Object?>? query]) async {
     final r = await ctx.http.get<Object?>(
       url,
       queryParameters: query,
-      options: Options(
-        headers: {'PRIVATE-TOKEN': token},
-        responseType: ResponseType.json,
-        validateStatus: (_) => true,
-      ),
+      options: Options(headers: {'PRIVATE-TOKEN': token}, responseType: ResponseType.json, validateStatus: (_) => true),
     );
     final s = r.statusCode ?? 0;
     if (s == 429 || (s == 403 && '${r.data}'.toLowerCase().contains('rate limit'))) throw GitLabRateLimited();
+    if (s == 404 || s == 410) throw GitLabGone(url, s);
     if (s < 200 || s >= 300) throw StateError('GitLab $url → HTTP $s: ${r.data}');
     return r.data;
   }
+}
+
+/// 404/410: the MR or project no longer exists (or is no longer visible). Skipped per MR; fatal elsewhere.
+class GitLabGone implements Exception {
+  GitLabGone(this.url, this.status);
+  final String url;
+  final int status;
+  @override
+  String toString() => 'GitLab $url → HTTP $status';
 }
 
 class GitLabRateLimited implements Exception {

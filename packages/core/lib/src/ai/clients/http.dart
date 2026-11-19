@@ -7,6 +7,10 @@ import 'package:dio/io.dart';
 import '../llm.dart';
 
 /// Dio configured for one provider: timeout plus optional custom CA / self-signed TLS (#15).
+///
+/// [customCaPem] adds a trusted root; certificate validation (chain, expiry, hostname) stays on.
+/// [allowSelfSigned] DISABLES TLS verification entirely: any certificate is accepted (expired, wrong host,
+/// unknown CA), so a man-in-the-middle can read the API key and evidence. Prefer [customCaPem].
 Dio newDio({Duration timeout = const Duration(seconds: 120), String? customCaPem, bool allowSelfSigned = false}) {
   final dio = Dio(BaseOptions(connectTimeout: timeout, receiveTimeout: timeout, sendTimeout: timeout));
   dio.httpClientAdapter = IOHttpClientAdapter(
@@ -32,9 +36,18 @@ String joinUrl(String baseUrl, String path) {
 /// GET returning a JSON object. Non-2xx and transport errors become [LlmFailure].
 Future<Map<String, Object?>> getJson(Dio dio, String url, {Map<String, String> headers = const {}}) async {
   final lines = await _send(dio, 'GET', url, null, headers).join('\n');
-  final decoded = jsonDecode(lines);
-  if (decoded is! Map<String, Object?>) throw LlmFailure('Unexpected response from $url');
-  return decoded;
+  return _decodeObject(lines, url);
+}
+
+Map<String, Object?> _decodeObject(String text, String from) {
+  try {
+    final decoded = jsonDecode(text);
+    if (decoded is Map<String, Object?>) return decoded;
+  } on FormatException {
+    // Falls through.
+  }
+  final snippet = text.length > 200 ? '${text.substring(0, 200)}…' : text;
+  throw LlmFailure('Unexpected response from $from: $snippet');
 }
 
 /// POST a JSON body and stream the response line by line (SSE or NDJSON).
@@ -99,22 +112,29 @@ String errorMessage(String body) {
   return body.length > 500 ? '${body.substring(0, 500)}…' : body;
 }
 
-/// Data payloads of an SSE stream, ending at `[DONE]`. Comment and `event:` lines are skipped.
+/// Yielded by [sseEvents] for the OpenAI `[DONE]` terminator (compare with `identical`), then the stream ends.
+const sseDone = <String, Object?>{'[DONE]': true};
+
+/// Data payloads of an SSE stream; `[DONE]` yields [sseDone] and ends. Comment and `event:` lines are
+/// skipped. A payload that is not a JSON object throws [LlmFailure].
 Stream<Map<String, Object?>> sseEvents(Stream<String> lines) async* {
   await for (final line in lines) {
     if (!line.startsWith('data:')) continue;
     final data = line.substring(5).trim();
     if (data.isEmpty) continue;
-    if (data == '[DONE]') return;
-    yield jsonDecode(data) as Map<String, Object?>;
+    if (data == '[DONE]') {
+      yield sseDone;
+      return;
+    }
+    yield _decodeObject(data, 'the stream');
   }
 }
 
-/// JSON objects of an NDJSON stream.
+/// JSON objects of an NDJSON stream. A line that is not a JSON object throws [LlmFailure].
 Stream<Map<String, Object?>> ndjsonEvents(Stream<String> lines) async* {
   await for (final line in lines) {
     if (line.trim().isEmpty) continue;
-    yield jsonDecode(line) as Map<String, Object?>;
+    yield _decodeObject(line, 'the stream');
   }
 }
 

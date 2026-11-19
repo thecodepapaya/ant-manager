@@ -83,6 +83,10 @@ class AnthropicClient implements LlmClient {
           outTok = (usage?['output_tokens'] as num?)?.toInt() ?? outTok;
           final stop = (e['delta'] as Map<String, Object?>?)?['stop_reason'];
           if (stop == 'max_tokens') throw LlmFailure('Output truncated: max tokens reached');
+          // The forced tool call ends with `tool_use`; anything else (refusal, pause_turn, …) is not a result.
+          if (stop != null && stop != 'tool_use' && stop != 'end_turn') {
+            throw LlmFailure('Generation stopped: $stop');
+          }
         case 'message_stop':
           yield LlmDone(text: text.toString(), inputTokens: inTok, outputTokens: outTok);
           return;

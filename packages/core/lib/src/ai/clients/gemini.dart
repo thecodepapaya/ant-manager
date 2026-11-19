@@ -71,6 +71,7 @@ class GeminiClient implements LlmClient {
     };
     final text = StringBuffer();
     int? inTok, outTok;
+    var finished = false;
     final url = joinUrl(baseUrl, '/v1beta/models/${request.model}:streamGenerateContent?alt=sse');
     await for (final chunk in sseEvents(postLines(_dio, url, body, headers: _headers))) {
       throwIfError(chunk);
@@ -88,9 +89,13 @@ class GeminiClient implements LlmClient {
             yield LlmDelta(t);
           }
         }
-        if (c['finishReason'] == 'MAX_TOKENS') throw LlmFailure('Output truncated: max tokens reached');
+        final reason = c['finishReason'];
+        if (reason == 'MAX_TOKENS') throw LlmFailure('Output truncated: max tokens reached');
+        if (reason != null && reason != 'STOP') throw LlmFailure('Generation stopped: $reason');
+        if (reason == 'STOP') finished = true;
       }
     }
+    if (!finished) throw LlmFailure('Stream ended before the response was complete');
     yield LlmDone(text: text.toString(), inputTokens: inTok, outputTokens: outTok);
   }
 }
