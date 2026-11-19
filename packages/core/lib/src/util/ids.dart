@@ -30,7 +30,8 @@ Object? _sort(Object? v) {
   return v;
 }
 
-String sha256Hex(String s) => sha256.convert(utf8.encode(s)).toString();
+String sha256Hex(String s) => sha256BytesHex(utf8.encode(s));
+String sha256BytesHex(List<int> bytes) => sha256.convert(bytes).toString();
 
 /// YYYY-MM-DD of [t] shifted by [utcOffset] (profile time zone offset, #87).
 String dayOf(DateTime t, Duration utcOffset) {

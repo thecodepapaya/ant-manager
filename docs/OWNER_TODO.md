@@ -36,4 +36,6 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] Review the updated **PRIVACY.md / THREAT_MODEL.md** (the cloud-provider "send everything" policy + opt-in crash reports change the promises).
 - [ ] Update the **web/ landing page** with new download links once release artifacts exist.
 - [ ] Approve the **design direction** (palette from the logo, Linear-style) when I present it.
+- [ ] Provide an **SVG version of the logo** (vector source for the app icon, installers, web site and in-app branding; the current logo is raster only).
+- [ ] Share **ideas / sketches for the menu-bar logo** (silhouette, single ant vs. abstract mark, filled vs. outline) so I can draft options.
 - [ ] Approve a **menu-bar / tray icon**: a simplified single-colour single-ant version of the logo (two ants don't read at 16–22 px; macOS wants a template image). The full logo is used everywhere else.

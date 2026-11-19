@@ -218,10 +218,24 @@ class Enricher {
       final model = await ctx.modelName(strategy.route);
       for (final batch in _batches(list)) {
         final out = await strategy.enrich(batch);
-        for (final x in batch) {
-          final text = out[x.id];
-          if (text != null) await _write(x, existing[x.id], text, model);
-        }
+        // Short write transaction after the model call; a payload that changed or went away
+        // meanwhile is discarded and its day re-queued.
+        await db.transaction(() async {
+          final now = await db.payloadsById(batch.map((x) => x.id));
+          for (final x in batch) {
+            final text = out[x.id];
+            if (text == null) continue;
+            final cur = now[x.id];
+            if (cur == null || cur.tombstonedAt != null || cur.revision != x.revision) {
+              await ctx.enqueue(EntityType.day, day, 'payload changed during enrichment');
+              continue;
+            }
+            final n = await (db.select(db.enrichments)
+                  ..where((n) => n.targetType.equalsValue(EntityType.payload) & n.targetId.equals(x.id)))
+                .getSingleOrNull();
+            await _write(x, n, text, model);
+          }
+        });
       }
     }
   }

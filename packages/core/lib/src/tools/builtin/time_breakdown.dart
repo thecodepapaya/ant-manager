@@ -27,8 +27,8 @@ class TimeBreakdownTool implements HarnessTool {
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> input, ToolContext ctx) async {
     final db = ctx.db;
-    final start = reqString(input, 'start');
-    final end = reqString(input, 'end');
+    final start = reqDay(input, 'start');
+    final end = reqDay(input, 'end');
     final project = optString(input, 'project_id');
     final facts =
         await (db.select(db.facts)

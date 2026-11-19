@@ -86,9 +86,31 @@ Facts that belong together get the same new_title. Don't create a workstream per
       schemaName: 'workstreams',
     );
 
+    // Short write transaction after the model call. Re-read: facts the user touched, moved, retired
+    // or that changed meanwhile, and workstreams removed meanwhile, are skipped.
+    await db.transaction(() => _apply(day, out, facts));
+  }
+
+  Future<void> _apply(String day, Map<String, Object?> out, List<Fact> asked) async {
+    final asOf = {for (final f in asked) f.id: f.revision};
+    final facts = await (db.select(db.facts)..where(
+          (f) =>
+              f.id.isIn(asOf.keys) &
+              f.workstreamId.isNull() &
+              f.retired.equals(false) &
+              f.origin.equalsValue(FactOrigin.inferred),
+        ))
+        .get();
+    final since = shiftDay(day, -activeDays);
+    final active = await (db.select(
+      db.workstreams,
+    )..where((w) => w.spanEnd.isBiggerOrEqualValue(since) | w.spanEnd.isNull())).get();
     final byId = {for (final w in active) w.id: w};
     final byTitle = {for (final w in active) w.title.toLowerCase(): w.id};
-    final factById = {for (final f in facts) f.id: f};
+    final factById = {
+      for (final f in facts)
+        if (asOf[f.id] == f.revision) f.id: f,
+    };
     final changed = <String>{};
     for (final a in (out['assignments'] as List? ?? const []).whereType<Map>()) {
       final f = factById.remove(a['fact_id']);

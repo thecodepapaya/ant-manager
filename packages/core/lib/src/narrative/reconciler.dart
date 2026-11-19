@@ -17,7 +17,8 @@ class ReconcileResult {
 }
 
 /// Applies a day's FactChangeSet while enforcing the narrative invariants (LLD 04 §4.6).
-/// Call inside the day's transaction (the RecomputeWorker provides one).
+/// Call inside a transaction, after checking the day's inputs still match what the extractor read
+/// (NarrativePipeline.runDay does both).
 class FactReconciler {
   FactReconciler(this.ctx) : writer = FactWriter(ctx);
   final NarrativeContext ctx;
@@ -66,7 +67,13 @@ class FactReconciler {
           if (op.citations.isNotEmpty && !_citationsOk(op.citations, input, r, 'update')) continue;
           opTouched.add(f.id);
           if (isProtected(f)) {
-            await writer.propose(f, {'op': 'update', 'statement': op.statement, 'citations': cites, 'retire': false});
+            await writer.propose(f, {
+              'op': 'update',
+              'statement': op.statement,
+              'citations': cites,
+              if (op.details != null) 'details': op.details,
+              'retire': false,
+            });
             r.proposed++;
           } else {
             await writer.update(f, statement: op.statement, details: op.details, citations: cites);

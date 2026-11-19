@@ -63,22 +63,28 @@ END;
 **Computed check (source of truth for "out of date" badges):**
 
 ```sql
--- stale iff any recorded input revision differs from the current one
+-- stale iff any recorded input revision differs from the current one, or the input row is gone (#103)
 SELECT EXISTS (
   SELECT 1 FROM dependency d
-  JOIN payload p ON d.input_type = 'payload' AND p.id = d.input_id
-  WHERE d.dependent_type = ? AND d.dependent_id = ? AND p.revision <> d.input_revision
+  LEFT JOIN payload p ON p.id = d.input_id
+  WHERE d.dependent_type = ? AND d.dependent_id = ? AND d.input_type = 'payload'
+    AND (p.id IS NULL OR p.revision <> d.input_revision)
   UNION ALL
   SELECT 1 FROM dependency d
-  JOIN fact f ON d.input_type = 'fact' AND f.id = d.input_id
-  WHERE d.dependent_type = ? AND d.dependent_id = ? AND f.revision <> d.input_revision
+  LEFT JOIN fact f ON f.id = d.input_id
+  WHERE d.dependent_type = ? AND d.dependent_id = ? AND d.input_type = 'fact'
+    AND (f.id IS NULL OR f.revision <> d.input_revision)
+  -- same for enrichment
 );
 ```
 
 **RecomputeWorker:** drains the queue (de-duplicated by entity, oldest first), debounced by about 30 s so a burst of
 sync changes becomes one recompute per day. It dispatches by type: `day` → importance → enrichment → fact extraction →
-time facts → workstreams. `report` → only marks it; reports regenerate lazily (invariant 6). Each handler deletes its
-queue rows **in the same transaction** as its output, so a crash simply leaves the work queued.
+time facts → workstreams. `report` → only marks it; reports regenerate lazily (invariant 6).
+**Model calls never run inside a transaction (#103):** each stage reads its inputs, calls the model, then writes in a
+short transaction that first re-checks the inputs (payload revisions; for extraction the day's input fingerprint). If
+they moved, the result is discarded and the day re-queued. The worker deletes the queue rows only **after** the
+handler's writes have committed, so a crash leaves the work queued; stages are idempotent, so a re-run is safe.
 
 ## 4.3 Capture (core sources)
 
@@ -169,7 +175,10 @@ from their facts.
    prompt + optional style instruction.
 4. **Validate:** every `fact_ids` entry must be in the gathered set; items with none are dropped (no uncited claims, N9).
 5. **Render** to Markdown deterministically (citation markers from fact ids), store a ReportSnapshot (JSON + Markdown)
-   and Dependency rows (snapshot ← fact revisions).
+   and Dependency rows (snapshot ← fact revisions). The snapshot's fact inputs are **all** live facts in the period
+   (`get_facts` has no limit), so that set is its period fingerprint: the snapshot is stale when a recorded input
+   changed (transitively, invariant 5) **or** a live fact in the period isn't among its inputs, e.g. evidence added
+   for a past day (#104).
 6. **When:** on schedule, when opened if stale, or on demand. **Locked** reports skip steps 1–6 and only show staleness.
 
 ## 4.10 Wins
