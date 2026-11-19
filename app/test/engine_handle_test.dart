@@ -112,8 +112,11 @@ void main() {
       expect(rows.firstWhere((r) => r.id == id).timeZone, 'UTC');
     });
 
-    test('syncNowCmd reports false while no sync orchestrator is registered', () async {
-      expect(await h.runtime(syncNowCmd()), isFalse);
+    test('syncNowCmd enqueues a sources.syncAll job', () async {
+      expect(await h.runtime(syncNowCmd()), isTrue);
+      final kinds = await h.runtime((rt) async =>
+          (await rt.engine.db.select(rt.engine.db.jobs).get()).map((j) => j.kind).toList());
+      expect(kinds, contains('sources.syncAll'));
     });
   });
 
