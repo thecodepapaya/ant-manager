@@ -229,7 +229,7 @@ Not designed up front; built under #67 and recorded as decisions. Layout: [app/R
   Switching profile restarts the engine isolate (#101).
 - **macOS:** App Sandbox off, login keychain until signing, quick capture reuses the main window (#101); native
   channels `ant/calendar` (EventKit) and `ant/clipboard` (rich copy, image paste, #107).
-- **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105). New
+- **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105; Welcome step #114). New
   `AntEngine` commands cover projects/workstreams and starring via `WinService` (#107).
 - **ui tokens:** density/type tokens for sidebar, top bar, chips and prose (#107); `packages/ui/tool/check_tokens.dart`
   enforces no literals. Visual-fidelity pass against the mockup, both themes, 1280–1920 wide (#113).

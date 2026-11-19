@@ -14,12 +14,6 @@ Hello Interview-style LLD flow. Guiding principle: **simple over complete** (#67
 **Build (on `v1`):** implementation **done**; independent tests (#99) **in progress**; end-to-end run with OpenRouter
 (#96) **in progress**.
 
-## TODO
-
-- **Intro onboarding** (owner request, 2026-11-19): a short, simple intro before the setup steps that tells people
-  what Ant Manager is and how it works (Sources → Evidence → Narrative → Reports / Wins, all local). Designed like the
-  rest of the app (AntTokens, same components and look as the mockup), not a generic wizard. Not started.
-
 ## Known gaps
 
 Accepted for now under #67, verified against the code (2026-11-19):

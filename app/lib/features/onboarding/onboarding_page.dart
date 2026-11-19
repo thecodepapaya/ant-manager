@@ -1,4 +1,4 @@
-/// Onboarding (SPEC §10): profile → identities → repos → optional sources → model (structured-output
+/// Onboarding (SPEC §10): welcome (what it is, how it works) → profile → identities → repos → optional sources → model (structured-output
 /// probe + consent) → first import. Every step can be skipped; everything is editable later.
 library;
 
@@ -19,8 +19,10 @@ import '../settings/setup_providers.dart';
 import '../sources/git_setup.dart';
 import '../sources/source_form.dart';
 import '../sources/sources_page.dart' show SourceTile;
+import 'intro_page.dart' show introBody;
 
 enum _Step {
+  welcome('Welcome'),
   profile('Profile'),
   identities('Identities'),
   repos('Repositories'),
@@ -39,11 +41,11 @@ class OnboardingPage extends ConsumerStatefulWidget {
 }
 
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
-  _Step _step = _Step.profile;
-  final _maxReached = <_Step>{_Step.profile};
+  _Step _step = _Step.welcome;
+  final _maxReached = <_Step>{_Step.welcome};
   bool _busy = false;
 
-  late final _name = TextEditingController(text: ref.read(activeProfileProvider)?.name ?? 'Work');
+  late final TextEditingController _name;
   late final _scan = RepoScanController(ref);
 
   // Identities step.
@@ -57,6 +59,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   @override
   void initState() {
     super.initState();
+    // Not lazy: Welcome comes first, so a lazy controller would first be read in dispose().
+    _name = TextEditingController(text: ref.read(activeProfileProvider)?.name ?? 'Work');
     // Scan early: identities are suggested from repo authors.
     Future(() async {
       await _scan.checkGit();
@@ -158,14 +162,14 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     ),
                     child: _column(context, [
                       Row(children: [
-                        if (_step != _Step.profile)
+                        if (_step != _Step.welcome)
                           AntButton.ghost(
                             label: 'Back',
                             size: AntSize.lg,
                             onPressed: () => _go(_Step.values[_step.index - 1]),
                           ),
                         const Spacer(),
-                        if (_step != _Step.profile && _step != _Step.import) ...[
+                        if (_step != _Step.welcome && _step != _Step.profile && _step != _Step.import) ...[
                           AntButton.ghost(label: 'Skip', size: AntSize.lg, onPressed: _busy ? null : () => _next(skip: true)),
                           SizedBox(width: t.space.md),
                         ],
@@ -174,7 +178,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                           label: _busy
                               ? 'Saving…'
                               : switch (_step) {
-                                  _Step.profile => 'Get started',
+                                  _Step.welcome => 'Get started',
                                   _Step.import => 'Open Today',
                                   _ => 'Continue',
                                 },
@@ -213,16 +217,25 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   List<Widget> _body(BuildContext context) {
     final t = context.tokens;
     switch (_step) {
-      case _Step.profile:
+      case _Step.welcome:
         return [
           _heading(
             context,
             'Your work, quietly remembered.',
-            'Ant Manager collects evidence of your work (commits, PRs, meetings, tickets, notes) and turns it into '
-                'honest daily, weekly and review-ready reports. Everything stays on this Mac unless you choose a cloud model.',
+            'Ant Manager keeps a record of the work you do and turns it into honest daily, weekly and '
+                'review-ready reports, so you never have to rebuild what you did from memory.',
           ),
-          AntTextField(controller: _name, label: 'Name this profile', size: AntSize.lg, autofocus: true, onSubmitted: (_) => _next()),
-          const Hint('Profiles keep separate data, sources and models, e.g. Work and Side projects.'),
+          ...introBody(context),
+        ];
+      case _Step.profile:
+        return [
+          _heading(
+            context,
+            'Name your profile',
+            'A profile holds one set of sources, models and history. Most people need just one.',
+          ),
+          AntTextField(controller: _name, label: 'Profile name', size: AntSize.lg, autofocus: true, onSubmitted: (_) => _next()),
+          const Hint('For example Work, or Side projects. You can add more later in Settings.'),
         ];
       case _Step.identities:
         final authors = _scan.authors();

@@ -243,10 +243,10 @@ maintained from it, and every output reads from that Narrative.
 - **Menu bar / tray app:** keeps running when the window is closed. Handles sync, scheduled generation,
   "write your day?" nudge notifications and the quick-capture hotkey. Launch at login is optional.
 - **Quick capture:** a global hotkey opens a floating note box from anywhere (on macOS the main window shrinks to it, #101).
-- **Onboarding:** create profile → add identities → scan repos → connect optional sources → pick AI provider
+- **Onboarding:** welcome (what the app is, how it works: Sources → Evidence → Narrative → Reports and wins, plus
+  local first / always cited / yours to correct, #114) → create profile → add identities → scan repos → connect optional sources → pick AI provider
   (structured-output probe) → first import and report. Each step can be skipped. Shown once for a profile with no
-  identities and no sources, until finished or skipped (#105). **TODO:** a short intro first explaining what the app is
-  and how it works, in the app's own design ([lld/README.md](./lld/README.md#todo)).
+  identities and no sources, until finished or skipped (#105).
 - Diagnostics: a "Copy diagnostics" button with local rotating logs.
 - **English only** in v1 (#87); no localization framework.
 
