@@ -240,8 +240,8 @@ No undo. A confirmation dialog states exactly what will be removed.
 ## 4.13 Backup & readable export (#105, #108)
 
 - `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
-  `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row and its
-  `.sqlite` file are deleted (#113).
+  `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row, its
+  `.sqlite` file and its `blobs/<id>/` folder are deleted (#113).
 - **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
   `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
   `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no

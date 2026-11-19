@@ -378,16 +378,18 @@ EngineCommand<String> restoreBackupCmd(String file) => (rt) async {
       final m = await BackupService.inspect(file);
       final id = await rt.createProfile('${m.profile} (restored)');
       final dbFile = File(p.join(rt.config.dataDir, 'profiles', '$id.sqlite'));
+      final blobs = Directory(p.join(rt.config.dataDir, 'blobs', id));
       try {
         await BackupService.restore(
           file,
           dbFile.path,
           currentSchemaVersion: rt.db.schemaVersion,
-          attachmentsDir: p.join(rt.config.dataDir, 'blobs', id),
+          attachmentsDir: blobs.path,
         );
       } catch (_) {
         await (rt.appDb.delete(rt.appDb.profiles)..where((x) => x.id.equals(id))).go();
         if (dbFile.existsSync()) dbFile.deleteSync();
+        if (blobs.existsSync()) blobs.deleteSync(recursive: true);
         rethrow;
       }
       return id;
