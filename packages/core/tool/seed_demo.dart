@@ -25,10 +25,11 @@ Future<void> main(List<String> args) async {
 
   final db = ProfileDb(NativeDatabase(File('$dir/profiles/$pid.sqlite')));
   final now = DateTime.now();
-  String day(int d) => dayOf(now.subtract(Duration(days: d)), now.timeZoneOffset);
+  final london = zoneOffset('Europe/London');
+  String day(int d) => todayIn(london, now.subtract(Duration(days: d)));
   DateTime at(int d, int h, int m) {
-    final x = now.subtract(Duration(days: d));
-    return DateTime(x.year, x.month, x.day, h, m);
+    final x = parseDay(day(d)).add(Duration(hours: h, minutes: m)); // London wall clock
+    return x.subtract(london(x));
   }
 
   await db.transaction(() async {

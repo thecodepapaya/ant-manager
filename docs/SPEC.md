@@ -62,8 +62,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 - Each profile holds several **identities** (emails, GitHub/GitLab usernames, Jira/Linear accounts).
   These are suggested automatically from scanned repos and connected accounts and decide which evidence is "mine".
 - Each profile has **one time zone** (defaults to the system's) that defines day boundaries for evidence, facts and
-  reports (#87). Day boundaries use a per-instant offset (DST-correct); v1 uses the system zone's offset, custom
-  IANA zones need a tz database (later, #97).
+  reports (#87), resolved with a bundled IANA tz database (#109).
 
 ## 5. Evidence sources
 

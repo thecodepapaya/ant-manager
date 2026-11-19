@@ -164,20 +164,23 @@ re-pins citations to the proposal's payloads at current revisions (#103).
 
 Time facts are computed in code, so they're reproducible and defensible:
 - **Measured:** sum of durations of non-declined, non-hidden calendar events per project per day (overlaps merged).
-- **Estimated:** commit activity sessions: consecutive commits by you less than 90 min apart form a session; a session
-  counts from 30 min before its first commit to its last commit; summed per project per day, excluding time already
-  measured by meetings.
+- **Estimated:** commit activity sessions (#109): only commits **authored** by your email identities count (one with
+  no author email counts too). The day's commits across **all projects** form sessions: consecutive commits less than
+  90 min apart; a session counts from 30 min before its first commit to its last commit. Each commit owns the stretch
+  since the previous commit of its session (the first commit: its 30 min lead), credited to that commit's project;
+  summed per project per day, excluding time already measured by meetings.
+- **Time zone:** days, schedules, report periods and the nudge use the profile's IANA zone through the bundled
+  `timezone` database (`latest_10y`); unknown names fall back to the system offset (#109).
 - Output: up to **two** `Time allocation` facts per project per day, one per basis (#100), `details = {minutes, basis:
   measured|estimated}`, citing the payloads used. Weekly and longer periods sum these.
-- *Known gaps:* sessions are formed per project (not across projects), and every commit payload counts (no "by you"
-  filter beyond what the git source captured).
 
 ## 4.8 Workstream assignment
 
 After a day's extraction, new facts without a workstream go to the Extraction route with the active workstreams
 (last 30 days: id, title, summary). Structured output: per fact, an existing workstream id **or** a new title. Users can
-rename, merge or move facts between workstreams (user changes are never overwritten). The span updates from their
-facts; the summary is set when the workstream is created and *not refreshed yet* (known gap).
+rename, merge or move facts between workstreams (user changes are never overwritten). Workstream span updates from its
+facts; the same call refreshes an existing workstream's summary (`new_summary` on an assignment to it, ignored for
+user-touched workstreams, #109).
 
 ## 4.9 Report generation
 

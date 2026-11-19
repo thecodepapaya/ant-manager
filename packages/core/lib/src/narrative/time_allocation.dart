@@ -10,8 +10,10 @@ typedef Interval = ({DateTime start, DateTime end});
 
 /// Deterministic time facts, no model (LLD 04 §4.7, #90).
 /// - measured: merged durations of non-declined, non-hidden calendar events per project.
-/// - estimated: commit sessions (commits < 90 min apart; a session starts 30 min before its first
-///   commit and ends at its last), per project, minus time covered by any meeting that day.
+/// - estimated: sessions of commits authored by you (#109), formed across all projects of the day
+///   (commits < 90 min apart; a session starts 30 min before its first commit and ends at its last).
+///   Each commit owns the stretch since the previous commit of its session (the first: its 30 min
+///   lead), credited to that commit's project, minus time covered by any meeting that day.
 /// One fact per (project, basis) per day: a project with both meetings and commits gets two facts,
 /// so the measured/estimated label stays exact (N9).
 class TimeAllocator {
@@ -38,8 +40,12 @@ class TimeAllocator {
               ))
               .get();
 
+    final mine = {
+      for (final i in await (db.select(db.identities)..where((i) => i.kind.equals('email'))).get())
+        i.value.trim().toLowerCase(),
+    };
     final meetings = <String?, List<(Interval, Payload)>>{};
-    final commits = <String?, List<(DateTime, Payload)>>{};
+    final commits = <(DateTime, String?, Payload)>[];
     for (final p in payloads) {
       final e = evidence[p.evidenceId]!;
       if (p.kind == PayloadKind.calendarEvent) {
@@ -48,8 +54,8 @@ class TimeAllocator {
         if (iv != null && !isDeclined(c) && c['allDay'] != true) {
           meetings.putIfAbsent(e.projectId, () => []).add((iv, p));
         }
-      } else {
-        commits.putIfAbsent(e.projectId, () => []).add((e.occurredStart, p));
+      } else if (authoredByYou(contentOf(p), mine)) {
+        commits.add((e.occurredStart, e.projectId, p));
       }
     }
     final allMeetings = merge(meetings.values.expand((l) => l.map((m) => m.$1)).toList());
@@ -59,9 +65,15 @@ class TimeAllocator {
       final minutes = totalMinutes(merge(list.map((m) => m.$1).toList()));
       if (minutes > 0) wanted[(project, 'measured')] = (minutes: minutes, cites: list.map((m) => m.$2.id).toList());
     }
-    for (final MapEntry(key: project, value: list) in commits.entries) {
-      final minutes = totalMinutes(subtract(sessions(list.map((c) => c.$1).toList()), allMeetings));
-      if (minutes > 0) wanted[(project, 'estimated')] = (minutes: minutes, cites: list.map((c) => c.$2.id).toList());
+    final coding = <String?, ({List<Interval> ivs, List<String> cites})>{};
+    for (final (iv, project, p) in segments(commits)) {
+      final c = coding.putIfAbsent(project, () => (ivs: [], cites: []));
+      c.ivs.add(iv);
+      c.cites.add(p.id);
+    }
+    for (final MapEntry(key: project, value: c) in coding.entries) {
+      final minutes = totalMinutes(subtract(merge(c.ivs), allMeetings));
+      if (minutes > 0) wanted[(project, 'estimated')] = (minutes: minutes, cites: c.cites);
     }
 
     final names = {for (final p in await db.select(db.projects).get()) p.id: p.name};
@@ -138,21 +150,27 @@ class TimeAllocator {
   static bool isDeclined(Map<String, Object?> c) =>
       c['declined'] == true || c['responseStatus'] == 'declined' || c['response_status'] == 'declined';
 
-  static List<Interval> sessions(List<DateTime> times) {
-    if (times.isEmpty) return const [];
-    final sorted = times.map((t) => t.toUtc()).toList()..sort();
-    final out = <Interval>[];
-    var start = sorted.first, last = sorted.first;
-    for (final t in sorted.skip(1)) {
-      if (t.difference(last) < sessionGap) {
-        last = t;
-      } else {
-        out.add((start: start.subtract(sessionLead), end: last));
-        start = last = t;
-      }
+  /// A commit is yours unless its author email is known and not one of your email identities (the git
+  /// source also keeps commits you only committed, e.g. someone else's work you rebased).
+  static bool authoredByYou(Map<String, Object?> c, Set<String> emails) {
+    final author = c['author'];
+    final email = author is Map ? author['email'] : null;
+    return email is! String || emails.contains(email.trim().toLowerCase());
+  }
+
+  /// Commit sessions across projects: each commit's stretch since the previous commit of its session
+  /// (< [sessionGap] apart), or [sessionLead] before it when it starts a session.
+  static List<(Interval, T, P)> segments<T, P>(List<(DateTime, T, P)> commits) {
+    final sorted = [...commits]..sort((a, b) => a.$1.compareTo(b.$1));
+    final out = <(Interval, T, P)>[];
+    DateTime? last;
+    for (final (at, project, p) in sorted) {
+      final t = at.toUtc();
+      final from = last != null && t.difference(last) < sessionGap ? last : t.subtract(sessionLead);
+      out.add(((start: from, end: t), project, p));
+      last = t;
     }
-    out.add((start: start.subtract(sessionLead), end: last));
-    return merge(out);
+    return out;
   }
 
   static List<Interval> merge(List<Interval> ivs) {

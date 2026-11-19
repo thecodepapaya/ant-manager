@@ -69,6 +69,7 @@ Future<void> engineMain(EngineBoot boot) async {
         appDb: await rt.appDb.serializableConnection(),
         profileDb: await rt.db.serializableConnection(),
         profileId: rt.profile.id,
+        timeZone: rt.profile.timeZone,
       ),
     );
     if (boot.config.startLoops) rt.startLoops();
@@ -91,6 +92,7 @@ class EngineRuntime {
     this.sync,
     this.reports,
     this.paused,
+    this.utcOffset,
   );
 
   final EngineConfig config;
@@ -105,6 +107,9 @@ class EngineRuntime {
   /// On-demand report generation (Reports and Today screens).
   final ReportGenerator reports;
   bool paused;
+
+  /// The profile's time zone offset at an instant (#87, #109): day boundaries, schedules, the nudge.
+  final UtcOffset utcOffset;
 
   var _stopped = false;
   Completer<void>? _wake;
@@ -121,8 +126,7 @@ class EngineRuntime {
       _open(config, p.join(config.dataDir, 'profiles', '${profile.id}.sqlite')),
     );
     final secrets = BridgedSecretStore(bridge);
-    // System zone, DST-correct. TODO(#87): resolve the profile's IANA zone once core has tz data.
-    Duration offset(DateTime t) => t.toLocal().timeZoneOffset;
+    final offset = zoneOffset(profile.timeZone);
     final ports = EnginePorts(
       secrets: secrets,
       blobs: FileBlobStore(p.join(config.dataDir, 'blobs', profile.id)),
@@ -203,6 +207,7 @@ class EngineRuntime {
       sync,
       generator,
       pausedRow?.value == 'true',
+      offset,
     );
   }
 
@@ -246,7 +251,7 @@ class EngineRuntime {
 
   /// "Your day is drafted" nudge; skipped on days with no evidence (SPEC §7).
   Future<void> _nudge() async {
-    final today = dayOf(DateTime.now(), DateTime.now().timeZoneOffset);
+    final today = todayIn(utcOffset);
     final any =
         await (db.select(db.evidences)
               ..where((e) => e.day.equals(today))

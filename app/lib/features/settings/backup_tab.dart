@@ -10,6 +10,7 @@ import 'package:ui/ui.dart';
 
 import '../../engine/engine_runtime.dart';
 import '../../engine/setup_commands.dart';
+import '../../platform/time_zone.dart';
 import '../../state/providers.dart';
 import '../sources/git_setup.dart' show tildePath;
 import '../sources/sources_page.dart' show ago;
@@ -199,7 +200,7 @@ class _RestorePreview extends StatelessWidget {
             Expanded(child: Text(v, style: t.typo.body.copyWith(color: t.text))),
           ]),
         );
-    final created = m.createdAt.toLocal();
+    final created = m.createdAt.toUtc().add(profileUtcOffset(m.createdAt)); // profile wall clock
     return AntDialog(
       title: 'Restore this backup?',
       body: Column(
@@ -207,7 +208,7 @@ class _RestorePreview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           kv('Profile', m.profile),
-          kv('Backed up', '${dayOf(created, created.timeZoneOffset)} ${hhmm(created.hour, created.minute)}'),
+          kv('Backed up', '${profileDayOf(m.createdAt)} ${hhmm(created.hour, created.minute)}'),
           kv('Covers', m.firstDay == null ? 'No evidence' : '${m.firstDay} → ${m.lastDay}'),
           kv('Contains', '${n('evidences')} evidence · ${n('facts')} facts · ${n('reports')} reports'),
           kv('App version', m.appVersion),

@@ -38,3 +38,4 @@ export 'src/staleness/staleness.dart' show EntityRef, InputRef, StalenessService
 export 'src/tools/builtin/register.dart' show registerBuiltinTools;
 export 'src/tools/tool.dart';
 export 'src/util/ids.dart' show newId, dayOf;
+export 'src/util/time_zone.dart';

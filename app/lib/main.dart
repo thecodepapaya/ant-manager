@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -20,6 +21,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final support = await getApplicationSupportDirectory();
+  final info = await PackageInfo.fromPlatform();
   await LocalNotifierAdapter.setup();
   LaunchAtLogin.setup();
 
@@ -37,6 +39,7 @@ Future<void> main() async {
         : p.join(support.path, 'ant_manager'),
     timeZone: systemTimeZoneName(),
     calendarAvailable: MacCalendarBridge.supported,
+    appVersion: info.version,
   );
 
   late final DesktopShell shell;

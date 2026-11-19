@@ -19,7 +19,7 @@ final class EngineConfig {
     this.inMemory = false,
     this.startLoops = true,
     this.idlePoll = const Duration(seconds: 5),
-    this.appVersion = '0.1.0',
+    this.appVersion = '0.0.0-dev', // tests; the app passes the real one
   });
 
   /// `<app support>/ant_manager`: `app.sqlite`, `profiles/<id>.sqlite`, `blobs/<id>/`.
@@ -39,7 +39,7 @@ final class EngineConfig {
 
   final Duration idlePoll;
 
-  /// Recorded in backup manifests.
+  /// Recorded in backup manifests; `main.dart` reads it from package_info_plus.
   final String appVersion;
 }
 
@@ -87,11 +87,15 @@ final class EngineReady {
     required this.appDb,
     required this.profileDb,
     required this.profileId,
+    required this.timeZone,
   });
   final SendPort commands;
   final DriftIsolate appDb;
   final DriftIsolate profileDb;
   final String profileId;
+
+  /// The active profile's IANA zone (#87).
+  final String timeZone;
 }
 
 final class EngineFailed {

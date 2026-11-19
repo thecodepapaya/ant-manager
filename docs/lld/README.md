@@ -23,16 +23,11 @@ Hello Interview-style LLD flow. Guiding principle: **simple over complete** (#67
 ## Known gaps
 
 Accepted for now under #67, verified against the code (2026-11-19):
-- Profile IANA time zone not supported: day boundaries use the system offset (#97).
-- `appVersion` hard-coded (`0.1.0` in `EngineConfig`), so backup manifests don't track releases.
 - Sentry DSN not wired: crash-report opt-in stores the preference only (#105, OWNER_TODO).
 - Auto-update not wired: appcast generation is a TODO in `build.yml` and `auto_updater` isn't called; no Linux
   "update available" notice either.
 - Google OAuth client id/secret are placeholders (`google_oauth.dart`, OWNER_TODO).
 - GitHub device flow later: PAT only (#106).
-- Workstream summary is set on creation and never refreshed.
-- Time allocation doesn't filter "commits by you" (every captured commit counts), and commit sessions are formed per
-  project.
 - Existing profile DBs keep old triggers: no migration (schema v1, pre-release).
 - GitHub issues you closed without being subscribed are missed (#106).
 - Custom CA / insecure TLS options exist for AI providers only, not for self-hosted sources (SPEC §5).

@@ -7,6 +7,7 @@ import 'dart:isolate';
 
 import 'package:core/core.dart';
 
+import '../platform/time_zone.dart';
 import 'engine_runtime.dart';
 import 'messages.dart';
 import 'ui_port_host.dart';
@@ -87,6 +88,7 @@ class EngineHandle {
     final appDb = AppDb(await r.appDb.connect());
     final db = ProfileDb(await r.profileDb.connect());
     host?.attach(r.commands);
+    profileUtcOffset = zoneOffset(r.timeZone);
     return handle = EngineHandle._(isolate, rx, r.commands, appDb, db, r.profileId, host);
   }
 

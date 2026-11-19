@@ -30,6 +30,7 @@ dependencies:
   pdf: ^3.13.1
   desktop_drop: ^0.8.4
   dio: ^5.11.1
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

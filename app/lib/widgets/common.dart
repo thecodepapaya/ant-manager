@@ -8,14 +8,15 @@ import 'package:ui/ui.dart';
 
 import '../engine/engine_handle.dart';
 import '../engine/messages.dart';
+import '../platform/time_zone.dart';
 import '../shell/shell_state.dart';
 import '../state/providers.dart';
 
 // ---------------------------------------------------------------------------
-// Days and times (profile zone = system zone for now, see engine_runtime).
+// Days and times, in the active profile's zone (#87).
 // ---------------------------------------------------------------------------
 
-String todayDay() => dayOf(DateTime.now(), DateTime.now().timeZoneOffset);
+String todayDay() => profileToday();
 
 String shiftDayBy(String day, int days) => formatDay(parseDay(day).add(Duration(days: days)));
 
@@ -35,7 +36,7 @@ String longDayLabel(String day) {
 /// "Nov 19" (with the year when it isn't this year).
 String shortDayLabel(String day) {
   final d = parseDay(day);
-  final y = d.year == DateTime.now().year ? '' : ', ${d.year}';
+  final y = d.year == parseDay(todayDay()).year ? '' : ', ${d.year}';
   return '${_months[d.month - 1]} ${d.day}$y';
 }
 
@@ -57,7 +58,7 @@ String relativeDayLabel(String day) {
 }
 
 String hhmm(DateTime t) {
-  final l = t.toLocal();
+  final l = t.toUtc().add(profileUtcOffset(t)); // profile wall clock
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 

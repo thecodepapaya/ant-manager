@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ui/ui.dart';
 
 import '../../engine/commands.dart';
+import '../../platform/time_zone.dart';
 import '../../state/data.dart';
 import '../../widgets/common.dart';
 import '../../widgets/report_view.dart';
@@ -149,7 +150,7 @@ class _ReportListItem extends StatelessWidget {
             Muted(
               [
                 item.template?.name ?? item.r.templateId,
-                s == null ? 'not generated' : 'v${s.version} · ${shortDayLabel(dayOf(s.generatedAt, s.generatedAt.toLocal().timeZoneOffset))}',
+                s == null ? 'not generated' : 'v${s.version} · ${shortDayLabel(profileDayOf(s.generatedAt))}',
               ].join(' · '),
               maxLines: 1,
               style: t.typo.chip,
@@ -252,7 +253,7 @@ class _ReportDetail extends ConsumerWidget {
                             ? ''
                             : [
                                 'Version ${shown.version} of ${item.snapshots.length}',
-                                'generated ${shortDayLabel(dayOf(shown.generatedAt, shown.generatedAt.toLocal().timeZoneOffset))} '
+                                'generated ${shortDayLabel(profileDayOf(shown.generatedAt))} '
                                     '${hhmm(shown.generatedAt)}',
                                 shown.modelId,
                                 if (shown.styleInstruction != null) 'style “${shown.styleInstruction}”',

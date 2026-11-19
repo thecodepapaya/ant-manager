@@ -406,9 +406,9 @@ EngineCommand<void> deleteTemplateCmd(String id) => (rt) => TemplateService(rt.d
 /// Live preview (#86): renders [templateId] for the current [kind] period against real data,
 /// saving nothing. Returns Markdown.
 EngineCommand<String> previewTemplateCmd(String templateId, PeriodKind kind) => (rt) async {
-      final today = dayOf(DateTime.now(), DateTime.now().timeZoneOffset);
+      final today = todayIn(rt.utcOffset);
       final period = kind == PeriodKind.custom
-          ? Period.custom(formatDayString(DateTime.now().subtract(const Duration(days: 13))), today)
+          ? Period.custom(formatDay(parseDay(today).subtract(const Duration(days: 13))), today)
           : Period.containing(kind, today);
       final generator =
           ReportGenerator(db: rt.db, router: rt.engine.router, tools: rt.engine.tools, profileId: rt.profile.id);
@@ -418,5 +418,3 @@ EngineCommand<String> previewTemplateCmd(String templateId, PeriodKind kind) => 
       }
       return markdown ?? '';
     };
-
-String formatDayString(DateTime d) => dayOf(d, d.timeZoneOffset);
