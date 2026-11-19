@@ -259,6 +259,7 @@ void main() {
     gh.pr('o/r', 1, author: 'someone'); // mentioned only
     gh.involves.add(gh.item('o/r', 1, '2026-11-10T00:00:00Z'));
     expect(await sync(ctx()), isEmpty);
+    expect(api.to('/repos/o/r/pulls/1'), hasLength(1));
   });
 
   test('validate rejects a token for another login', () async {

@@ -252,7 +252,10 @@ END:VTIMEZONE''';
     });
 
     test('cancelled master is omitted', () {
-      expect(occ(cal(ev('c', 'DTSTART:20260301T100000Z\nSTATUS:CANCELLED'))), isEmpty);
+      final src = cal(
+        [ev('c', 'DTSTART:20260301T100000Z\nSTATUS:CANCELLED'), ev('k', 'DTSTART:20260302T100000Z')].join('\n'),
+      );
+      expect(occ(src).map((o) => o.uid), ['k']);
     });
   });
 

@@ -130,7 +130,7 @@ void main() {
       expect(await doneText(client().generate(req('m'))), '{"a":1}');
     });
 
-    test('finish_reason stop then a dropped connection still completes', skip: 'BUG: http.dart _send only maps DioException; a dropped connection raises a raw HttpException after finish_reason stop instead of completing', () async {
+    test('finish_reason stop then a dropped connection still completes', skip: 'BUG: http.dart _send only maps DioException; a dropped connection raises a raw HttpException after finish_reason stop instead of completing; openai_compatible.dart also keeps reading after stop, so mapping the error alone would still fail', () async {
       http.on[path] = dropAfter(
         'data: ${'{"choices":[{"delta":{"content":"{\\"a\\":1}"},"finish_reason":"stop"}]}'}\n\n',
       );
