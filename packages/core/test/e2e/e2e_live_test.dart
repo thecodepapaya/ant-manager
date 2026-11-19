@@ -1,4 +1,4 @@
-// Full engine flow against OpenRouter. Runs only with `dart test -t live` and OPENROUTER_API_KEY set.
+// Full engine flow against OpenRouter. Runs only with `dart test -t live --run-skipped` and OPENROUTER_API_KEY set.
 @Tags(['live'])
 library;
 
