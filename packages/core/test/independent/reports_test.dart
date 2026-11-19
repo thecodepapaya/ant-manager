@@ -416,7 +416,7 @@ void main() {
       expect(await engine.staleness.isStale((type: EntityType.reportSnapshot, id: s.id)), isFalse);
     });
 
-    test('changing a cited fact makes the snapshot stale; regenerating gives a fresh version + 1', () async {
+    test('changing a gathered fact makes the snapshot stale; regenerating gives a fresh version + 1', () async {
       llm.responses.addAll([
         report([section('S', [item('x', [f1])])]),
         report([section('S', [item('y', [f1])])]),
@@ -440,11 +440,13 @@ void main() {
         llm.responses.add(report([section('S', [item('x', [f1])])]));
         final r = await weekReport();
         final s = (await run(gen.generate(r.id))).snapshot!;
-        await seed.fact('Late-added outcome', '2026-11-19');
+        // Evidence added for a past day, then extraction (simulated) creates a fact citing it.
+        final e = await seed.evidence(src, '2026-11-19', {'text': 'late note'});
+        await seed.fact('Late-added outcome', '2026-11-19', cites: [e.payload]);
         expect(await engine.staleness.isStale((type: EntityType.reportSnapshot, id: s.id)), isTrue);
       },
       skip:
-          'BUG: snapshot staleness only tracks revisions of facts it read (generator.dart records fact '
+          'BUG (design gap): snapshot staleness only tracks revisions of facts it read (generator.dart records fact '
           'inputs only), so facts created later for the period never mark the report out of date (#49, #61)',
     );
 
