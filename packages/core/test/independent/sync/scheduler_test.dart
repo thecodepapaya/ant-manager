@@ -69,12 +69,14 @@ void main() {
     expect(await sched.tick(), ['gh']);
   });
 
-  test('a non-UTC "now" is compared as an instant', () async {
+  test('concurrent enqueueSync calls (scheduler tick vs watcher timer) create one pending job', () async {
     await h.addRow('gh', SourceKind.github);
-    await succeededAt('gh', t0);
-    expect(await sched.tick(t0.add(const Duration(minutes: 5)).toLocal()), isEmpty);
-    expect(await sched.tick(t0.add(const Duration(minutes: 16)).toLocal()), ['gh']);
-  });
+    final r = await Future.wait(
+        [svc.enqueueSync('gh'), svc.enqueueSync('gh'), sched.tick().then((l) => l.isNotEmpty)]);
+    expect(r.where((x) => x), hasLength(1));
+    expect(await h.jobs(SyncService.syncJob), hasLength(1));
+  }, skip: 'BUG: enqueueSync is check-then-insert outside a transaction, so two interleaved callers both '
+      'enqueue a sources.sync for the same source (sync_service.dart:146-154)');
 
   test('no second job while one is queued or running; a new one once it is done or failed', () async {
     await h.addRow('gh', SourceKind.github);

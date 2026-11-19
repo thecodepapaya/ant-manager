@@ -169,11 +169,13 @@ void main() {
 
   test('re-subscribing for one source keeps a pending debounced sync of another', () async {
     await h.addRow('a', SourceKind.gitRepo);
-    await svc.startWatching(onEnqueue: () => kicks++);
+    final slow = SyncService(h.engine, debounce: const Duration(milliseconds: 300)); // wide window: no race
+    await slow.startWatching(onEnqueue: () => kicks++);
     watch.emit('a');
     await Future<void>.delayed(Duration.zero); // timer for 'a' pending
-    await svc.addSource(SourceKind.gitRepo, 'other', {}); // _rewatch -> stopWatching cancels all timers
-    await settle();
+    await slow.addSource(SourceKind.gitRepo, 'other', {}); // _rewatch -> stopWatching cancels all timers
+    await settle(600);
+    await slow.stopWatching();
     expect((await syncJobs()).map((j) => j.args), contains('{"source_id":"a"}'));
   }, skip: "BUG: _rewatch() -> stopWatching() cancels every pending debounce timer, so a change burst on "
       "source A is dropped when any source is added/updated/removed within the debounce (sync_service.dart:132)");

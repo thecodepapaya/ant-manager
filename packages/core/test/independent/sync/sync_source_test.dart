@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:core/core.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:test/test.dart';
@@ -104,10 +106,10 @@ void main() {
         yield obs('d', content: {'bad': Object()});
       });
       await h.addRow('s', SourceKind.github);
-      await expectLater(h.service(batchSize: 2).syncSource('s'), throwsA(anything));
+      await expectLater(h.service(batchSize: 2).syncSource('s'), throwsA(isA<JsonUnsupportedObjectError>()));
       expect(await h.externalIds('s'), ['a', 'b'], reason: "'c' was in the failed batch");
       expect((await h.cursorMap('s'))['c'], 'b1');
-      expect((await h.status('s'))!.lastError, isNotNull);
+      expect((await h.status('s'))!.lastError, contains('Converting object'));
     });
   });
 
@@ -209,7 +211,7 @@ void main() {
     });
 
     test('unknown source id throws', () async {
-      await expectLater(h.service().syncSource('missing'), throwsA(anything));
+      await expectLater(h.service().syncSource('missing'), throwsStateError);
     });
   });
 
@@ -247,27 +249,32 @@ void main() {
 
       // Failure afterwards keeps the cursor too.
       h.engine.sources.register(SourceKind.github, () => ScriptSource(SourceKind.github, (_) => Stream.error('x')));
-      await expectLater(svc.syncSource('s'), throwsA(anything));
+      await expectLater(svc.syncSource('s'), throwsA('x'));
       st = (await h.status('s'))!;
       expect(st.cursor, 'root-cursor');
-      expect(st.lastError, isNotNull);
+      expect(st.lastError, 'x');
     });
 
-    test("the source's own '' cursor write does not clear lastError/lastSuccessAt", () async {
+    test("the source's own '' cursor commit does not clear lastSuccessAt (status kept on a later failure)",
+        () async {
       register((ctx) async* {
         ctx.setCursor('', 'c2');
+        yield obs('a'); // batch of 1 commits cursor c2 here
+        throw StateError('later failure');
       });
       await h.addRow('s', SourceKind.github);
+      final t1 = DateTime.utc(2026, 11, 1);
       await h.db.into(h.db.syncCursors).insert(SyncCursorsCompanion.insert(
             sourceId: 's',
             cursor: const Value('c1'),
-            lastSuccessAt: Value(DateTime.utc(2026, 11, 1)),
+            lastSuccessAt: Value(t1),
+            lastError: const Value('old error'),
           ));
-      h.clock.t = DateTime.utc(2026, 11, 18, 13);
-      await h.service().syncSource('s');
+      await expectLater(h.service(batchSize: 1).syncSource('s'), throwsStateError);
       final st = (await h.status('s'))!;
       expect(st.cursor, 'c2');
-      expect(st.lastSuccessAt!.isAtSameMomentAs(DateTime.utc(2026, 11, 18, 13)), isTrue);
+      expect(st.lastSuccessAt!.isAtSameMomentAs(t1), isTrue);
+      expect(st.lastError, contains('later failure'));
     });
   });
 
