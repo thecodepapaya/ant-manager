@@ -15,7 +15,7 @@ import 'support/fakes.dart';
 
 /// Counts `calendar.watch` calls the host receives.
 class CountingHost extends UiPortHost {
-  CountingHost({CalendarBridge? calendar}) : super(secrets: FakeSecrets(), notifier: FakeNotifier(), calendar: calendar);
+  CountingHost({super.calendar}) : super(secrets: FakeSecrets(), notifier: FakeNotifier());
   var watchCalls = 0;
   @override
   Future<void> handle(PortCall c, SendPort reply) {
@@ -45,7 +45,7 @@ class TickingCalendar implements CalendarBridge {
 
 // ---------- engine commands (top-level: plain captures only) ----------
 
-/// Listens to one changes() stream; returns what it saw: 'event', 'error:<e>', 'done'.
+/// Listens to one changes() stream; returns what it saw: 'event', `error:<e>`, 'done'.
 EngineCommand<List<String>> _changesLogCmd() => (rt) async {
       final log = <String>[];
       final done = Completer<void>();

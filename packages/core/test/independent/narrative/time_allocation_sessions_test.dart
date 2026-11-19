@@ -112,7 +112,6 @@ void main() {
         await time.computeDay(day);
         expect(await minutes(), {(null, 'estimated'): 30});
       },
-      skip: "BUG: author email '' is treated as someone else's (LLD 04: no author email counts too)",
     );
 
     test('a commit whose author has no email is kept', () async {

@@ -110,7 +110,6 @@ void main() {
         expect((await h.fact('new')).workstreamId, 'empty');
         expect((await wsRow('empty')).summary, 'Fresh.');
       },
-      skip: 'BUG: a title-matched (unoffered) workstream skips the new_summary refresh: existing is looked up in byId (offered only)',
     );
 
     test('a new title matching an existing empty workstream (any case) reuses it', () async {

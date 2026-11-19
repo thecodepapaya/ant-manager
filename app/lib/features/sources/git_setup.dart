@@ -354,6 +354,7 @@ class _GitSetupDialogState extends ConsumerState<GitSetupDialog> {
     Future(() async {
       await c.checkGit();
       await c.scan();
+      if (!mounted) return;
       final emails = {
         for (final i in ref.read(identitiesProvider).value ?? const <Identity>[])
           if (i.kind == 'email') i.value.toLowerCase(),

@@ -2,7 +2,6 @@
 // their use by the Ingestor and AntEngine for evidence days.
 import 'package:core/core.dart';
 import 'package:core/src/capture/ingestor.dart';
-import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:test/test.dart';
 
 import 'fakes.dart';

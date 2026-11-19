@@ -155,7 +155,8 @@ class TimeAllocator {
   static bool authoredByYou(Map<String, Object?> c, Set<String> emails) {
     final author = c['author'];
     final email = author is Map ? author['email'] : null;
-    return email is! String || emails.contains(email.trim().toLowerCase());
+    if (email is! String || email.trim().isEmpty) return true;
+    return emails.contains(email.trim().toLowerCase());
   }
 
   /// Commit sessions across projects: each commit's stretch since the previous commit of its session

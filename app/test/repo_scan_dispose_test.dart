@@ -168,5 +168,5 @@ void main() {
     h.calls[1].complete([_repo]);
     await flush(tester);
     expect(tester.takeException(), isNull);
-  }, skip: true /* BUG: _GitSetupDialogState.initState reads ref after the scan with no mounted check */);
+  });
 }
