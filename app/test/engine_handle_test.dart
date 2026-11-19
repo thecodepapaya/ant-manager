@@ -204,13 +204,15 @@ void main() {
         'report:monthly',
         'report:quarterly',
         'backup',
+        nudgeJobKind,
       });
 
       final ids = await h.runtime(tickCmd(DateTime.now().toUtc().add(const Duration(days: 400))));
-      expect(ids, hasLength(5));
+      expect(ids, hasLength(6));
       final jobs = await h.db.select(h.db.jobs).get();
       expect(jobs.map((j) => j.kind).toSet(), schedules.map((s) => s.kind).toSet());
       expect(jobs.where((j) => j.kind == 'backup').single.lane, JobLane.io);
+      expect(jobs.where((j) => j.kind == nudgeJobKind).single.lane, JobLane.io);
       expect(jobs.where((j) => j.kind == 'report:daily').single.lane, JobLane.llm);
 
       // Nothing is due again right after.
