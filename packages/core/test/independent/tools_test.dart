@@ -24,18 +24,23 @@ void main() {
   tearDown(() => db.close());
 
   Future<Map<String, Object?>> call(String tool, Map<String, Object?> input) => tools[tool].call(input, ctx);
-  List<String> ids(Object? list, [String key = 'fact_id']) => [for (final m in (list as List).cast<Map>()) m[key] as String];
+  List<String> ids(Object? list, [String key = 'fact_id']) => [
+    for (final m in (list as List).cast<Map>()) m[key] as String,
+  ];
 
   group('registry and schemas', () {
     test('all six tools are registered with object schemas whose required keys exist', () {
-      expect(tools.all.map((t) => t.name), unorderedEquals([
-        'search_evidence',
-        'get_evidence',
-        'get_facts',
-        'time_breakdown',
-        'workstream_timeline',
-        'list_wins',
-      ]));
+      expect(
+        tools.all.map((t) => t.name),
+        unorderedEquals([
+          'search_evidence',
+          'get_evidence',
+          'get_facts',
+          'time_breakdown',
+          'workstream_timeline',
+          'list_wins',
+        ]),
+      );
       for (final t in tools.all) {
         expect(t.description, isNotEmpty);
         expect(t.inputSchema['type'], 'object');
@@ -60,7 +65,14 @@ void main() {
     });
 
     test('unknown fact type names are rejected', () async {
-      await expectLater(call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30', 'types': ['bogus']}), throwsArgumentError);
+      await expectLater(
+        call('get_facts', {
+          'start': '2026-11-01',
+          'end': '2026-11-30',
+          'types': ['bogus'],
+        }),
+        throwsArgumentError,
+      );
     });
 
     test(
@@ -79,7 +91,10 @@ void main() {
       'unknown input keys are rejected (additionalProperties: false)',
       () async {
         await seed.fact('A', '2026-11-18', project: 'pay');
-        await expectLater(call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30', 'projectId': 'web'}), throwsA(anything));
+        await expectLater(
+          call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30', 'projectId': 'web'}),
+          throwsA(anything),
+        );
       },
       skip:
           'BUG: tools ignore unknown keys despite additionalProperties:false; an agent typo such as '
@@ -98,9 +113,18 @@ void main() {
       final all = await call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30'});
       expect(ids(all['facts']), [hi, span, lo]);
       expect(ids((await call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30', 'limit': 1}))['facts']), [hi]);
-      expect(ids((await call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30', 'project_id': 'web'}))['facts']), [lo]);
       expect(
-        ids((await call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30', 'types': ['hiccup']}))['facts']),
+        ids((await call('get_facts', {'start': '2026-11-01', 'end': '2026-11-30', 'project_id': 'web'}))['facts']),
+        [lo],
+      );
+      expect(
+        ids(
+          (await call('get_facts', {
+            'start': '2026-11-01',
+            'end': '2026-11-30',
+            'types': ['hiccup'],
+          }))['facts'],
+        ),
         [lo],
       );
       final f = (all['facts'] as List).first as Map;
@@ -123,7 +147,10 @@ void main() {
       await seed.fact('Decision', '2026-11-18', type: FactType.decision, win: WinStatus.accepted);
       final out = await call('list_wins', {'start': '2026-11-01', 'end': '2026-11-30'});
       expect(ids(out['wins']), [win2, win]);
-      expect(ids((await call('list_wins', {'start': '2026-11-01', 'end': '2026-11-30', 'project_id': 'web'}))['wins']), [win2]);
+      expect(
+        ids((await call('list_wins', {'start': '2026-11-01', 'end': '2026-11-30', 'project_id': 'web'}))['wins']),
+        [win2],
+      );
     });
   });
 
@@ -198,15 +225,19 @@ void main() {
         ('n2', EntityType.evidence, e.evidence),
         ('n3', EntityType.payload, 'other'),
       ]) {
-        await db.into(db.enrichments).insert(EnrichmentsCompanion.insert(
-          id: id,
-          targetType: type,
-          targetId: target,
-          kind: 'summary',
-          output: 'o',
-          modelId: 'm',
-          createdAt: seed.now,
-        ));
+        await db
+            .into(db.enrichments)
+            .insert(
+              EnrichmentsCompanion.insert(
+                id: id,
+                targetType: type,
+                targetId: target,
+                kind: 'summary',
+                output: 'o',
+                modelId: 'm',
+                createdAt: seed.now,
+              ),
+            );
       }
       final out = await call('get_evidence', {'evidence_id': e.evidence});
       expect(out['found'], isTrue);

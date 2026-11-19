@@ -74,10 +74,22 @@ void main() {
     test('previous periods across boundaries', () {
       expect(p(PeriodKind.daily, '2025-01-01').previous(), const Period(PeriodKind.daily, '2024-12-31', '2024-12-31'));
       expect(p(PeriodKind.daily, '2024-03-01').previous().start, '2024-02-29');
-      expect(p(PeriodKind.weekly, '2026-01-05').previous(), const Period(PeriodKind.weekly, '2025-12-29', '2026-01-04'));
-      expect(p(PeriodKind.monthly, '2024-03-15').previous(), const Period(PeriodKind.monthly, '2024-02-01', '2024-02-29'));
-      expect(p(PeriodKind.monthly, '2026-01-15').previous(), const Period(PeriodKind.monthly, '2025-12-01', '2025-12-31'));
-      expect(p(PeriodKind.quarterly, '2026-02-01').previous(), const Period(PeriodKind.quarterly, '2025-10-01', '2025-12-31'));
+      expect(
+        p(PeriodKind.weekly, '2026-01-05').previous(),
+        const Period(PeriodKind.weekly, '2025-12-29', '2026-01-04'),
+      );
+      expect(
+        p(PeriodKind.monthly, '2024-03-15').previous(),
+        const Period(PeriodKind.monthly, '2024-02-01', '2024-02-29'),
+      );
+      expect(
+        p(PeriodKind.monthly, '2026-01-15').previous(),
+        const Period(PeriodKind.monthly, '2025-12-01', '2025-12-31'),
+      );
+      expect(
+        p(PeriodKind.quarterly, '2026-02-01').previous(),
+        const Period(PeriodKind.quarterly, '2025-10-01', '2025-12-31'),
+      );
       expect(Period.custom('2026-11-18', '2026-11-18').previous(), Period.custom('2026-11-17', '2026-11-17'));
       // Custom range across a leap day keeps its length (7 days).
       expect(Period.custom('2024-03-01', '2024-03-07').previous(), Period.custom('2024-02-23', '2024-02-29'));
@@ -177,13 +189,17 @@ void main() {
     test('delete: built-ins and used templates are protected', () async {
       expect(() => t.delete('builtin.standup'), throwsStateError);
       final used = await t.create(name: 'Used', periodKinds: [PeriodKind.daily], prompt: 'p');
-      await db.into(db.reports).insert(ReportsCompanion.insert(
-        id: 'r',
-        periodKind: PeriodKind.daily,
-        periodStart: '2026-11-18',
-        periodEnd: '2026-11-18',
-        templateId: used,
-      ));
+      await db
+          .into(db.reports)
+          .insert(
+            ReportsCompanion.insert(
+              id: 'r',
+              periodKind: PeriodKind.daily,
+              periodStart: '2026-11-18',
+              periodEnd: '2026-11-18',
+              templateId: used,
+            ),
+          );
       expect(() => t.delete(used), throwsStateError);
       final free = await t.create(name: 'Free', periodKinds: [PeriodKind.daily], prompt: 'p');
       await t.delete(free);
@@ -209,7 +225,9 @@ void main() {
             item('  ', ['f2']),
             item('C', []),
           ]),
-          section('Empty', [item('D', ['nope'])]),
+          section('Empty', [
+            item('D', ['nope']),
+          ]),
           {'heading': 'NoItems'},
           'garbage',
         ]),
@@ -244,7 +262,10 @@ void main() {
               {'heading': 'H', 'items': 'not a list'},
               {'heading': 7, 'items': []},
               section('S', [
-                {'text': 42, 'fact_ids': ['f']},
+                {
+                  'text': 42,
+                  'fact_ids': ['f'],
+                },
                 {'text': 'ok', 'fact_ids': 'f'},
                 item('good', ['f']),
               ]),
@@ -256,7 +277,10 @@ void main() {
               {
                 'heading': 'S',
                 'items': [
-                  {'text': 'good', 'fact_ids': ['f']},
+                  {
+                    'text': 'good',
+                    'fact_ids': ['f'],
+                  },
                 ],
               },
             ],
@@ -382,14 +406,20 @@ void main() {
     });
 
     test('generates a validated snapshot citing only gathered facts, with dependencies on fact revisions', () async {
-      llm.responses.add(report([
-        section('Outcomes', [
-          item('Shipped checkout', [f1, fOut, fRetired, 'invented']),
-          item('Made up', ['invented']),
+      llm.responses.add(
+        report([
+          section('Outcomes', [
+            item('Shipped checkout', [f1, fOut, fRetired, 'invented']),
+            item('Made up', ['invented']),
+          ]),
+          section('Time', [
+            item('90 min on payments', [fTime]),
+          ]),
+          section('Noise', [
+            item('Outside', [fOut]),
+          ]),
         ]),
-        section('Time', [item('90 min on payments', [fTime])]),
-        section('Noise', [item('Outside', [fOut])]),
-      ]));
+      );
       final r = await weekReport();
       final done = await run(gen.generate(r.id));
       expect(citedFactIds(done.json), [f1, fTime]);
@@ -418,8 +448,16 @@ void main() {
 
     test('changing a gathered fact makes the snapshot stale; regenerating gives a fresh version + 1', () async {
       llm.responses.addAll([
-        report([section('S', [item('x', [f1])])]),
-        report([section('S', [item('y', [f1])])]),
+        report([
+          section('S', [
+            item('x', [f1]),
+          ]),
+        ]),
+        report([
+          section('S', [
+            item('y', [f1]),
+          ]),
+        ]),
       ]);
       final r = await weekReport();
       final s1 = (await run(gen.generate(r.id))).snapshot!;
@@ -437,7 +475,13 @@ void main() {
     test(
       '#49: a new fact in the period (evidence added for a past day) makes the report out of date',
       () async {
-        llm.responses.add(report([section('S', [item('x', [f1])])]));
+        llm.responses.add(
+          report([
+            section('S', [
+              item('x', [f1]),
+            ]),
+          ]),
+        );
         final r = await weekReport();
         final s = (await run(gen.generate(r.id))).snapshot!;
         // Evidence added for a past day, then extraction (simulated) creates a fact citing it.
@@ -454,7 +498,14 @@ void main() {
       for (var i = 0; i < 40; i++) {
         await seed.fact('Filler fact number $i ${'x' * 80}', '2026-11-19', importance: 0.5);
       }
-      llm.responses.add(report([section('S', [item('top', [f1]), item('low', [f2])])]));
+      llm.responses.add(
+        report([
+          section('S', [
+            item('top', [f1]),
+            item('low', [f2]),
+          ]),
+        ]),
+      );
       gen = makeGen(contextLength: 1100); // ~2640 chars budget minus prompts
       final r = await weekReport();
       final done = await run(gen.generate(r.id));
@@ -466,7 +517,13 @@ void main() {
     });
 
     test('locked report: never regenerated, nothing saved, staleness still shown', () async {
-      llm.responses.add(report([section('S', [item('x', [f1])])]));
+      llm.responses.add(
+        report([
+          section('S', [
+            item('x', [f1]),
+          ]),
+        ]),
+      );
       final r = await weekReport();
       final s1 = (await run(gen.generate(r.id))).snapshot!;
       await engine.lockReport(r.id);
@@ -477,7 +534,13 @@ void main() {
       expect(await engine.staleness.isStale((type: EntityType.reportSnapshot, id: s1.id)), isTrue);
       // Unlock → regenerate works and the old snapshot is kept.
       await engine.unlockReport(r.id);
-      llm.responses.add(report([section('S', [item('y', [f1])])]));
+      llm.responses.add(
+        report([
+          section('S', [
+            item('y', [f1]),
+          ]),
+        ]),
+      );
       final s2 = (await run(gen.generate(r.id))).snapshot!;
       expect(s2.version, 2);
       expect(await snapshots(), hasLength(2));
@@ -485,8 +548,16 @@ void main() {
 
     test('a report locked while generating is not overwritten', () async {
       llm.responses.addAll([
-        report([section('S', [item('x', [f1])])]),
-        report([section('S', [item('y', [f1])])]),
+        report([
+          section('S', [
+            item('x', [f1]),
+          ]),
+        ]),
+        report([
+          section('S', [
+            item('y', [f1]),
+          ]),
+        ]),
       ]);
       final r = await weekReport();
       await run(gen.generate(r.id));
@@ -498,7 +569,13 @@ void main() {
     });
 
     test('preview saves nothing (no report, snapshot or dependency rows)', () async {
-      llm.responses.add(report([section('S', [item('x', [f1])])]));
+      llm.responses.add(
+        report([
+          section('S', [
+            item('x', [f1]),
+          ]),
+        ]),
+      );
       final copy = await TemplateService(db).update('builtin.weekly_review', prompt: 'Preview {period_label}');
       final done = await run(gen.preview(copy, Period.containing(PeriodKind.weekly, '2026-11-18')));
       expect(done.snapshot, isNull);
@@ -537,7 +614,9 @@ void main() {
             item('uncited', <Object?>[]),
             item('bad ids', ['nope', 'missing']),
           ]),
-          section('', [item('no heading', [f2])]),
+          section('', [
+            item('no heading', [f2]),
+          ]),
         ]),
       ];
       final r = await weekReport();
@@ -557,7 +636,13 @@ void main() {
 
     test('scheduled handler: generates for the ended period, leaves locked reports alone', () async {
       final handler = scheduledReportHandler(gen, PeriodKind.weekly, (_) => Duration.zero);
-      llm.responses.add(report([section('S', [item('x', [f1])])]));
+      llm.responses.add(
+        report([
+          section('S', [
+            item('x', [f1]),
+          ]),
+        ]),
+      );
       await handler({'due': DateTime.utc(2026, 11, 23, 9).toIso8601String()});
       final r = (await db.select(db.reports).get()).single;
       expect((r.periodStart, r.periodEnd, r.templateId), ('2026-11-16', '2026-11-22', 'builtin.weekly_review'));

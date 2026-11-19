@@ -112,27 +112,35 @@ class Seed {
     String title = 'title',
   }) async {
     final e = 'ev${++_n}';
-    await db.into(db.evidences).insert(EvidencesCompanion.insert(
-      id: e,
-      occurredStart: DateTime.parse('${day}T10:00:00Z'),
-      day: day,
-      title: title,
-      projectId: Value(project),
-      hidden: Value(hidden),
-      createdAt: now,
-      updatedAt: now,
-    ));
+    await db
+        .into(db.evidences)
+        .insert(
+          EvidencesCompanion.insert(
+            id: e,
+            occurredStart: DateTime.parse('${day}T10:00:00Z'),
+            day: day,
+            title: title,
+            projectId: Value(project),
+            hidden: Value(hidden),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
     final p = 'pl${++_n}';
     final c = canonicalJson(content);
-    await db.into(db.payloads).insert(PayloadsCompanion.insert(
-      id: p,
-      evidenceId: e,
-      sourceId: sourceId,
-      kind: PayloadKind.note,
-      externalId: p,
-      content: c,
-      contentHash: sha256Hex(c),
-    ));
+    await db
+        .into(db.payloads)
+        .insert(
+          PayloadsCompanion.insert(
+            id: p,
+            evidenceId: e,
+            sourceId: sourceId,
+            kind: PayloadKind.note,
+            externalId: p,
+            content: c,
+            contentHash: sha256Hex(c),
+          ),
+        );
     return (evidence: e, payload: p);
   }
 
@@ -151,22 +159,26 @@ class Seed {
     List<String> cites = const [],
   }) async {
     final id = 'fa${++_n}';
-    await db.into(db.facts).insert(FactsCompanion.insert(
-      id: id,
-      type: type,
-      statement: statement,
-      details: Value(jsonEncode(details)),
-      periodStart: start,
-      periodEnd: end ?? start,
-      projectId: Value(project),
-      workstreamId: Value(workstream),
-      importance: Value(importance),
-      origin: origin,
-      winStatus: Value(win),
-      retired: Value(retired),
-      createdAt: now,
-      updatedAt: now,
-    ));
+    await db
+        .into(db.facts)
+        .insert(
+          FactsCompanion.insert(
+            id: id,
+            type: type,
+            statement: statement,
+            details: Value(jsonEncode(details)),
+            periodStart: start,
+            periodEnd: end ?? start,
+            projectId: Value(project),
+            workstreamId: Value(workstream),
+            importance: Value(importance),
+            origin: origin,
+            winStatus: Value(win),
+            retired: Value(retired),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
     for (final p in cites) {
       await db.into(db.citations).insert(CitationsCompanion.insert(factId: id, payloadId: p, payloadRevision: 1));
     }

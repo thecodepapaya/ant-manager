@@ -66,12 +66,16 @@ void main() {
       utcOffset: (_) => Duration.zero,
     );
     // A realistic profile: a source with a credential ref, notes (one with an image), facts, a report.
-    await db.into(db.sources).insert(SourcesCompanion.insert(
-      id: 'gh',
-      kind: SourceKind.github,
-      name: 'GitHub',
-      credentialRef: const Value('github.token'),
-    ));
+    await db
+        .into(db.sources)
+        .insert(
+          SourcesCompanion.insert(
+            id: 'gh',
+            kind: SourceKind.github,
+            name: 'GitHub',
+            credentialRef: const Value('github.token'),
+          ),
+        );
     await db.into(db.identities).insert(IdentitiesCompanion.insert(id: 'i1', kind: 'email', value: 'me@example.com'));
     await TemplateService(db).seedBuiltins();
     await Scheduler(db, engine.jobs, utcOffset: (_) => Duration.zero, clock: clock).seedDefaults();
@@ -84,25 +88,37 @@ void main() {
     final f = await seed.fact('Accepted win', '2026-11-03', win: WinStatus.accepted, cites: [payloadId]);
     await seed.fact('Retired thing', '2026-11-03', retired: true);
     await engine.editFact(f, 'Accepted win, reworded');
-    await db.into(db.reports).insert(ReportsCompanion.insert(
-      id: 'r1',
-      periodKind: PeriodKind.weekly,
-      periodStart: '2026-11-02',
-      periodEnd: '2026-11-08',
-      templateId: 'builtin.weekly_review',
-    ));
+    await db
+        .into(db.reports)
+        .insert(
+          ReportsCompanion.insert(
+            id: 'r1',
+            periodKind: PeriodKind.weekly,
+            periodStart: '2026-11-02',
+            periodEnd: '2026-11-08',
+            templateId: 'builtin.weekly_review',
+          ),
+        );
     for (final v in [1, 2]) {
-      await db.into(db.reportSnapshots).insert(ReportSnapshotsCompanion.insert(
-        id: 'snap$v',
-        reportId: 'r1',
-        version: v,
-        json: '{"sections":[]}',
-        markdown: '# Weekly v$v',
-        modelId: 'm',
-        generatedAt: clock.now(),
-      ));
+      await db
+          .into(db.reportSnapshots)
+          .insert(
+            ReportSnapshotsCompanion.insert(
+              id: 'snap$v',
+              reportId: 'r1',
+              version: v,
+              json: '{"sections":[]}',
+              markdown: '# Weekly v$v',
+              modelId: 'm',
+              generatedAt: clock.now(),
+            ),
+          );
     }
-    await engine.deps.record((type: EntityType.reportSnapshot, id: 'snap2'), 2, [(type: EntityType.fact, id: f, revision: 2)]);
+    await engine.deps.record(
+      (type: EntityType.reportSnapshot, id: 'snap2'),
+      2,
+      [(type: EntityType.fact, id: f, revision: 2)],
+    );
     await db.into(db.settings).insert(SettingsCompanion.insert(key: 'theme', value: 'dark'));
   });
 
@@ -111,8 +127,14 @@ void main() {
     await tmp.delete(recursive: true);
   });
 
-  BackupService service({String name = 'Work', int keep = 14, bool withBlobs = true}) =>
-      BackupService(db, profileName: name, appVersion: '1.2.3', blobs: withBlobs ? blobs : null, keep: keep, clock: clock);
+  BackupService service({String name = 'Work', int keep = 14, bool withBlobs = true}) => BackupService(
+    db,
+    profileName: name,
+    appVersion: '1.2.3',
+    blobs: withBlobs ? blobs : null,
+    keep: keep,
+    clock: clock,
+  );
 
   String dest([String sub = 'backups']) => p.join(tmp.path, sub);
 
@@ -211,7 +233,12 @@ void main() {
   );
 
   group('restore safety', () {
-    Future<String> rewrite(File src, {Map<String, Object?> Function(Map<String, Object?> m)? manifest, bool corruptDb = false, String? extraFile}) async {
+    Future<String> rewrite(
+      File src, {
+      Map<String, Object?> Function(Map<String, Object?> m)? manifest,
+      bool corruptDb = false,
+      String? extraFile,
+    }) async {
       final a = ZipDecoder().decodeBytes(await src.readAsBytes());
       final out = Archive();
       for (final f in a.files) {
@@ -259,10 +286,7 @@ void main() {
       final path = p.join(tmp.path, 'other.zip');
       await File(path).writeAsBytes(ZipEncoder().encodeBytes(Archive()..addFile(ArchiveFile.string('x.txt', 'hi'))));
       await expectLater(BackupService.inspect(path), throwsA(isA<BackupException>()));
-      await expectLater(
-        BackupService.restore(path, target, currentSchemaVersion: 1),
-        throwsA(isA<BackupException>()),
-      );
+      await expectLater(BackupService.restore(path, target, currentSchemaVersion: 1), throwsA(isA<BackupException>()));
     });
 
     test('an existing target is only replaced with overwrite', () async {
@@ -279,8 +303,12 @@ void main() {
     test('attachment paths escaping the target folder are refused', () async {
       final evil = await rewrite(backup, extraFile: 'attachments/../../escaped.txt');
       await expectLater(
-        BackupService.restore(evil, target,
-            currentSchemaVersion: db.schemaVersion, attachmentsDir: p.join(tmp.path, 'r', 'blobs')),
+        BackupService.restore(
+          evil,
+          target,
+          currentSchemaVersion: db.schemaVersion,
+          attachmentsDir: p.join(tmp.path, 'r', 'blobs'),
+        ),
         throwsA(isA<BackupException>()),
       );
       expect(File(p.join(tmp.path, 'escaped.txt')).existsSync(), isFalse);

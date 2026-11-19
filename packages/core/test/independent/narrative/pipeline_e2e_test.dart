@@ -257,35 +257,29 @@ void main() {
     );
   });
 
-  test(
-    'accepting a time-fact proposal applies its minutes (no endless review loop)',
-    () async {
-      await ingestDay();
-      await engine.recompute.drain();
-      final t = (await h.timeFacts()).firstWhere((f) => f.details.contains('measured'));
-      await engine.confirmFact(t.id);
-      await engine.ingestor.ingest(H.cal, [
-        PayloadObservation(
-          externalId: 'm2',
-          kind: PayloadKind.calendarEvent,
-          content: {'title': 'Sync', 'start': at(16).toIso8601String(), 'end': at(16, 30).toIso8601String()},
-          occurredStart: at(16),
-          occurredEnd: at(16, 30),
-          title: 'Sync',
-        ),
-      ]);
-      await engine.recompute.drain();
-      expect((await h.fact(t.id)).reviewState, ReviewState.needsReview);
-      await engine.resolveReview(t.id, accept: true);
-      await engine.recompute.drain();
-      await h.ctx.enqueue(EntityType.day, day, 'manual');
-      await engine.recompute.drain();
-      final f = await h.fact(t.id);
-      expect((jsonDecode(f.details) as Map)['minutes'], 90);
-      expect(f.reviewState, ReviewState.ok);
-    },
-    skip:
-        'BUG: engine.dart resolveReview applies only statement/retire from a proposal, not details or '
-        'citations, so an accepted time proposal keeps the old minutes and TimeAllocator re-proposes forever',
-  );
+  test('accepting a time-fact proposal applies its minutes (no endless review loop)', () async {
+    await ingestDay();
+    await engine.recompute.drain();
+    final t = (await h.timeFacts()).firstWhere((f) => f.details.contains('measured'));
+    await engine.confirmFact(t.id);
+    await engine.ingestor.ingest(H.cal, [
+      PayloadObservation(
+        externalId: 'm2',
+        kind: PayloadKind.calendarEvent,
+        content: {'title': 'Sync', 'start': at(16).toIso8601String(), 'end': at(16, 30).toIso8601String()},
+        occurredStart: at(16),
+        occurredEnd: at(16, 30),
+        title: 'Sync',
+      ),
+    ]);
+    await engine.recompute.drain();
+    expect((await h.fact(t.id)).reviewState, ReviewState.needsReview);
+    await engine.resolveReview(t.id, accept: true);
+    await engine.recompute.drain();
+    await h.ctx.enqueue(EntityType.day, day, 'manual');
+    await engine.recompute.drain();
+    final f = await h.fact(t.id);
+    expect((jsonDecode(f.details) as Map)['minutes'], 90);
+    expect(f.reviewState, ReviewState.ok);
+  });
 }

@@ -1,4 +1,3 @@
-
 import 'package:core/core.dart';
 import 'package:core/src/narrative/enrichment.dart';
 import 'package:core/src/staleness/staleness.dart';
