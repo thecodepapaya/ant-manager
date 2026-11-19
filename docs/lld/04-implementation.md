@@ -1,6 +1,7 @@
 # LLD 04 — Implementation (key algorithms)
 
-Step 4 of the low-level design. **Status: agreed (2026-11-18)** after owner review (#88–#92). Every choice follows DECISIONS #67 (simple over complete). Choices that go beyond agreed decisions are
+Step 4 of the low-level design. **Status: agreed (2026-11-18)** after owner review (#88–#92); implemented, with
+later choices folded in (#100–#108). Every choice follows DECISIONS #67 (simple over complete). Choices that go beyond agreed decisions are
 tagged ; open points are at the end. Builds on [02-entities.md](./02-entities.md) and
 [03-class-design.md](./03-class-design.md).
 
@@ -30,7 +31,7 @@ ingest(source, observations):            # one SQLite transaction per batch
     else if sha256(canonicalJson(o.content)) != p.contentHash:
       update content/hash; p.revision += 1; append PayloadRevision(cause: sync)
     # else: identical → no write, nothing goes stale (invariant 2)
-  advance SyncCursor only after the transaction commits
+  cursors staged by the batch are written in the same transaction (#102), so a failed sync keeps earlier batches
 ```
 
 - **Canonical JSON** (sorted keys, no volatile fields such as `fetched_at`) makes hashes stable, so re-syncs are no-ops.
@@ -103,6 +104,10 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
   connected GitHub/GHES/GitLab source, that source covers the repo; otherwise the UI offers to connect that host.
 - **Initial import:** the last **30 days** when a source is added .
 - **Polling intervals** are constants in v1, not settings .
+- **Sync service (#102):** a source is due 15 min after its last success (ICS 60 min), watched sources included as a
+  backstop; at most one pending sync job per source. Status (`lastSuccessAt`, `lastError`) lives on the source's
+  `''`-scope SyncCursor row. Removing a source only disables it (evidence, cursors, secret kept); editing its config
+  keeps its cursors.
 
 ## 4.4 Importance scoring
 
@@ -150,6 +155,11 @@ left is listed as one line per item):
    `review_state = needs_review` with the proposal attached for the user to accept or dismiss (invariant 7).
 5. Record Dependency rows (fact ← cited payload revisions; the day ← all its input payload revisions).
 
+**Also (#100):** a day is re-extracted only when its input fingerprint changes (dependency revisions + a curation hash
+in Settings); an **accepted win is protected** like a user-touched fact; facts whose citations are all gone are
+retired (or proposed for retirement if protected). **Accepting a proposal** applies statement/details/retire and
+re-pins citations to the proposal's payloads at current revisions (#103).
+
 ## 4.7 Time allocation (deterministic: no model) 
 
 Time facts are computed in code, so they're reproducible and defensible:
@@ -157,15 +167,17 @@ Time facts are computed in code, so they're reproducible and defensible:
 - **Estimated:** commit activity sessions: consecutive commits by you less than 90 min apart form a session; a session
   counts from 30 min before its first commit to its last commit; summed per project per day, excluding time already
   measured by meetings.
-- Output: one `Time allocation` fact per project per day, `details = {minutes, basis: measured|estimated}`, citing the
-  payloads used. Weekly and longer periods sum these.
+- Output: up to **two** `Time allocation` facts per project per day, one per basis (#100), `details = {minutes, basis:
+  measured|estimated}`, citing the payloads used. Weekly and longer periods sum these.
+- *Known gaps:* sessions are formed per project (not across projects), and every commit payload counts (no "by you"
+  filter beyond what the git source captured).
 
 ## 4.8 Workstream assignment
 
 After a day's extraction, new facts without a workstream go to the Extraction route with the active workstreams
 (last 30 days: id, title, summary). Structured output: per fact, an existing workstream id **or** a new title. Users can
-rename, merge or move facts between workstreams (user changes are never overwritten). Workstream span and summary update
-from their facts.
+rename, merge or move facts between workstreams (user changes are never overwritten). The span updates from their
+facts; the summary is set when the workstream is created and *not refreshed yet* (known gap).
 
 ## 4.9 Report generation
 
@@ -176,12 +188,19 @@ from their facts.
    `{ "sections": [{ "heading": "…", "items": [{ "text": "…", "fact_ids": ["…"] }] }] }`, guided by the template
    prompt + optional style instruction.
 4. **Validate:** every `fact_ids` entry must be in the gathered set; items with none are dropped (no uncited claims, N9).
-5. **Render** to Markdown deterministically (citation markers from fact ids), store a ReportSnapshot (JSON + Markdown)
+5. **Render** to Markdown deterministically (`# <title>`, `## <heading>`, `- <text> [^f1][^f2]`; markers numbered by
+   first appearance, then footnotes `[^fN]: <fact statement> (fact:<id>)` that the UI links, #108), store a ReportSnapshot (JSON + Markdown)
    and Dependency rows (snapshot ← fact revisions). The snapshot's fact inputs are **all** live facts in the period
    (`get_facts` has no limit), so that set is its period fingerprint: the snapshot is stale when a recorded input
    changed (transitively, invariant 5) **or** a live fact in the period isn't among its inputs, e.g. evidence added
    for a past day (#104).
-6. **When:** on schedule, when opened if stale, or on demand. **Locked** reports skip steps 1–6 and only show staleness.
+6. **When:** on schedule (job kinds `report:daily|weekly|monthly|quarterly`, LLM lane, args `{schedule_id, due}`; daily
+   covers its own day, longer kinds the period that just ended; the kind's default built-in template), or on demand (an
+   engine command, not a job). Opening a stale report shows "Out of date"; it isn't regenerated automatically yet.
+   **Locked** reports skip steps 1–6 and only show staleness.
+7. **Templates (#86, #108):** built-ins ship in code (`builtin.<name>`) and are re-seeded on launch; editing one
+   duplicates it. A copy of a built-in gets the id `<builtinId>/<ulid>`, so reset-to-default finds its origin without a
+   schema column. Templates used by reports can't be deleted.
 
 ## 4.10 Wins
 
@@ -198,7 +217,8 @@ from their facts.
   so a local model isn't swamped). A job leased but not finished when the app dies is re-queued when `lease_until` passes.
 - **Retries:** exponential backoff (1 min, 5 min, 30 min), then `failed` and shown in Settings .
 - **Scheduler:** per profile, a list of `{kind, rule}` (daily 18:00 weekdays, weekly Mon 09:00, monthly 1st 09:00,
-  quarterly first day 09:00, backup 02:00). On launch and every minute: for each schedule, if its latest due time is
+  quarterly first day 09:00, backup 02:00, nudge weekdays 18:05, #105). Editing a schedule sets `lastRunAt = now`, so it
+  never fires a missed run. On launch and every minute: for each schedule, if its latest due time is
   after its last run → enqueue once (catch up once, #79).
 
 ## 4.12 Delete permanently (#85)
@@ -212,6 +232,15 @@ One transaction, user command only:
    text until unlocked; the UI warns that locked reports and existing backups may still contain the deleted content.
 
 No undo. A confirmation dialog states exactly what will be removed.
+
+## 4.13 Backup & readable export (#105, #108)
+
+- `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
+  `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105).
+- **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
+  `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
+  `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no
+  content), `notes.md`. Source configs and credential refs are left out.
 
 ## Review outcome
 
