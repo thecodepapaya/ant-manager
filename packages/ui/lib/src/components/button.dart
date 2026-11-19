@@ -139,11 +139,7 @@ _Colors _colors(AntTokens t, AntButtonVariant v, AntInteraction s) {
       return _Colors(bg, t.onAccent, bg);
     case AntButtonVariant.secondary:
       return _Colors(
-        s.pressed
-            ? t.active
-            : s.hovered
-            ? t.hover
-            : t.surface2,
+        s.pressed || s.hovered ? t.active : t.raised,
         t.text,
         s.hovered ? t.borderStronger : t.borderStrong,
       );

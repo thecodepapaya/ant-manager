@@ -17,6 +17,17 @@ enum AntTone { neutral, ok, warn, err, info, accent }
       AntTone.accent => (bg: t.accent, fg: t.onAccent),
     };
 
+/// Chip border for [tone] (mockup: neutral uses `--border-subtle`, tints
+/// use their hue at 30%).
+Color antToneBorder(AntTokens t, AntTone tone) => switch (tone) {
+  AntTone.neutral => t.borderSubtle,
+  AntTone.ok => t.success.withValues(alpha: 0.3),
+  AntTone.warn => t.accent.withValues(alpha: 0.3),
+  AntTone.err => t.danger.withValues(alpha: 0.3),
+  AntTone.info => t.info.withValues(alpha: 0.3),
+  AntTone.accent => t.accent,
+};
+
 /// Small status label: "Synced", "Stale", "Failed"...
 class AntChip extends StatelessWidget {
   const AntChip({
@@ -35,11 +46,13 @@ class AntChip extends StatelessWidget {
     final t = context.tokens;
     final c = antToneColors(t, tone);
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: t.space.sm,
-        vertical: t.space.xxs,
+      height: t.density.chipHeight,
+      padding: EdgeInsets.symmetric(horizontal: t.space.md),
+      decoration: BoxDecoration(
+        color: c.bg,
+        borderRadius: t.radii.brSm,
+        border: Border.all(color: antToneBorder(t, tone), width: t.stroke.hairline),
       ),
-      decoration: BoxDecoration(color: c.bg, borderRadius: t.radii.brSm),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -47,7 +60,7 @@ class AntChip extends StatelessWidget {
             Icon(icon, size: t.icon.xs, color: c.fg),
             SizedBox(width: t.space.xs),
           ],
-          Text(label, style: t.typo.label.copyWith(color: c.fg)),
+          Text(label, style: t.typo.chip.copyWith(color: c.fg)),
         ],
       ),
     );
@@ -147,10 +160,14 @@ class AntCitationChip extends StatelessWidget {
     required this.label,
     this.onPressed,
     this.tooltip,
+    this.highlighted = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
+
+  /// Drawn in the accent (e.g. while its evidence is highlighted).
+  final bool highlighted;
 
   /// Longer description of the source (title, date).
   final String? tooltip;
@@ -169,15 +186,19 @@ class AntCitationChip extends StatelessWidget {
         borderRadius: radius,
         child: AnimatedContainer(
           duration: t.motion.fast,
-          padding: EdgeInsets.symmetric(horizontal: t.space.xs),
+          padding: EdgeInsets.symmetric(horizontal: t.space.sm, vertical: t.space.xxs),
           decoration: BoxDecoration(
-            color: s.hovered ? t.accentSoft : t.chipBg,
+            color: highlighted ? t.accentSoft : t.chipBg,
             borderRadius: radius,
+            border: Border.all(
+              color: s.hovered || highlighted ? t.accent : t.borderStrong,
+              width: t.stroke.hairline,
+            ),
           ),
           child: Text(
             label,
-            style: t.typo.monoSmall.copyWith(
-              color: s.hovered ? t.accentTextHover : t.accentText,
+            style: t.typo.kbd.copyWith(
+              color: s.hovered || highlighted ? t.accentText : t.text3,
             ),
           ),
         ),

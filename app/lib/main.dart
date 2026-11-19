@@ -31,7 +31,10 @@ Future<void> main() async {
     calendar: MacCalendarBridge.supported ? MacCalendarBridge() : null,
   );
   final config = EngineConfig(
-    dataDir: p.join(support.path, 'ant_manager'),
+    // `--dart-define=ANT_DATA_DIR=…` points a dev run at a scratch data folder.
+    dataDir: const String.fromEnvironment('ANT_DATA_DIR').isNotEmpty
+        ? const String.fromEnvironment('ANT_DATA_DIR')
+        : p.join(support.path, 'ant_manager'),
     timeZone: systemTimeZoneName(),
     calendarAvailable: MacCalendarBridge.supported,
   );

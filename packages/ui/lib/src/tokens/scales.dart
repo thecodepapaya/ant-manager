@@ -103,6 +103,11 @@ class AntDensity {
     required this.toastWidth,
     required this.emptyStateMaxWidth,
     required this.tooltipMaxWidth,
+    required this.sidebarWidth,
+    required this.chipHeight,
+    required this.topbarHeight,
+    required this.contentMaxWidth,
+    required this.columnMinWidth,
   });
 
   const AntDensity.compact()
@@ -110,7 +115,7 @@ class AntDensity {
       controlMd = 28,
       controlLg = 32,
       rowHeight = 32,
-      sidebarItemHeight = 28,
+      sidebarItemHeight = 32,
       switchWidth = 28,
       switchHeight = 16,
       checkboxSize = 14,
@@ -118,7 +123,12 @@ class AntDensity {
       menuMinWidth = 180,
       toastWidth = 340,
       emptyStateMaxWidth = 360,
-      tooltipMaxWidth = 280;
+      tooltipMaxWidth = 280,
+      sidebarWidth = 224,
+      chipHeight = 22,
+      topbarHeight = 52,
+      contentMaxWidth = 980,
+      columnMinWidth = 300;
 
   const AntDensity.comfortable()
     : controlSm = 28,
@@ -133,7 +143,12 @@ class AntDensity {
       menuMinWidth = 200,
       toastWidth = 360,
       emptyStateMaxWidth = 400,
-      tooltipMaxWidth = 300;
+      tooltipMaxWidth = 300,
+      sidebarWidth = 240,
+      chipHeight = 24,
+      topbarHeight = 56,
+      contentMaxWidth = 1040,
+      columnMinWidth = 320;
 
   final double controlSm;
   final double controlMd;
@@ -148,6 +163,21 @@ class AntDensity {
   final double toastWidth;
   final double emptyStateMaxWidth;
   final double tooltipMaxWidth;
+
+  /// App sidebar width (mockup `.side`).
+  final double sidebarWidth;
+
+  /// Chip / citation height (mockup `.chip`).
+  final double chipHeight;
+
+  /// Page top bar minimum height (mockup `.topbar`).
+  final double topbarHeight;
+
+  /// Max width of single-column page content.
+  final double contentMaxWidth;
+
+  /// Minimum width of a side column / panel before layouts stack.
+  final double columnMinWidth;
 
   static AntDensity lerp(AntDensity a, AntDensity b, double t) {
     double l(double x, double y) => lerpDouble(x, y, t)!;
@@ -165,6 +195,11 @@ class AntDensity {
       toastWidth: l(a.toastWidth, b.toastWidth),
       emptyStateMaxWidth: l(a.emptyStateMaxWidth, b.emptyStateMaxWidth),
       tooltipMaxWidth: l(a.tooltipMaxWidth, b.tooltipMaxWidth),
+      sidebarWidth: l(a.sidebarWidth, b.sidebarWidth),
+      chipHeight: l(a.chipHeight, b.chipHeight),
+      topbarHeight: l(a.topbarHeight, b.topbarHeight),
+      contentMaxWidth: l(a.contentMaxWidth, b.contentMaxWidth),
+      columnMinWidth: l(a.columnMinWidth, b.columnMinWidth),
     );
   }
 }
@@ -255,6 +290,8 @@ class AntType {
     required this.mono,
     required this.monoSmall,
     required this.kbd,
+    required this.chip,
+    required this.prose,
   });
 
   /// Builds the scale in [color].
@@ -296,6 +333,8 @@ class AntType {
       mono: mono(12, FontWeight.w400),
       monoSmall: mono(11, FontWeight.w500),
       kbd: mono(10.5, FontWeight.w500),
+      chip: sans(11.5, FontWeight.w400, 1.35),
+      prose: sans(13.5, FontWeight.w400, 1.6),
     );
   }
 
@@ -312,6 +351,12 @@ class AntType {
   final TextStyle monoSmall;
   final TextStyle kbd;
 
+  /// Chips and compact meta (mockup `.chip`, 11.5px).
+  final TextStyle chip;
+
+  /// Report and long-form reading text (mockup `.prose`).
+  final TextStyle prose;
+
   static AntType lerp(AntType a, AntType b, double t) {
     TextStyle l(TextStyle x, TextStyle y) => TextStyle.lerp(x, y, t)!;
     return AntType(
@@ -327,6 +372,8 @@ class AntType {
       mono: l(a.mono, b.mono),
       monoSmall: l(a.monoSmall, b.monoSmall),
       kbd: l(a.kbd, b.kbd),
+      chip: l(a.chip, b.chip),
+      prose: l(a.prose, b.prose),
     );
   }
 }

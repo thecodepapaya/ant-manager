@@ -161,11 +161,7 @@ class AntSidebarItem extends StatelessWidget {
               child: Row(
                 children: [
                   if (icon != null) ...[
-                    Icon(
-                      icon,
-                      size: t.icon.md,
-                      color: selected ? t.accentText : t.muted,
-                    ),
+                    Icon(icon, size: t.icon.md, color: fg),
                     SizedBox(width: t.space.md),
                   ],
                   Expanded(
@@ -173,8 +169,7 @@ class AntSidebarItem extends StatelessWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: (selected ? t.typo.bodyStrong : t.typo.body)
-                          .copyWith(color: fg),
+                      style: t.typo.body.copyWith(color: fg),
                     ),
                   ),
                   if (trailing != null) ...[

@@ -31,9 +31,9 @@ export 'src/narrative/pipeline.dart' show registerNarrativePipeline, NarrativePi
 export 'src/narrative/wins.dart' show WinService;
 export 'src/ports/ports.dart';
 export 'src/reports/generator.dart';
-export 'src/reports/periods.dart' show Period;
+export 'src/reports/periods.dart' show Period, parseDay, formatDay;
 export 'src/reports/scheduled.dart';
-export 'src/reports/templates.dart' show TemplateService, BuiltinTemplate;
+export 'src/reports/templates.dart' show TemplateService, BuiltinTemplate, defaultTemplateFor;
 export 'src/staleness/staleness.dart' show EntityRef, InputRef, StalenessService;
 export 'src/tools/builtin/register.dart' show registerBuiltinTools;
 export 'src/tools/tool.dart';
