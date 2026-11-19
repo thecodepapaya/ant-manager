@@ -14,6 +14,7 @@ import '../../platform/time_zone.dart';
 import '../../state/providers.dart';
 import '../sources/git_setup.dart' show tildePath;
 import '../sources/sources_page.dart' show ago;
+import '../../widgets/common.dart' show shortDayLabel;
 import 'kit.dart';
 import 'schedule_tab.dart';
 import 'setup_providers.dart';
@@ -208,8 +209,8 @@ class _RestorePreview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           kv('Profile', m.profile),
-          kv('Backed up', '${profileDayOf(m.createdAt)} ${hhmm(created.hour, created.minute)}'),
-          kv('Covers', m.firstDay == null ? 'No evidence' : '${m.firstDay} → ${m.lastDay}'),
+          kv('Backed up', '${shortDayLabel(profileDayOf(m.createdAt))}, ${hhmm(created.hour, created.minute)}'),
+          kv('Covers', m.firstDay == null ? 'No evidence' : '${shortDayLabel(m.firstDay!)} – ${shortDayLabel(m.lastDay ?? m.firstDay!)}'),
           kv('Contains', '${n('evidences')} evidence · ${n('facts')} facts · ${n('reports')} reports'),
           kv('App version', m.appVersion),
           Gap(t.space.lg),

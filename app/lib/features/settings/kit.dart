@@ -81,15 +81,16 @@ class PageTopBar extends StatelessWidget {
       child: Row(
         children: [
           Text(title, style: t.typo.title.copyWith(color: t.text)),
+          // Tabs right after the title (as on Narrative and Reports), then the muted subtitle.
+          if (center != null) ...[SizedBox(width: t.space.lg), center!],
           if (subtitle != null) ...[
             SizedBox(width: t.space.lg),
-            Flexible(
+            Expanded(
               child: Text(subtitle!,
                   maxLines: 1, overflow: TextOverflow.ellipsis, style: t.typo.small.copyWith(color: t.muted)),
             ),
-          ],
-          if (center != null) ...[SizedBox(width: t.space.lg), center!],
-          const Spacer(),
+          ] else
+            const Spacer(),
           for (var i = 0; i < actions.length; i++) ...[
             if (i > 0) SizedBox(width: t.space.md),
             actions[i],

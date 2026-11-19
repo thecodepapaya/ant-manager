@@ -229,14 +229,7 @@ class _ProfileSwitcher extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: t.radii.brMd,
-                child: Image.asset(
-                  'assets/brand/logo.png',
-                  width: t.icon.xl,
-                  height: t.icon.xl,
-                ),
-              ),
+              const BrandMark(),
               SizedBox(width: t.space.md),
               Expanded(
                 child: Column(

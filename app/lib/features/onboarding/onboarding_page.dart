@@ -11,6 +11,7 @@ import 'package:ui/ui.dart';
 import '../../engine/setup_commands.dart';
 import '../../shell/shell_state.dart';
 import '../../state/providers.dart';
+import '../../widgets/common.dart' show BrandMark;
 import '../settings/ai_models_tab.dart';
 import '../settings/kit.dart';
 import '../settings/provider_dialog.dart';
@@ -140,44 +141,49 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           children: [
             _Rail(step: _step, reached: _maxReached, onPick: _go, onSkipAll: _finish),
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: t.space.huge, vertical: t.space.giant + t.space.md),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: t.density.dialogWidth * 1.4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ..._body(context),
-                        Gap(t.space.huge),
-                        Row(children: [
-                          if (_step != _Step.profile)
-                            AntButton.ghost(
-                              label: 'Back',
-                              size: AntSize.lg,
-                              onPressed: () => _go(_Step.values[_step.index - 1]),
-                            ),
-                          const Spacer(),
-                          if (_step != _Step.profile && _step != _Step.import) ...[
-                            AntButton.ghost(label: 'Skip', size: AntSize.lg, onPressed: _busy ? null : () => _next(skip: true)),
-                            SizedBox(width: t.space.md),
-                          ],
-                          AntButton.primary(
-                            size: AntSize.lg,
-                            label: _busy
-                                ? 'Saving…'
-                                : switch (_step) {
-                                    _Step.profile => 'Get started',
-                                    _Step.import => 'Open Today',
-                                    _ => 'Continue',
-                                  },
-                            onPressed: _busy ? null : _next,
-                          ),
-                        ]),
-                      ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(t.space.huge, t.space.giant + t.space.md, t.space.huge, t.space.huge),
+                      child: _column(context, _body(context)),
                     ),
                   ),
-                ),
+                  // Pinned so Continue / Skip stay in reach when a step's list is long.
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: t.space.huge, vertical: t.space.xl),
+                    decoration: BoxDecoration(
+                      border: Border(top: BorderSide(color: t.divider, width: t.stroke.hairline)),
+                    ),
+                    child: _column(context, [
+                      Row(children: [
+                        if (_step != _Step.profile)
+                          AntButton.ghost(
+                            label: 'Back',
+                            size: AntSize.lg,
+                            onPressed: () => _go(_Step.values[_step.index - 1]),
+                          ),
+                        const Spacer(),
+                        if (_step != _Step.profile && _step != _Step.import) ...[
+                          AntButton.ghost(label: 'Skip', size: AntSize.lg, onPressed: _busy ? null : () => _next(skip: true)),
+                          SizedBox(width: t.space.md),
+                        ],
+                        AntButton.primary(
+                          size: AntSize.lg,
+                          label: _busy
+                              ? 'Saving…'
+                              : switch (_step) {
+                                  _Step.profile => 'Get started',
+                                  _Step.import => 'Open Today',
+                                  _ => 'Continue',
+                                },
+                          onPressed: _busy ? null : _next,
+                        ),
+                      ]),
+                    ]),
+                  ),
+                ],
               ),
             ),
           ],
@@ -185,6 +191,14 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       }),
     );
   }
+
+  /// The centred content column shared by the step body and the pinned footer.
+  Widget _column(BuildContext context, List<Widget> children) => Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.tokens.density.dialogWidth * 1.4),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+        ),
+      );
 
   Widget _heading(BuildContext context, String title, String sub) {
     final t = context.tokens;
@@ -318,7 +332,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         ];
       case _Step.import:
         return [
-          _heading(context, 'You’re set.', 'Importing the last 30 days so your timeline isn’t empty.'),
+          _heading(
+            context,
+            'You’re set.',
+            (ref.watch(sourcesProvider).value ?? const <SourceStatus>[]).any((s) => isConnector(s.row.kind) && s.row.enabled)
+                ? 'Importing the last 30 days so your timeline isn’t empty.'
+                : 'Start with a note about today. Sources can be connected any time.',
+          ),
           const _ImportProgress(),
           Gap(t.space.lg),
           Callout(
@@ -365,13 +385,7 @@ class _Rail extends StatelessWidget {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: t.space.md + t.space.xxs),
             child: Row(children: [
-              Container(
-                width: t.density.controlMd,
-                height: t.density.controlMd,
-                decoration: BoxDecoration(color: t.text, borderRadius: t.radii.brMd),
-                padding: EdgeInsets.all(t.space.sm),
-                child: Image.asset('assets/tray/tray_icon.png', color: t.bg),
-              ),
+              const BrandMark(),
               SizedBox(width: t.space.md + t.space.xxs),
               Text('Ant Manager', style: t.typo.bodyStrong.copyWith(color: t.text, fontWeight: FontWeight.w600)),
             ]),

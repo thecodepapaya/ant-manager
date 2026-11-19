@@ -47,8 +47,12 @@ class FactTile extends ConsumerWidget {
     this.showDay = false,
     this.menu = const [],
     this.highlightedEvidence = const {},
+    this.flush = false,
   });
   final FactItem item;
+
+  /// No inset and actions always shown (inside a dialog, aligned with its title).
+  final bool flush;
   final void Function(CitationRef c)? onCitation;
   final bool showDay;
 
@@ -69,19 +73,19 @@ class FactTile extends ConsumerWidget {
     return Hover(
       builder: (context, hovered) => AnimatedContainer(
         duration: t.motion.fast,
-        padding: EdgeInsets.symmetric(horizontal: t.space.md, vertical: t.space.md),
+        padding: EdgeInsets.symmetric(horizontal: flush ? 0 : t.space.md, vertical: t.space.md),
         decoration: BoxDecoration(
-          color: hovered ? t.hover : t.hover.withValues(alpha: 0),
+          color: hovered && !flush ? t.hover : t.hover.withValues(alpha: 0),
           borderRadius: t.radii.brLg,
         ),
-        child: Row(
+        // Actions sit on the chip row so the statement and citations use the full width.
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
                     spacing: t.space.sm,
                     runSpacing: t.space.xs,
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -97,21 +101,25 @@ class FactTile extends ConsumerWidget {
                       if (showDay) Muted('· $day', style: t.typo.caption),
                     ],
                   ),
-                  SizedBox(height: t.space.sm),
-                  Text(f.statement, style: t.typo.body.copyWith(color: t.text2)),
-                  if (item.citations.isNotEmpty) ...[
-                    SizedBox(height: t.space.sm),
-                    CitationChips(item.citations, onCitation: onCitation, highlighted: highlightedEvidence),
-                  ],
-                ],
-              ),
+                ),
+                SizedBox(width: t.space.sm),
+                // Always laid out (only faded in on hover) so the statement never shifts.
+                IgnorePointer(
+                  ignoring: !hovered && !flush,
+                  child: AnimatedOpacity(
+                    duration: t.motion.fast,
+                    opacity: hovered || flush ? 1 : 0,
+                    child: FactActions(f: f, menu: menu),
+                  ),
+                ),
+              ],
             ),
-            SizedBox(width: t.space.sm),
-            AnimatedOpacity(
-              duration: t.motion.fast,
-              opacity: hovered ? 1 : 0,
-              child: FactActions(f: f, menu: menu),
-            ),
+            SizedBox(height: t.space.sm),
+            Text(f.statement, style: t.typo.body.copyWith(color: t.text2)),
+            if (item.citations.isNotEmpty) ...[
+              SizedBox(height: t.space.sm),
+              CitationChips(item.citations, onCitation: onCitation, highlighted: highlightedEvidence),
+            ],
           ],
         ),
       ),

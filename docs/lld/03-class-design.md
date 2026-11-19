@@ -232,4 +232,4 @@ Not designed up front; built under #67 and recorded as decisions. Layout: [app/R
 - **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105). New
   `AntEngine` commands cover projects/workstreams and starring via `WinService` (#107).
 - **ui tokens:** density/type tokens for sidebar, top bar, chips and prose (#107); `packages/ui/tool/check_tokens.dart`
-  enforces no literals.
+  enforces no literals. Visual-fidelity pass against the mockup, both themes, 1280–1920 wide (#112).

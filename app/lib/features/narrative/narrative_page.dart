@@ -7,6 +7,7 @@ import 'package:ui/ui.dart';
 
 import '../../engine/commands.dart';
 import '../../state/data.dart';
+import '../../state/providers.dart';
 import '../../widgets/common.dart';
 import '../../widgets/fact_tile.dart';
 
@@ -129,6 +130,15 @@ class _FactsBrowserState extends ConsumerState<_FactsBrowser> {
     final days = <String, List<FactItem>>{};
     for (final f in facts.value ?? const <FactItem>[]) {
       days.putIfAbsent(f.f.periodStart, () => []).add(f);
+    }
+    // No facts at all yet (new profile): no filters, just what this page will hold.
+    if (ref.watch(countProvider(Counter.facts)).value == 0) {
+      return const PageEmpty(AntEmptyState(
+        icon: Icons.article_outlined,
+        title: 'Your narrative starts here',
+        message: 'As your work comes in, Ant Manager writes short facts about it: outcomes, problems solved, '
+            'decisions. Confirm or correct them here; every report is written from them.',
+      ));
     }
     return _Body(children: [
       Wrap(

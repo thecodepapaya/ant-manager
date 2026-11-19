@@ -50,13 +50,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         ),
         Expanded(
           child: reports.hasValue && list.isEmpty
-              ? AntEmptyState(
+              ? PageEmpty(AntEmptyState(
                   icon: Icons.fact_check_outlined,
                   title: 'No ${periodKindLabel(_kind).toLowerCase()} reports yet',
                   message: 'Reports are written from your facts and can’t be edited: to change one, correct a fact '
                       'or add a note, then regenerate. Scheduled reports appear here on their own.',
                   action: AntButton.primary(label: 'Create a report', onPressed: () => _create(context)),
-                )
+                ))
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -195,7 +195,11 @@ class _ReportDetail extends ConsumerWidget {
                   ],
                 ),
                 SizedBox(height: t.space.xs),
-                Muted('${item.template?.name ?? r.templateId} · ${item.period.start} to ${item.period.end}'),
+                Muted([
+                  item.template?.name ?? r.templateId,
+                  if (item.period.start != item.period.end)
+                    '${shortDayLabel(item.period.start)} – ${shortDayLabel(item.period.end)}',
+                ].join(' · ')),
                 SizedBox(height: t.space.lg),
                 Wrap(
                   spacing: t.space.sm,
