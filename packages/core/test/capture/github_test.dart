@@ -45,6 +45,7 @@ void main() {
     lastQuery = null;
     api = await FakeApi.start({
       '/user': (_) => ok(user('me')),
+      '/issues': (_) => ok([]),
       '/search/issues': (req) {
         lastQuery = req.uri.queryParameters['q'];
         return ok({

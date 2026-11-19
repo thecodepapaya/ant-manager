@@ -21,6 +21,7 @@ class Gh {
       final path = h.uri.path;
       if (fail[path] != null) return fail[path];
       if (path == '/user') return const Res({'login': 'Me'});
+      if (path == '/issues') return const Res([]);
       if (path == '/search/issues') {
         final q = h.uri.queryParameters['q']!;
         return Res({'items': q.contains('reviewed-by:') ? reviewedBy : involves});

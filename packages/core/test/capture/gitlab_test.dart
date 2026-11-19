@@ -39,6 +39,8 @@ void main() {
     limited = false;
     api = await FakeApi.start({
       '/api/v4/user': (_) => ok(u('me')),
+      '/api/v4/issues': (_) => ok([]),
+      '/api/v4/events': (_) => ok([]),
       '/api/v4/merge_requests': (req) {
         final q = req.uri.queryParameters;
         queries.add(q);
