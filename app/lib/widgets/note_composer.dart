@@ -8,6 +8,7 @@ import 'package:ui/ui.dart';
 
 import '../engine/commands.dart';
 import '../platform/rich_clipboard.dart';
+import '../platform/time_zone.dart';
 import '../state/providers.dart';
 import 'common.dart';
 
@@ -83,8 +84,8 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
   DateTime _at() {
     final day = widget.day;
     if (day == null || day == todayDay()) return DateTime.now();
-    final d = parseDay(day);
-    return DateTime(d.year, d.month, d.day, 12); // local noon of a past/future day
+    final noon = parseDay(day).add(const Duration(hours: 12)); // noon of a past/future day, profile zone
+    return noon.subtract(profileUtcOffset(noon));
   }
 
   Future<void> _save() async {

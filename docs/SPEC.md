@@ -62,8 +62,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 - Each profile holds several **identities** (emails, GitHub/GitLab usernames, Jira/Linear accounts).
   These are suggested automatically from scanned repos and connected accounts and decide which evidence is "mine".
 - Each profile has **one time zone** (defaults to the system's) that defines day boundaries for evidence, facts and
-  reports (#87). Day boundaries use a per-instant offset (DST-correct); v1 uses the system zone's offset, custom
-  IANA zones need a tz database (later, #97).
+  reports (#87), resolved with a bundled IANA tz database (#109).
 
 ## 5. Evidence sources
 
@@ -245,7 +244,8 @@ maintained from it, and every output reads from that Narrative.
 - **Quick capture:** a global hotkey opens a floating note box from anywhere (on macOS the main window shrinks to it, #101).
 - **Onboarding:** create profile → add identities → scan repos → connect optional sources → pick AI provider
   (structured-output probe) → first import and report. Each step can be skipped. Shown once for a profile with no
-  identities and no sources, until finished or skipped (#105).
+  identities and no sources, until finished or skipped (#105). **TODO:** a short intro first explaining what the app is
+  and how it works, in the app's own design ([lld/README.md](./lld/README.md#todo)).
 - Diagnostics: a "Copy diagnostics" button with local rotating logs.
 - **English only** in v1 (#87); no localization framework.
 

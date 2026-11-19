@@ -11,7 +11,8 @@ import 'fact_writer.dart';
 
 /// Puts a day's new facts into workstreams (LLD 04 §4.8) on the Extraction route.
 /// Only model-owned facts without a workstream are assigned, so a fact the user moved (or moved
-/// out) is never moved again. User-touched workstreams keep their title and summary.
+/// out) is never moved again. The same call refreshes the summary of an existing workstream a fact
+/// joins (`new_summary`, #109); user-touched workstreams keep their title and summary.
 class WorkstreamAssigner {
   WorkstreamAssigner(this.ctx);
   final NarrativeContext ctx;
@@ -52,7 +53,9 @@ You group an engineer's work facts into workstreams: threads of related work tha
 (a feature, a migration, an incident, an ongoing responsibility like hiring or on-call).
 For each fact, pick the existing workstream it continues (workstream_id), or, only if none fits, start a new one:
 workstream_id null, new_title (2–6 words, specific, e.g. "Payments idempotency keys") and new_summary (one sentence).
-Facts that belong together get the same new_title. Don't create a workstream per fact; prefer existing ones.''';
+Facts that belong together get the same new_title. Don't create a workstream per fact; prefer existing ones.
+When a fact joins an existing workstream and changes what it covers, set new_summary to its refreshed one-sentence
+summary (covering its earlier work too); otherwise new_summary null.''';
 
   Future<void> assignDay(String day) async {
     final facts =
@@ -69,7 +72,7 @@ Facts that belong together get the same new_title. Don't create a workstream per
     final since = shiftDay(day, -activeDays);
     final active = await (db.select(
       db.workstreams,
-    )..where((w) => w.spanEnd.isBiggerOrEqualValue(since) | w.spanEnd.isNull())).get();
+    )..where((w) => w.spanEnd.isBiggerOrEqualValue(since))).get(); // null span = no live facts (#110)
     final user = jsonEncode({
       'workstreams': [
         for (final w in active) {'id': w.id, 'title': w.title, 'summary': w.summary, 'project_id': w.projectId},
@@ -89,10 +92,10 @@ Facts that belong together get the same new_title. Don't create a workstream per
 
     // Short write transaction after the model call. Re-read: facts the user touched, moved, retired
     // or that changed meanwhile, and workstreams removed meanwhile, are skipped.
-    await db.transaction(() => _apply(day, out, facts));
+    await db.transaction(() => _apply(day, out, facts, {for (final w in active) w.id}));
   }
 
-  Future<void> _apply(String day, Map<String, Object?> out, List<Fact> asked) async {
+  Future<void> _apply(String day, Map<String, Object?> out, List<Fact> asked, Set<String> offered) async {
     final asOf = {for (final f in asked) f.id: f.revision};
     final facts = await (db.select(db.facts)..where(
           (f) =>
@@ -102,17 +105,20 @@ Facts that belong together get the same new_title. Don't create a workstream per
               f.origin.equalsValue(FactOrigin.inferred),
         ))
         .get();
-    final since = shiftDay(day, -activeDays);
-    final active = await (db.select(
-      db.workstreams,
-    )..where((w) => w.spanEnd.isBiggerOrEqualValue(since) | w.spanEnd.isNull())).get();
-    final byId = {for (final w in active) w.id: w};
-    final byTitle = {for (final w in active) w.title.toLowerCase(): w.id};
+    // Ids: offered ones that still exist (one may have emptied meanwhile). Titles: any existing workstream,
+    // so a new title reuses an empty one instead of duplicating it (#110).
+    final all = await db.select(db.workstreams).get();
+    final byId = {
+      for (final w in all)
+        if (offered.contains(w.id)) w.id: w,
+    };
+    final byTitle = {for (final w in all) w.title.toLowerCase(): w.id};
     final factById = {
       for (final f in facts)
         if (asOf[f.id] == f.revision) f.id: f,
     };
     final changed = <String>{};
+    final summaries = <String, String>{};
     for (final a in (out['assignments'] as List? ?? const []).whereType<Map>()) {
       final f = factById.remove(a['fact_id']);
       if (f == null) continue;
@@ -138,12 +144,22 @@ Facts that belong together get the same new_title. Don't create a workstream per
         }
       }
       if (wsId == null) continue;
+      final summary = (a['new_summary'] as String?)?.trim();
+      final existing = byId[wsId];
+      if (existing != null && !existing.userTouched && summary != null && summary.isNotEmpty) {
+        summaries[wsId] = summary;
+      }
       // Workstream membership isn't fact content: no revision bump.
       await (db.update(db.facts)..where((x) => x.id.equals(f.id))).write(FactsCompanion(workstreamId: Value(wsId)));
       changed.add(wsId);
     }
     for (final id in changed) {
       await updateSpan(id);
+    }
+    for (final MapEntry(key: id, value: summary) in summaries.entries) {
+      await (db.update(
+        db.workstreams,
+      )..where((w) => w.id.equals(id))).write(WorkstreamsCompanion(summary: Value(summary)));
     }
   }
 

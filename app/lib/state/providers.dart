@@ -9,6 +9,7 @@ import '../engine/engine_handle.dart';
 import '../engine/engine_runtime.dart' show pausedSettingKey;
 import '../engine/messages.dart';
 import '../engine/ui_port_host.dart';
+import '../platform/time_zone.dart';
 
 /// Overridden in `main.dart` (and in tests).
 final engineConfigProvider = Provider<EngineConfig>((ref) => throw UnimplementedError('engineConfigProvider'));
@@ -88,7 +89,7 @@ final countProvider = StreamProvider.family<int, Counter>((ref, c) async* {
   final h = await ref.watch(engineProvider.future);
   final db = h.db;
   final vars = c == Counter.evidenceToday
-      ? [Variable.withString(dayOf(DateTime.now(), DateTime.now().timeZoneOffset))]
+      ? [Variable.withString(profileToday())]
       : const <Variable<Object>>[];
   yield* db
       .customSelect(c.sql, variables: vars, readsFrom: {

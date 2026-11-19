@@ -60,6 +60,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     Future(() async {
       await _scan.checkGit();
       await _scan.scan();
+      if (!mounted) return;
       final h = await ref.read(engineProvider.future);
       final me = await h.runtime(gitGlobalEmailCmd());
       final authors = _scan.authors();
