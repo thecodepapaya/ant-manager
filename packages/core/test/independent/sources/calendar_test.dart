@@ -167,13 +167,8 @@ void main() {
       expect(starts(src), [DateTime.utc(2026, 7, 1, 13), DateTime.utc(2026, 12, 1, 14)]);
     });
 
-    test(
-      'VTIMEZONE with historical rules: an ended (UNTIL) rule does not apply',
-      skip:
-          'BUG: ics_parser.dart _TzRule ignores RRULE UNTIL in VTIMEZONE, so a retired 1987–2006 rule (last Sun Oct) '
-          'beats the current one; 2026-10-28 09:00 New York resolves to EST (14:00Z) instead of EDT (13:00Z)',
-      () {
-        const hist = '''BEGIN:VTIMEZONE
+    test('VTIMEZONE with historical rules: an ended (UNTIL) rule does not apply', () {
+      const hist = '''BEGIN:VTIMEZONE
 TZID:America/New_York
 BEGIN:DAYLIGHT
 TZOFFSETFROM:-0500
@@ -200,11 +195,10 @@ DTSTART:20071104T020000
 RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE''';
-        expect(starts(cal(ev('h', 'DTSTART;TZID=America/New_York:20261028T090000'), tz: hist)), [
-          DateTime.utc(2026, 10, 28, 13),
-        ]);
-      },
-    );
+      expect(starts(cal(ev('h', 'DTSTART;TZID=America/New_York:20261028T090000'), tz: hist)), [
+        DateTime.utc(2026, 10, 28, 13),
+      ]);
+    });
 
     test('all-day events: local midnight, one day long, flagged', () {
       final o = occ(cal(ev('ad', 'DTSTART;VALUE=DATE:20260310\nDTEND;VALUE=DATE:20260311'))).single;

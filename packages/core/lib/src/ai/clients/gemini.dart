@@ -94,6 +94,8 @@ class GeminiClient implements LlmClient {
         if (reason != null && reason != 'STOP') throw LlmFailure('Generation stopped: $reason');
         if (reason == 'STOP') finished = true;
       }
+      // The STOP chunk also carries the final usage; stop reading so a later transport drop cannot fail the call.
+      if (finished) break;
     }
     if (!finished) throw LlmFailure('Stream ended before the response was complete');
     yield LlmDone(text: text.toString(), inputTokens: inTok, outputTokens: outTok);

@@ -68,8 +68,8 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 | Source | Auth | Self-hosted | Captures |
 |---|---|---|---|
 | Local git | — (system `git`) | n/a | Commits on all branches by your identities, diffs, stats |
-| GitHub | PAT / device flow | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed, review comments, issues |
-| GitLab | PAT | Self-managed (custom URL) | MRs, approvals, comments, issues |
+| GitHub | PAT (device flow later, #104) | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed, review comments, issues opened / closed / commented (#104) |
+| GitLab | PAT | Self-managed (custom URL) | MRs, approvals, comments, issues opened / closed / commented (#104) |
 | Google Calendar | OAuth (built-in client only, #76) | — | Events you attended |
 | Apple Calendar | EventKit (macOS only) | — | Everything synced into Calendar.app |
 | Outlook / M365 | **ICS feed only** (paste the calendar's ICS link, #82). No Graph OAuth. | — | Events |

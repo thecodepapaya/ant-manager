@@ -13,14 +13,21 @@ import '../source.dart';
 /// Commits are recorded by SHA in `content.commits` only; no `groupKey` is set. Grouping is exact identity
 /// per payload (#57): the MR<->commit link is made downstream by facts citing both.
 ///
-/// On 403/429 the sync stops; the cursor stays at the last fully processed MR. An MR or project that is gone
-/// (404/410) is skipped; any other error (401, 5xx) fails the sync. `updated_after` is exclusive, so the
-/// query starts 1 s before the cursor to re-include an unprocessed MR sharing the last timestamp.
+/// Issues (separate cursor scope `issue`): candidates are `GET /issues?scope=created_by_me` updated
+/// after that cursor, plus your own `GET /events` since the cursor's day: `target_type=issue&action=closed`
+/// and `action=commented` on an `Issue` noteable (each issue then fetched). Issues updated before the cursor
+/// are dropped; the rest, ascending by update, get your non-system notes. Emits one `issue` payload per
+/// issue you opened, closed (`closed_by`) or commented on.
+///
+/// On 403/429 the sync stops; each cursor stays at the last fully processed item. An MR, issue or project
+/// that is gone (404/410) is skipped; any other error (401, 5xx) fails the sync. `updated_after` is exclusive,
+/// so the query starts 1 s before the cursor to re-include an unprocessed item sharing the last timestamp.
 class GitLabSource implements Source {
   @override
   SourceKind get kind => SourceKind.gitlab;
 
   static const _cursorScope = '';
+  static const _issueScope = 'issue';
   static const _perPage = 100;
   static const _maxPages = 10;
   static const _approved = 'approved this merge request';
@@ -62,10 +69,7 @@ class GitLabSource implements Source {
     if (token == null || user == null) throw StateError('GitLab source needs a token and a username');
     final me = user.toLowerCase();
     final api = _api(ctx);
-    final cursor = await ctx.cursor(_cursorScope);
-    final since = cursor == null
-        ? ctx.initialImportFrom.toUtc().toIso8601String()
-        : DateTime.parse(cursor).subtract(const Duration(seconds: 1)).toUtc().toIso8601String();
+    final since = _since(ctx, await ctx.cursor(_cursorScope));
 
     try {
       final byId = <Object, Map>{};
@@ -158,8 +162,103 @@ class GitLabSource implements Source {
         }
         ctx.setCursor(_cursorScope, mr['updated_at'] as String);
       }
+      // `await for`, not `yield*`: yield* would forward GitLabRateLimited past the catch below.
+      await for (final o in _issues(ctx, token, api, user, me)) {
+        yield o;
+      }
     } on GitLabRateLimited {
       return; // keep the cursor at the last fully processed MR
+    }
+  }
+
+  /// `updated_after` is exclusive: start 1 s before the cursor.
+  static String _since(SourceContext ctx, String? cursor) => cursor == null
+      ? ctx.initialImportFrom.toUtc().toIso8601String()
+      : DateTime.parse(cursor).subtract(const Duration(seconds: 1)).toUtc().toIso8601String();
+
+  /// Issues you opened, closed or commented on, updated since the `issue` cursor.
+  Stream<PayloadObservation> _issues(SourceContext ctx, String token, String api, String user, String me) async* {
+    final since = _since(ctx, await ctx.cursor(_issueScope));
+    final sinceAt = DateTime.parse(since);
+    // Events take a date and `after` is exclusive: the day before the cursor's day.
+    final after = sinceAt.subtract(const Duration(days: 1)).toIso8601String().substring(0, 10);
+    final byKey = <String, Map>{};
+    for (final i in await _getAll(ctx, token, '$api/issues', {
+      // Not `scope=all`: GitLab.com can reject instance-wide issue listing with 400.
+      'scope': 'created_by_me',
+      'updated_after': since,
+      'order_by': 'updated_at',
+      'sort': 'asc',
+    })) {
+      byKey['${i['project_id']}#${i['iid']}'] = i;
+    }
+    final closed = await _getAll(ctx, token, '$api/events', {
+      'target_type': 'issue',
+      'action': 'closed',
+      'after': after,
+    });
+    final commented = await _getAll(ctx, token, '$api/events', {'action': 'commented', 'after': after});
+    final refs = <(Object?, Object?)>{
+      for (final e in closed) (e['project_id'], e['target_iid']),
+      for (final e in commented)
+        if ((e['note'] as Map?)?['noteable_type'] == 'Issue') (e['project_id'], (e['note'] as Map)['noteable_iid']),
+    };
+    for (final (project, iid) in refs) {
+      if (project == null || iid == null || byKey.containsKey('$project#$iid')) continue;
+      try {
+        byKey['$project#$iid'] = await _get(ctx, token, '$api/projects/$project/issues/$iid') as Map;
+      } on GitLabGone {
+        continue;
+      }
+    }
+    final issues = byKey.values.where((i) => !DateTime.parse(i['updated_at'] as String).isBefore(sinceAt)).toList()
+      ..sort((a, b) => DateTime.parse(a['updated_at'] as String).compareTo(DateTime.parse(b['updated_at'] as String)));
+
+    for (final issue in issues) {
+      final project = issue['project_id'];
+      final iid = issue['iid'];
+      final List<Map> notes;
+      try {
+        notes = (await _getAll(ctx, token, '$api/projects/$project/issues/$iid/notes', {
+          'sort': 'asc',
+        })).where((n) => _isMe(n['author'], me) && n['system'] != true).toList();
+      } on GitLabGone {
+        ctx.setCursor(_issueScope, issue['updated_at'] as String);
+        continue;
+      }
+      final roles = <String>[
+        if (_isMe(issue['author'], me)) 'author',
+        if (_isMe(issue['closed_by'], me)) 'closer',
+        if (notes.isNotEmpty) 'commenter',
+      ];
+      if (roles.isNotEmpty) {
+        final repo = _repoOf(issue, '#');
+        yield PayloadObservation(
+          externalId: 'issue:$project#$iid',
+          kind: PayloadKind.issue,
+          occurredStart: DateTime.parse(issue['created_at'] as String),
+          occurredEnd: issue['closed_at'] == null ? null : DateTime.parse(issue['closed_at'] as String),
+          title: '${issue['title']} ($repo#$iid)',
+          content: {
+            'repo': repo,
+            'number': iid,
+            'title': issue['title'],
+            'url': issue['web_url'],
+            'body': issue['description'],
+            'state': issue['state'],
+            'author': (issue['author'] as Map?)?['username'],
+            'labels': issue['labels'],
+            'createdAt': issue['created_at'],
+            'closedAt': issue['closed_at'],
+            'closedBy': (issue['closed_by'] as Map?)?['username'],
+            'roles': roles,
+            'comments': [
+              for (final n in notes) {'body': n['body'], 'createdAt': n['created_at']},
+            ],
+          },
+        );
+      }
+      ctx.setCursor(_issueScope, issue['updated_at'] as String);
     }
   }
 
@@ -167,10 +266,10 @@ class GitLabSource implements Source {
 
   static bool _isMe(Object? user, String me) => user is Map && (user['username'] as String?)?.toLowerCase() == me;
 
-  /// `group/sub/project` from `references.full` (`group/sub/project!12`) or the web URL.
-  static String _repoOf(Map mr) {
+  /// `group/sub/project` from `references.full` (`group/sub/project!12`, issues `…#12`) or the web URL.
+  static String _repoOf(Map mr, [String sep = '!']) {
     final full = (mr['references'] as Map?)?['full'] as String?;
-    if (full != null && full.contains('!')) return full.substring(0, full.lastIndexOf('!'));
+    if (full != null && full.contains(sep)) return full.substring(0, full.lastIndexOf(sep));
     final path = Uri.parse(mr['web_url'] as String).path;
     final i = path.indexOf('/-/');
     return (i < 0 ? path : path.substring(0, i)).replaceFirst(RegExp('^/'), '');

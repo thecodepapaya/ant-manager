@@ -23,6 +23,9 @@ None of these block development; placeholders are used until each is done. Tick 
 ~~Microsoft / Outlook (Azure app registration)~~: **removed.** Outlook is supported via ICS links only (DECISIONS #82).
 ~~Backup destinations (Drive scope, Azure permission, Dropbox app)~~: **removed.** Backups go to a local folder only (#80).
 
+## GitHub
+- [ ] Register a **GitHub OAuth App** with **device flow enabled** (Settings → Developer settings → OAuth Apps) and give me the client ID. Until then GitHub sign-in is PAT only (DECISIONS #104).
+
 ## Crash reporting
 - [ ] Create a **Sentry project** (free tier is fine) and give me the DSN. Reports stay opt-in in the app.
 
