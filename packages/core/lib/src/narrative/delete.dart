@@ -42,9 +42,13 @@ class EvidenceDeleter {
     await (db.delete(db.payloadRevisions)..where((r) => r.payloadId.isIn(pids))).go();
     await (db.delete(db.enrichments)..where((n) => n.id.isIn(enrIds))).go();
     await (db.delete(db.dependencies)..where(
+          // Rows the deleted entities own, plus facts' rows on them (those follow the citations just
+          // dropped; affected facts are handled below). Other dependents (e.g. report snapshots) keep
+          // their rows, so the missing input reads as stale.
           (d) =>
-              (d.inputType.equalsValue(EntityType.payload) & d.inputId.isIn(pids)) |
-              (d.inputType.equalsValue(EntityType.enrichment) & d.inputId.isIn(enrIds)) |
+              (d.dependentType.equalsValue(EntityType.fact) &
+                  d.inputType.equalsValue(EntityType.payload) &
+                  d.inputId.isIn(pids)) |
               (d.dependentType.equalsValue(EntityType.enrichment) & d.dependentId.isIn(enrIds)) |
               (d.dependentType.equalsValue(EntityType.evidence) & d.dependentId.equals(evidenceId)),
         ))
@@ -82,6 +86,7 @@ class EvidenceDeleter {
           db.recomputeQueue,
         )..where((q) => q.entityType.equalsValue(EntityType.fact) & q.entityId.equals(factId))).go();
         await (db.delete(db.facts)..where((x) => x.id.equals(factId))).go();
+        if (f.workstreamId != null) await updateWorkstreamSpan(db, f.workstreamId!);
       } else if (isProtected(f)) {
         await writer.propose(f, {'op': 'review', 'retire': false, 'reason': 'some cited evidence was deleted'});
       }

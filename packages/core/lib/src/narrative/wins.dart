@@ -37,10 +37,13 @@ Cite the payload ids that support it.''';
   Future<String> starEvidence(String evidenceId) async {
     final existing = await db.transaction(() async {
       final e = await (db.select(db.evidences)..where((x) => x.id.equals(evidenceId))).getSingle();
+      // A star beats a rule's hide; only the user's own hide keeps it hidden (importance 0).
+      final hidden = e.hidden && e.importanceSetBy != ImportanceSetBy.rule;
       await (db.update(db.evidences)..where((x) => x.id.equals(evidenceId))).write(
         EvidencesCompanion(
           starred: const Value(true),
-          importance: Value(e.hidden ? 0.0 : 1.0),
+          hidden: Value(hidden),
+          importance: Value(hidden ? 0.0 : 1.0),
           importanceSetBy: const Value(ImportanceSetBy.user),
           updatedAt: Value(ctx.clock.now()),
         ),
@@ -93,17 +96,23 @@ Cite the payload ids that support it.''';
     var cites = (out['citations'] as List? ?? const []).whereType<String>().where(ids.contains).toList();
     if (cites.isEmpty) cites = ids.toList(); // the user starred this evidence: it supports the win
 
-    return db.transaction(
-      () => writer.create(
+    return db.transaction(() async {
+      // The evidence may have been deleted or tombstoned while the model ran: never write an uncited win.
+      final liveIds = (await (db.select(
+        db.payloads,
+      )..where((p) => p.id.isIn(cites) & p.tombstonedAt.isNull())).get()).map((p) => p.id).toSet();
+      final live = cites.where(liveIds.contains).toList();
+      if (live.isEmpty) throw StateError('Evidence $evidenceId changed during the win call; nothing to cite');
+      return writer.create(
         type: FactType.outcome,
         statement: statement,
         day: e.day,
-        citations: cites,
+        citations: live,
         projectId: e.projectId,
         importance: 1.0,
         origin: FactOrigin.userCreated,
         winStatus: WinStatus.accepted,
-      ),
-    );
+      );
+    });
   }
 }

@@ -11,6 +11,21 @@ import 'context.dart';
 /// are protected the same way (§4.10).
 bool isProtected(Fact f) => f.origin.isUserTouched || f.winStatus == WinStatus.accepted;
 
+/// Workstream span = first..last day of its live (non-retired) facts. Recomputed wherever a fact
+/// joins, leaves, retires or is deleted.
+Future<void> updateWorkstreamSpan(ProfileDb db, String workstreamId) async {
+  final row = await db
+      .customSelect(
+        'SELECT MIN(period_start) AS s, MAX(period_end) AS e FROM facts WHERE workstream_id = ? AND retired = 0',
+        variables: [Variable.withString(workstreamId)],
+        readsFrom: {db.facts},
+      )
+      .getSingle();
+  await (db.update(db.workstreams)..where((w) => w.id.equals(workstreamId))).write(
+    WorkstreamsCompanion(spanStart: Value(row.read<String?>('s')), spanEnd: Value(row.read<String?>('e'))),
+  );
+}
+
 /// Shared fact writes: every change appends a FactRevision, pins citations to current payload
 /// revisions and re-records the fact's Dependency rows (fact ← cited payload revisions).
 class FactWriter {
@@ -79,6 +94,9 @@ class FactWriter {
     );
     await _revision(f.id, rev, st, det, f.origin, 'model');
     await _pin(f.id, rev, citations ?? await citedPayloads(f.id));
+    if (retired != null && retired != f.retired && f.workstreamId != null) {
+      await updateWorkstreamSpan(db, f.workstreamId!);
+    }
   }
 
   /// User accepts a win (same semantics as AntEngine.setWinStatus): user-touched from then on.

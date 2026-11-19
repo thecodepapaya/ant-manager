@@ -396,28 +396,64 @@ Future<String?> promptText(
   String action = 'Save',
   int maxLines = 1,
 }) async {
-  final c = TextEditingController(text: initial);
   final r = await showAntDialog<String>(
     context,
-    builder: (ctx) => AntDialog(
+    builder: (_) => _PromptDialog(
       title: title,
-      body: AntTextField(
-        controller: c,
-        autofocus: true,
-        placeholder: placeholder,
-        maxLines: maxLines,
-        minLines: maxLines > 1 ? 3 : null,
-        onSubmitted: maxLines == 1 ? (v) => Navigator.pop(ctx, v) : null,
-      ),
-      actions: [
-        AntButton.ghost(label: 'Cancel', onPressed: () => Navigator.pop(ctx)),
-        AntButton.primary(label: action, onPressed: () => Navigator.pop(ctx, c.text)),
-      ],
+      initial: initial,
+      placeholder: placeholder,
+      action: action,
+      maxLines: maxLines,
     ),
   );
-  c.dispose();
   final v = r?.trim();
   return v == null || v.isEmpty ? null : v;
+}
+
+/// Owns its controller so it lives until the route's exit animation has finished.
+class _PromptDialog extends StatefulWidget {
+  const _PromptDialog({
+    required this.title,
+    required this.initial,
+    required this.placeholder,
+    required this.action,
+    required this.maxLines,
+  });
+  final String title;
+  final String initial;
+  final String? placeholder;
+  final String action;
+  final int maxLines;
+
+  @override
+  State<_PromptDialog> createState() => _PromptDialogState();
+}
+
+class _PromptDialogState extends State<_PromptDialog> {
+  late final _c = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AntDialog(
+        title: widget.title,
+        body: AntTextField(
+          controller: _c,
+          autofocus: true,
+          placeholder: widget.placeholder,
+          maxLines: widget.maxLines,
+          minLines: widget.maxLines > 1 ? 3 : null,
+          onSubmitted: widget.maxLines == 1 ? (v) => Navigator.pop(context, v) : null,
+        ),
+        actions: [
+          AntButton.ghost(label: 'Cancel', onPressed: () => Navigator.pop(context)),
+          AntButton.primary(label: widget.action, onPressed: () => Navigator.pop(context, _c.text)),
+        ],
+      );
 }
 
 Future<bool> confirm(

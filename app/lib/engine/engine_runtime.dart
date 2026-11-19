@@ -33,7 +33,7 @@ const nudgeJobKind = 'nudge';
 /// Isolate entry point. Spawned by `EngineHandle.start`.
 Future<void> engineMain(EngineBoot boot) async {
   final rx = ReceivePort('ant-engine');
-  final bridge = UiBridge(boot.ui);
+  final bridge = UiBridge(boot.ui, rx.sendPort);
   EngineRuntime? rt;
   late final StreamSubscription<Object?> sub;
   sub = rx.listen((msg) async {
