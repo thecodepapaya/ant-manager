@@ -517,18 +517,25 @@ void main() {
     });
 
     test('never emits an uncited item, whatever the model returns', () async {
-      final shapes = <Object>[
+      // Schema-invalid shapes fail the run outright (#70) and emit nothing.
+      for (final bad in <Object>[
         {'sections': null},
         {
           'sections': [
             {'heading': 'H', 'items': null},
           ],
         },
+      ]) {
+        llm.responses.add(bad);
+        final r0 = await weekReport();
+        await expectLater(run(gen.generate(r0.id)), throwsA(isA<LlmFailure>()));
+      }
+      final shapes = <Object>[
         report([
           section('H', [
             item('cited', [f1]),
             item('uncited', <Object?>[]),
-            item('bad ids', [null, 3, 'nope']),
+            item('bad ids', ['nope', 'missing']),
           ]),
           section('', [item('no heading', [f2])]),
         ]),
