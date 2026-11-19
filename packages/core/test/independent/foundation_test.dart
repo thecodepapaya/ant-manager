@@ -43,8 +43,7 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Future<Payload> payloadOf(String ext) =>
-      (db.select(db.payloads)..where((p) => p.externalId.equals(ext))).getSingle();
+  Future<Payload> payloadOf(String ext) => (db.select(db.payloads)..where((p) => p.externalId.equals(ext))).getSingle();
   Future<List<PayloadRevision>> revisionsOf(String payloadId) =>
       (db.select(db.payloadRevisions)
             ..where((r) => r.payloadId.equals(payloadId))
@@ -54,7 +53,9 @@ void main() {
 
   group('ingestor (LLD 04 §4.1)', () {
     test('new observation creates evidence, payload rev 1 and one revision row', () async {
-      final r = await ing.ingest(src, [obs('a', {'t': 1})]);
+      final r = await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
       expect(r.created, 1);
       final p = await payloadOf('a');
       expect(p.revision, 1);
@@ -64,11 +65,15 @@ void main() {
 
     test('evidence day uses the profile offset at the observation instant', () async {
       final tz = Ingestor(db, utcOffset: (_) => const Duration(hours: 2));
-      await tz.ingest(src, [obs('late', {'t': 1}, at: DateTime.utc(2026, 11, 18, 23, 30))]);
+      await tz.ingest(src, [
+        obs('late', {'t': 1}, at: DateTime.utc(2026, 11, 18, 23, 30)),
+      ]);
       final p = await payloadOf('late');
       expect((await evidenceById(p.evidenceId)).day, '2026-11-19');
       final west = Ingestor(db, utcOffset: (_) => const Duration(hours: -8));
-      await west.ingest(src, [obs('early', {'t': 1}, at: DateTime.utc(2026, 11, 18, 3))]);
+      await west.ingest(src, [
+        obs('early', {'t': 1}, at: DateTime.utc(2026, 11, 18, 3)),
+      ]);
       expect((await evidenceById((await payloadOf('early')).evidenceId)).day, '2026-11-17');
     });
 
@@ -76,13 +81,19 @@ void main() {
       await ing.ingest(src, [
         obs('a', {
           'b': 2,
-          'a': {'y': 1, 'x': [3, 2]},
+          'a': {
+            'y': 1,
+            'x': [3, 2],
+          },
         }),
       ]);
       final before = await seed.queueCount();
       final r = await ing.ingest(src, [
         obs('a', {
-          'a': {'x': [3, 2], 'y': 1},
+          'a': {
+            'x': [3, 2],
+            'y': 1,
+          },
           'b': 2,
         }),
       ]);
@@ -95,15 +106,29 @@ void main() {
     });
 
     test('a list order change is a real change', () async {
-      await ing.ingest(src, [obs('a', {'x': [1, 2]})]);
-      final r = await ing.ingest(src, [obs('a', {'x': [2, 1]})]);
+      await ing.ingest(src, [
+        obs('a', {
+          'x': [1, 2],
+        }),
+      ]);
+      final r = await ing.ingest(src, [
+        obs('a', {
+          'x': [2, 1],
+        }),
+      ]);
       expect(r.updated, 1);
     });
 
     test('content change bumps revision and appends history (append-only)', () async {
-      await ing.ingest(src, [obs('a', {'t': 'v1'})]);
-      await ing.ingest(src, [obs('a', {'t': 'v2'})]);
-      await ing.ingest(src, [obs('a', {'t': 'v3'})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 'v1'}),
+      ]);
+      await ing.ingest(src, [
+        obs('a', {'t': 'v2'}),
+      ]);
+      await ing.ingest(src, [
+        obs('a', {'t': 'v3'}),
+      ]);
       final p = await payloadOf('a');
       expect(p.revision, 3);
       final revs = await revisionsOf(p.id);
@@ -113,29 +138,43 @@ void main() {
     });
 
     test('invariant 3: tombstone keeps evidence and history; repeat tombstone is a no-op', () async {
-      await ing.ingest(src, [obs('a', {'t': 1})]);
-      final r1 = await ing.ingest(src, [obs('a', {'t': 1}, tombstone: true)]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
+      final r1 = await ing.ingest(src, [
+        obs('a', {'t': 1}, tombstone: true),
+      ]);
       expect(r1.tombstoned, 1);
       final p = await payloadOf('a');
       expect(p.tombstonedAt, isNotNull);
       expect(p.revision, 2);
       expect(await db.select(db.evidences).get(), hasLength(1));
-      final r2 = await ing.ingest(src, [obs('a', {'t': 1}, tombstone: true)]);
+      final r2 = await ing.ingest(src, [
+        obs('a', {'t': 1}, tombstone: true),
+      ]);
       expect(r2.tombstoned, 0);
       expect((await payloadOf('a')).revision, 2);
       expect(await revisionsOf(p.id), hasLength(2));
     });
 
     test('tombstone for an unknown payload creates nothing', () async {
-      await ing.ingest(src, [obs('ghost', {'t': 1}, tombstone: true)]);
+      await ing.ingest(src, [
+        obs('ghost', {'t': 1}, tombstone: true),
+      ]);
       expect(await db.select(db.payloads).get(), isEmpty);
       expect(await db.select(db.evidences).get(), isEmpty);
     });
 
     test('a tombstoned payload that reappears upstream is revived as a new revision', () async {
-      await ing.ingest(src, [obs('a', {'t': 1})]);
-      await ing.ingest(src, [obs('a', {'t': 1}, tombstone: true)]);
-      final r = await ing.ingest(src, [obs('a', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}, tombstone: true),
+      ]);
+      final r = await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
       expect(r.updated, 1);
       final p = await payloadOf('a');
       expect(p.tombstonedAt, isNull);
@@ -144,29 +183,48 @@ void main() {
 
     test('group key joins payloads across sources into one evidence; tombstoned peers do not', () async {
       final src2 = await seed.source(SourceKind.ics);
-      await ing.ingest(src, [obs('g1', {'s': 'google'}, group: 'uid@x')]);
-      await ing.ingest(src2, [obs('i1', {'s': 'ics'}, group: 'uid@x')]);
+      await ing.ingest(src, [
+        obs('g1', {'s': 'google'}, group: 'uid@x'),
+      ]);
+      await ing.ingest(src2, [
+        obs('i1', {'s': 'ics'}, group: 'uid@x'),
+      ]);
       expect((await payloadOf('g1')).evidenceId, (await payloadOf('i1')).evidenceId);
       // Same group key, but the only peer is tombstoned → new evidence.
-      await ing.ingest(src, [obs('g2', {'s': 1}, group: 'uid@y')]);
-      await ing.ingest(src, [obs('g2', {'s': 1}, group: 'uid@y', tombstone: true)]);
-      await ing.ingest(src2, [obs('i2', {'s': 2}, group: 'uid@y')]);
+      await ing.ingest(src, [
+        obs('g2', {'s': 1}, group: 'uid@y'),
+      ]);
+      await ing.ingest(src, [
+        obs('g2', {'s': 1}, group: 'uid@y', tombstone: true),
+      ]);
+      await ing.ingest(src2, [
+        obs('i2', {'s': 2}, group: 'uid@y'),
+      ]);
       expect((await payloadOf('i2')).evidenceId, isNot((await payloadOf('g2')).evidenceId));
     });
 
     test('no group key never auto-groups', () async {
-      await ing.ingest(src, [obs('a', {'t': 1}), obs('b', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+        obs('b', {'t': 1}),
+      ]);
       expect(await db.select(db.evidences).get(), hasLength(2));
     });
 
     test('invariant 1: a sync never touches another payload on the same evidence (user note)', () async {
       final engine = _engine(db);
-      await ing.ingest(src, [obs('meet', {'t': 'v1'})]);
+      await ing.ingest(src, [
+        obs('meet', {'t': 'v1'}),
+      ]);
       final evidenceId = (await payloadOf('meet')).evidenceId;
       await engine.addNote(text: 'my note', at: DateTime.utc(2026, 11, 18, 10), attachTo: evidenceId);
       final note = (await db.select(db.payloads).get()).firstWhere((p) => p.kind == PayloadKind.note);
-      await ing.ingest(src, [obs('meet', {'t': 'v2'})]);
-      await ing.ingest(src, [obs('meet', {'t': 'v2'}, tombstone: true)]);
+      await ing.ingest(src, [
+        obs('meet', {'t': 'v2'}),
+      ]);
+      await ing.ingest(src, [
+        obs('meet', {'t': 'v2'}, tombstone: true),
+      ]);
       final after = await (db.select(db.payloads)..where((p) => p.id.equals(note.id))).getSingle();
       expect(after.revision, note.revision);
       expect(after.content, note.content);
@@ -176,7 +234,12 @@ void main() {
     });
 
     test('a batch is one transaction: a failing observation rolls back the whole batch', () async {
-      await expectLater(ing.ingest('no-such-source', [obs('a', {'t': 1})]), throwsA(anything));
+      await expectLater(
+        ing.ingest('no-such-source', [
+          obs('a', {'t': 1}),
+        ]),
+        throwsA(anything),
+      );
       expect(await db.select(db.evidences).get(), isEmpty);
       expect(await db.select(db.payloads).get(), isEmpty);
       expect(await db.select(db.recomputeQueue).get(), isEmpty);
@@ -185,8 +248,12 @@ void main() {
     test(
       'evidence time and day follow its first payload when that payload is rescheduled',
       () async {
-        await ing.ingest(src, [obs('m', {'start': '18'}, at: DateTime.utc(2026, 11, 18, 10))]);
-        await ing.ingest(src, [obs('m', {'start': '20'}, at: DateTime.utc(2026, 11, 20, 10))]);
+        await ing.ingest(src, [
+          obs('m', {'start': '18'}, at: DateTime.utc(2026, 11, 18, 10)),
+        ]);
+        await ing.ingest(src, [
+          obs('m', {'start': '20'}, at: DateTime.utc(2026, 11, 20, 10)),
+        ]);
         final e = await evidenceById((await payloadOf('m')).evidenceId);
         expect(e.day, '2026-11-20');
         expect(e.occurredStart.toUtc(), DateTime.utc(2026, 11, 20, 10));
@@ -204,22 +271,24 @@ void main() {
 
     Future<String> enrichment(String payloadId) async {
       final id = 'n-$payloadId';
-      await db.into(db.enrichments).insert(EnrichmentsCompanion.insert(
-        id: id,
-        targetType: EntityType.payload,
-        targetId: payloadId,
-        kind: 'summary',
-        output: 'sum',
-        modelId: 'm',
-        createdAt: seed.now,
-      ));
+      await db
+          .into(db.enrichments)
+          .insert(
+            EnrichmentsCompanion.insert(
+              id: id,
+              targetType: EntityType.payload,
+              targetId: payloadId,
+              kind: 'summary',
+              output: 'sum',
+              modelId: 'm',
+              createdAt: seed.now,
+            ),
+          );
       return id;
     }
 
-    Future<void> bumpEnrichment(String id) => db.customStatement(
-      'UPDATE enrichments SET revision = revision + 1 WHERE id = ?',
-      [id],
-    );
+    Future<void> bumpEnrichment(String id) =>
+        db.customStatement('UPDATE enrichments SET revision = revision + 1 WHERE id = ?', [id]);
     Future<void> bumpFact(String id) =>
         db.customStatement('UPDATE facts SET revision = revision + 1 WHERE id = ?', [id]);
 
@@ -231,20 +300,25 @@ void main() {
     });
 
     test('new payload queues its day', () async {
-      await ing.ingest(src, [obs('a', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
       expect(await seed.queueCount(EntityType.day, '2026-11-18'), greaterThanOrEqualTo(1));
     });
 
     test('chain: payload → enrichment → fact → report snapshot, each stale and queued as its input moves', () async {
-      await ing.ingest(src, [obs('a', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
       final p = await payloadOf('a');
       final n = await enrichment(p.id);
       final f = await seed.fact('Shipped', '2026-11-18', cites: [p.id]);
       await deps.record((type: EntityType.enrichment, id: n), 1, [(type: EntityType.payload, id: p.id, revision: 1)]);
-      await deps.record((type: EntityType.fact, id: f), 1, [
-        (type: EntityType.payload, id: p.id, revision: 1),
-        (type: EntityType.enrichment, id: n, revision: 1),
-      ]);
+      await deps.record(
+        (type: EntityType.fact, id: f),
+        1,
+        [(type: EntityType.payload, id: p.id, revision: 1), (type: EntityType.enrichment, id: n, revision: 1)],
+      );
       await deps.record((type: EntityType.reportSnapshot, id: 's1'), 1, [(type: EntityType.fact, id: f, revision: 1)]);
       await db.delete(db.recomputeQueue).go();
       for (final ref in [
@@ -255,7 +329,9 @@ void main() {
         expect(await stale.isStale(ref), isFalse, reason: '$ref fresh');
       }
 
-      await ing.ingest(src, [obs('a', {'t': 2})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 2}),
+      ]);
       expect(await stale.isStale((type: EntityType.enrichment, id: n)), isTrue);
       expect(await stale.isStale((type: EntityType.fact, id: f)), isTrue);
       expect(await seed.queueCount(EntityType.enrichment, n), 1);
@@ -271,10 +347,11 @@ void main() {
 
       // Fact recomputes → snapshot stale + queued.
       await bumpFact(f);
-      await deps.record((type: EntityType.fact, id: f), 2, [
-        (type: EntityType.payload, id: p.id, revision: 2),
-        (type: EntityType.enrichment, id: n, revision: 2),
-      ]);
+      await deps.record(
+        (type: EntityType.fact, id: f),
+        2,
+        [(type: EntityType.payload, id: p.id, revision: 2), (type: EntityType.enrichment, id: n, revision: 2)],
+      );
       expect(await stale.isStale((type: EntityType.fact, id: f)), isFalse);
       expect(await stale.isStale((type: EntityType.reportSnapshot, id: 's1')), isTrue);
       expect(await seed.queueCount(EntityType.reportSnapshot, 's1'), 1);
@@ -283,24 +360,32 @@ void main() {
     test(
       'staleness is transitive: a fact built only from an enrichment is stale once the payload moves',
       () async {
-        await ing.ingest(src, [obs('a', {'t': 1})]);
+        await ing.ingest(src, [
+          obs('a', {'t': 1}),
+        ]);
         final p = await payloadOf('a');
         final n = await enrichment(p.id);
         final f = await seed.fact('X', '2026-11-18', cites: [p.id]);
         await deps.record((type: EntityType.enrichment, id: n), 1, [(type: EntityType.payload, id: p.id, revision: 1)]);
         await deps.record((type: EntityType.fact, id: f), 1, [(type: EntityType.enrichment, id: n, revision: 1)]);
         await deps.record((type: EntityType.reportSnapshot, id: 's'), 1, [(type: EntityType.fact, id: f, revision: 1)]);
-        await ing.ingest(src, [obs('a', {'t': 2})]);
+        await ing.ingest(src, [
+          obs('a', {'t': 2}),
+        ]);
         expect(await stale.isStale((type: EntityType.fact, id: f)), isTrue);
         expect(await stale.isStale((type: EntityType.reportSnapshot, id: 's')), isTrue);
       },
     );
 
     test('re-recording at current revisions clears staleness', () async {
-      await ing.ingest(src, [obs('a', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
       final p = await payloadOf('a');
       await deps.record((type: EntityType.fact, id: 'f'), 1, [(type: EntityType.payload, id: p.id, revision: 1)]);
-      await ing.ingest(src, [obs('a', {'t': 2})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 2}),
+      ]);
       expect(await stale.isStale((type: EntityType.fact, id: 'f')), isTrue);
       await deps.record((type: EntityType.fact, id: 'f'), 2, [(type: EntityType.payload, id: p.id, revision: 2)]);
       expect(await stale.isStale((type: EntityType.fact, id: 'f')), isFalse);
@@ -311,17 +396,23 @@ void main() {
     });
 
     test('watch emits true when an input changes', () async {
-      await ing.ingest(src, [obs('a', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
       final p = await payloadOf('a');
       await deps.record((type: EntityType.fact, id: 'f'), 1, [(type: EntityType.payload, id: p.id, revision: 1)]);
       final values = stale.watch((type: EntityType.fact, id: 'f')).take(2).toList();
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      await ing.ingest(src, [obs('a', {'t': 2})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 2}),
+      ]);
       expect(await values.timeout(const Duration(seconds: 5)), [false, true]);
     });
 
     test('queue rows are written atomically: a rolled-back change leaves no queue entry', () async {
-      await ing.ingest(src, [obs('a', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('a', {'t': 1}),
+      ]);
       final p = await payloadOf('a');
       await deps.record((type: EntityType.fact, id: 'f'), 1, [(type: EntityType.payload, id: p.id, revision: 1)]);
       await db.delete(db.recomputeQueue).go();
@@ -361,12 +452,16 @@ void main() {
       final seen = <String>[];
       w.on(EntityType.day, (id) async => seen.add(id));
       for (final d in ['2026-11-02', '2026-11-01', '2026-11-02', '2026-11-02']) {
-        await db.into(db.recomputeQueue).insert(RecomputeQueueCompanion.insert(
-          entityType: EntityType.day,
-          entityId: d,
-          reason: 't',
-          enqueuedAt: seed.now,
-        ));
+        await db
+            .into(db.recomputeQueue)
+            .insert(
+              RecomputeQueueCompanion.insert(
+                entityType: EntityType.day,
+                entityId: d,
+                reason: 't',
+                enqueuedAt: seed.now,
+              ),
+            );
       }
       expect(await w.drain(), 2);
       expect(seen, ['2026-11-02', '2026-11-01']);
@@ -375,24 +470,32 @@ void main() {
 
     test('a failing handler leaves its work queued (crash-safe)', () async {
       final w = RecomputeWorker(db)..on(EntityType.day, (_) async => throw StateError('boom'));
-      await db.into(db.recomputeQueue).insert(RecomputeQueueCompanion.insert(
-        entityType: EntityType.day,
-        entityId: 'd',
-        reason: 't',
-        enqueuedAt: seed.now,
-      ));
+      await db
+          .into(db.recomputeQueue)
+          .insert(
+            RecomputeQueueCompanion.insert(
+              entityType: EntityType.day,
+              entityId: 'd',
+              reason: 't',
+              enqueuedAt: seed.now,
+            ),
+          );
       await expectLater(w.drain(), throwsStateError);
       expect(await db.select(db.recomputeQueue).get(), hasLength(1));
     });
 
     test('entries without a handler stay queued', () async {
       final w = RecomputeWorker(db)..on(EntityType.day, (_) async {});
-      await db.into(db.recomputeQueue).insert(RecomputeQueueCompanion.insert(
-        entityType: EntityType.reportSnapshot,
-        entityId: 's',
-        reason: 't',
-        enqueuedAt: seed.now,
-      ));
+      await db
+          .into(db.recomputeQueue)
+          .insert(
+            RecomputeQueueCompanion.insert(
+              entityType: EntityType.reportSnapshot,
+              entityId: 's',
+              reason: 't',
+              enqueuedAt: seed.now,
+            ),
+          );
       expect(await w.drain(), 0);
       expect(await db.select(db.recomputeQueue).get(), hasLength(1));
     });
@@ -454,10 +557,12 @@ void main() {
       q.register('k', JobLane.io, (_) async => runs++);
       final id = await q.enqueue('k');
       // Simulate a worker that leased the job and died.
-      await (db.update(db.jobs)..where((j) => j.id.equals(id))).write(JobsCompanion(
-        state: const Value(JobState.running),
-        leaseUntil: Value(clock.now().add(const Duration(minutes: 10))),
-      ));
+      await (db.update(db.jobs)..where((j) => j.id.equals(id))).write(
+        JobsCompanion(
+          state: const Value(JobState.running),
+          leaseUntil: Value(clock.now().add(const Duration(minutes: 10))),
+        ),
+      );
       expect(await q.runOne(JobLane.io), isFalse);
       clock.advance(const Duration(minutes: 11));
       expect(await q.runOne(JobLane.io), isTrue);
@@ -499,7 +604,9 @@ void main() {
     });
 
     test('addNote attached to evidence adds a payload, not a new evidence', () async {
-      await ing.ingest(src, [obs('m', {'t': 1})]);
+      await ing.ingest(src, [
+        obs('m', {'t': 1}),
+      ]);
       final eid = (await payloadOf('m')).evidenceId;
       final returned = await engine.addNote(text: 'context', at: DateTime.utc(2026, 11, 18, 10), attachTo: eid);
       expect(returned, eid);
@@ -522,7 +629,11 @@ void main() {
     test('confirm/edit bump revision, append history and make dependent snapshots stale', () async {
       final p = await seed.evidence(src, '2026-11-18', {'t': 1});
       final f = await seed.fact('Old statement', '2026-11-18', cites: [p.payload]);
-      await engine.deps.record((type: EntityType.reportSnapshot, id: 's'), 1, [(type: EntityType.fact, id: f, revision: 1)]);
+      await engine.deps.record(
+        (type: EntityType.reportSnapshot, id: 's'),
+        1,
+        [(type: EntityType.fact, id: f, revision: 1)],
+      );
       await engine.confirmFact(f);
       var fact = await factById(f);
       expect(fact.origin, FactOrigin.confirmed);
@@ -551,7 +662,10 @@ void main() {
       expect(fact.winStatus, WinStatus.rejected);
       expect(fact.origin.isUserTouched, isTrue);
       registerBuiltinTools(engine.tools);
-      final out = await engine.tools['get_facts'].call({'start': '2026-11-01', 'end': '2026-11-30'}, engine.toolContext);
+      final out = await engine.tools['get_facts'].call({
+        'start': '2026-11-01',
+        'end': '2026-11-30',
+      }, engine.toolContext);
       expect(out['facts'], isEmpty);
     });
 
@@ -571,10 +685,12 @@ void main() {
       final a = await seed.fact('Mine', '2026-11-18', origin: FactOrigin.confirmed);
       final b = await seed.fact('Mine too', '2026-11-18', origin: FactOrigin.confirmed);
       for (final id in [a, b]) {
-        await (db.update(db.facts)..where((f) => f.id.equals(id))).write(FactsCompanion(
-          reviewState: const Value(ReviewState.needsReview),
-          reviewProposal: Value(jsonEncode({'statement': 'Model says'})),
-        ));
+        await (db.update(db.facts)..where((f) => f.id.equals(id))).write(
+          FactsCompanion(
+            reviewState: const Value(ReviewState.needsReview),
+            reviewProposal: Value(jsonEncode({'statement': 'Model says'})),
+          ),
+        );
       }
       await engine.resolveReview(a, accept: true);
       await engine.resolveReview(b, accept: false);
@@ -618,24 +734,32 @@ void main() {
     test('lock pins the latest snapshot; unlock clears it; locking with no snapshot fails', () async {
       final t = TemplateService(db);
       await t.seedBuiltins();
-      await db.into(db.reports).insert(ReportsCompanion.insert(
-        id: 'r',
-        periodKind: PeriodKind.daily,
-        periodStart: '2026-11-18',
-        periodEnd: '2026-11-18',
-        templateId: 'builtin.standup',
-      ));
+      await db
+          .into(db.reports)
+          .insert(
+            ReportsCompanion.insert(
+              id: 'r',
+              periodKind: PeriodKind.daily,
+              periodStart: '2026-11-18',
+              periodEnd: '2026-11-18',
+              templateId: 'builtin.standup',
+            ),
+          );
       await expectLater(engine.lockReport('r'), throwsStateError);
       for (final v in [1, 2]) {
-        await db.into(db.reportSnapshots).insert(ReportSnapshotsCompanion.insert(
-          id: 'snap$v',
-          reportId: 'r',
-          version: v,
-          json: '{}',
-          markdown: '',
-          modelId: 'm',
-          generatedAt: seed.now,
-        ));
+        await db
+            .into(db.reportSnapshots)
+            .insert(
+              ReportSnapshotsCompanion.insert(
+                id: 'snap$v',
+                reportId: 'r',
+                version: v,
+                json: '{}',
+                markdown: '',
+                modelId: 'm',
+                generatedAt: seed.now,
+              ),
+            );
       }
       await engine.lockReport('r');
       var r = await (db.select(db.reports)..where((x) => x.id.equals('r'))).getSingle();
@@ -731,11 +855,17 @@ void main() {
     );
 
     test('tombstoned payloads and hidden evidence are excluded; revived payloads come back', () async {
-      await ing.ingest(src, [obs('a', {'text': 'zebra'})]);
+      await ing.ingest(src, [
+        obs('a', {'text': 'zebra'}),
+      ]);
       expect(await hits('zebra'), 1);
-      await ing.ingest(src, [obs('a', {'text': 'zebra'}, tombstone: true)]);
+      await ing.ingest(src, [
+        obs('a', {'text': 'zebra'}, tombstone: true),
+      ]);
       expect(await hits('zebra'), 0);
-      await ing.ingest(src, [obs('a', {'text': 'zebra'})]);
+      await ing.ingest(src, [
+        obs('a', {'text': 'zebra'}),
+      ]);
       expect(await hits('zebra'), 1);
       final eid = (await payloadOf('a')).evidenceId;
       await engine.setHidden(eid, true);
@@ -743,8 +873,12 @@ void main() {
     });
 
     test('updated content replaces the old index entry', () async {
-      await ing.ingest(src, [obs('a', {'text': 'alpha'})]);
-      await ing.ingest(src, [obs('a', {'text': 'beta'})]);
+      await ing.ingest(src, [
+        obs('a', {'text': 'alpha'}),
+      ]);
+      await ing.ingest(src, [
+        obs('a', {'text': 'beta'}),
+      ]);
       expect(await hits('alpha'), 0);
       expect(await hits('beta'), 1);
     });
@@ -764,7 +898,10 @@ void main() {
       for (var i = 1; i <= 5; i++) {
         await engine.addNote(text: 'deploy $i', at: DateTime.utc(2026, 11, i, 12));
       }
-      expect(((await search('deploy', extra: {'start': '2026-11-02', 'end': '2026-11-04'}))['evidence'] as List).length, 3);
+      expect(
+        ((await search('deploy', extra: {'start': '2026-11-02', 'end': '2026-11-04'}))['evidence'] as List).length,
+        3,
+      );
       expect(((await search('deploy', extra: {'limit': 2}))['evidence'] as List).length, 2);
       expect(((await search('deploy', extra: {'limit': 0}))['evidence'] as List).length, 1, reason: 'clamped to ≥ 1');
     });

@@ -13,8 +13,7 @@ void main() {
   late MutableClock clock;
   late JobQueue jobs;
 
-  Scheduler scheduler({Duration offset = Duration.zero}) =>
-      Scheduler(db, jobs, utcOffset: (_) => offset, clock: clock);
+  Scheduler scheduler({Duration offset = Duration.zero}) => Scheduler(db, jobs, utcOffset: (_) => offset, clock: clock);
 
   setUp(() {
     db = memDb();
@@ -33,14 +32,17 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Future<void> addSchedule(String id, ScheduleRule rule, {DateTime? lastRun, bool enabled = true, String? kind}) =>
-      db.into(db.schedules).insert(SchedulesCompanion.insert(
-        id: id,
-        kind: kind ?? id,
-        rule: jsonEncode(rule.toJson()),
-        lastRunAt: Value(lastRun),
-        enabled: Value(enabled),
-      ));
+  Future<void> addSchedule(String id, ScheduleRule rule, {DateTime? lastRun, bool enabled = true, String? kind}) => db
+      .into(db.schedules)
+      .insert(
+        SchedulesCompanion.insert(
+          id: id,
+          kind: kind ?? id,
+          rule: jsonEncode(rule.toJson()),
+          lastRunAt: Value(lastRun),
+          enabled: Value(enabled),
+        ),
+      );
 
   Future<List<Map<String, Object?>>> jobArgs() async => [
     for (final j in await (db.select(db.jobs)..orderBy([(j) => OrderingTerm.asc(j.createdAt)])).get())
@@ -79,11 +81,17 @@ void main() {
     test('local wall clock: due times shift with the profile offset', () {
       const r = ScheduleRule(hour: 18);
       // 18:00 at UTC+5:30 = 12:30 UTC.
-      expect(due(r, DateTime.utc(2026, 11, 18, 13), const Duration(hours: 5, minutes: 30)), DateTime.utc(2026, 11, 18, 12, 30));
+      expect(
+        due(r, DateTime.utc(2026, 11, 18, 13), const Duration(hours: 5, minutes: 30)),
+        DateTime.utc(2026, 11, 18, 12, 30),
+      );
       // 18:00 at UTC-8 = 02:00 UTC next day; at 01:00 UTC on the 19th the latest is the 17th local.
       expect(due(r, DateTime.utc(2026, 11, 19, 1), const Duration(hours: -8)), DateTime.utc(2026, 11, 18, 2));
       // Backup 02:00 at UTC+10 = 16:00 UTC the day before.
-      expect(due(const ScheduleRule(hour: 2), DateTime.utc(2026, 11, 18, 17), const Duration(hours: 10)), DateTime.utc(2026, 11, 18, 16));
+      expect(
+        due(const ScheduleRule(hour: 2), DateTime.utc(2026, 11, 18, 17), const Duration(hours: 10)),
+        DateTime.utc(2026, 11, 18, 16),
+      );
     });
 
     test('JSON round-trip', () {
@@ -164,8 +172,11 @@ void main() {
     });
 
     test('a positive offset: local 09:00 Monday at UTC+10 is due on Sunday 23:00 UTC', () async {
-      await addSchedule(Scheduler.weeklyReport, defaultSchedules[Scheduler.weeklyReport]!,
-          lastRun: DateTime.utc(2026, 11, 14));
+      await addSchedule(
+        Scheduler.weeklyReport,
+        defaultSchedules[Scheduler.weeklyReport]!,
+        lastRun: DateTime.utc(2026, 11, 14),
+      );
       clock.t = DateTime.utc(2026, 11, 15, 23, 1);
       expect(await scheduler(offset: const Duration(hours: 10)).tick(), hasLength(1));
       expect((await jobArgs()).single['due'], DateTime.utc(2026, 11, 15, 23).toIso8601String());
