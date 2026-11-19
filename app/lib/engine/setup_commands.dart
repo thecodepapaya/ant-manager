@@ -12,6 +12,7 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 
+import 'engine_runtime.dart';
 import 'messages.dart';
 
 // ---------- settings ----------
@@ -45,7 +46,25 @@ EngineCommand<void> addIdentityCmd(String kind, String value) => (rt) async {
 EngineCommand<void> removeIdentityCmd(String id) =>
     (rt) => (rt.db.delete(rt.db.identities)..where((i) => i.id.equals(id))).go();
 
+// ---------- calendar ----------
+
+/// Asks macOS for calendar access through the port bridge (EventKit runs in the UI isolate).
+EngineCommand<bool> appleCalendarAccessCmd() => (rt) async => await rt.engine.ports.calendar?.requestAccess() ?? false;
+
 // ---------- git ----------
+
+/// `git config --global user.email`, used to pre-tick "you" among scanned authors.
+EngineCommand<String?> gitGlobalEmailCmd() => (rt) async {
+      final path = GitDetector().detect();
+      if (path == null) return null;
+      try {
+        final r = await Process.run(path, ['config', '--global', 'user.email']);
+        final v = (r.stdout as String).trim();
+        return v.isEmpty ? null : v.toLowerCase();
+      } on ProcessException {
+        return null;
+      }
+    };
 
 /// System git: [path] null when it isn't installed (guided install screen).
 class GitStatus {
@@ -117,7 +136,7 @@ EngineCommand<List<RepoScan>> scanReposCmd(List<String> roots) => (rt) async {
             final prev = authors[email];
             authors[email] = (f[1], (prev?.$2 ?? 0) + 1);
             final at = DateTime.tryParse(f[2]);
-            if (at != null && (last == null || at.isAfter(last!))) last = at;
+            if (at != null && (last == null || at.isAfter(last))) last = at;
           }
           if (last == null) {
             final out = (await git.run(path, ['log', '-1', '--all', '--format=%cI'])).trim();
@@ -174,8 +193,8 @@ String _keyRef(String providerId) => 'provider/$providerId/key';
 String _headerRef(String providerId, String name) => 'provider/$providerId/header/$name';
 
 /// Creates or updates a provider. [apiKey] / [headers] null = keep the stored values;
-/// an empty [apiKey] removes the key. Returns the provider id.
-EngineCommand<String> saveProviderCmd({
+/// an empty [apiKey] removes the key. Returns (provider id, consent already given).
+EngineCommand<(String, bool)> saveProviderCmd({
   String? id,
   required ProviderKind kind,
   required String name,
@@ -230,16 +249,16 @@ EngineCommand<String> saveProviderCmd({
             timeoutSeconds: Value(timeoutSeconds),
             consentGiven: Value(consent),
           ));
-      return pid;
+      return (pid, consent);
     };
 
 EngineCommand<void> setProviderConsentCmd(String id) => (rt) =>
     (rt.appDb.update(rt.appDb.providers)..where((x) => x.id.equals(id)))
         .write(const ProvidersCompanion(consentGiven: Value(true)));
 
-Future<LlmClient> _client(dynamic rt, String providerId) async {
-  final AppDb db = rt.appDb;
-  final SecretStore secrets = rt.engine.ports.secrets;
+Future<LlmClient> _client(EngineRuntime rt, String providerId) async {
+  final db = rt.appDb;
+  final secrets = rt.engine.ports.secrets;
   final row = await (db.select(db.providers)..where((x) => x.id.equals(providerId))).getSingle();
   final key = row.credentialRef == null ? null : await secrets.read(row.credentialRef!);
   final refs = (jsonDecode(row.headers) as Map).cast<String, String>();
@@ -353,7 +372,7 @@ EngineCommand<String> defaultBackupFolderCmd() => (rt) async => rt.defaultBackup
 
 EngineCommand<BackupManifest> inspectBackupCmd(String file) => (rt) => BackupService.inspect(file);
 
-/// Restores [file] into a new profile ("<name> (restored)") and returns its id; the UI then
+/// Restores [file] into a new profile (named "… (restored)") and returns its id; the UI then
 /// switches to it. Existing profiles are never overwritten.
 EngineCommand<String> restoreBackupCmd(String file) => (rt) async {
       final m = await BackupService.inspect(file);

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'engine/commands.dart';
+import 'features/onboarding/onboarding_page.dart';
+import 'features/settings/setup_providers.dart';
 import 'pages/placeholder_pages.dart';
 import 'shell/quick_capture.dart';
 import 'shell/shell_state.dart';
@@ -40,6 +42,10 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final engine = ref.watch(engineProvider);
     final section = ref.watch(shellSectionProvider);
+    // Onboarding gate: first run (no identities, no sources, never finished or skipped).
+    if (engine is AsyncData && (ref.watch(onboardingNeededProvider).value ?? false)) {
+      return const Scaffold(body: OnboardingPage());
+    }
     return Scaffold(
       body: Row(
         children: [

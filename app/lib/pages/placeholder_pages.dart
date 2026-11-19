@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../engine/commands.dart';
-import '../platform/launch_at_login.dart';
+import '../features/settings/settings_page.dart';
+import '../features/sources/sources_page.dart';
 import '../shell/shell_state.dart';
 import '../state/providers.dart';
 
@@ -21,8 +22,8 @@ Widget pageFor(ShellSection s) => switch (s) {
       ShellSection.reports => const _CountsPage(ShellSection.reports, [(Counter.reports, 'Reports')]),
       ShellSection.wins => const _CountsPage(ShellSection.wins, [(Counter.wins, 'Accepted wins')]),
       ShellSection.projects => const _CountsPage(ShellSection.projects, [(Counter.projects, 'Projects')]),
-      ShellSection.sources => const _CountsPage(ShellSection.sources, [(Counter.sources, 'Sources')]),
-      ShellSection.settings => const _SettingsPage(),
+      ShellSection.sources => const SourcesPage(),
+      ShellSection.settings => const SettingsPage(),
     };
 
 class _CountsPage extends ConsumerWidget {
@@ -110,61 +111,6 @@ class _CountCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SettingsPage extends ConsumerStatefulWidget {
-  const _SettingsPage();
-  @override
-  ConsumerState<_SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends ConsumerState<_SettingsPage> {
-  bool? _launchAtLogin;
-
-  @override
-  void initState() {
-    super.initState();
-    Future(LaunchAtLogin.isEnabled).then((v) {
-      if (mounted) setState(() => _launchAtLogin = v);
-    }, onError: (Object _) {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final profile = ref.watch(activeProfileProvider);
-    final paused = ref.watch(pausedProvider).value ?? false;
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 16),
-        ListTile(
-          title: const Text('Profile'),
-          subtitle: Text(profile == null ? '…' : '${profile.name} · ${profile.timeZone}'),
-        ),
-        SwitchListTile(
-          title: const Text('Pause collection'),
-          subtitle: const Text('Stops syncing sources for this profile'),
-          value: paused,
-          onChanged: (v) async {
-            final h = await ref.read(engineProvider.future);
-            await h.runtime(setPausedCmd(v));
-          },
-        ),
-        SwitchListTile(
-          title: const Text('Launch at login'),
-          value: _launchAtLogin ?? false,
-          onChanged: _launchAtLogin == null
-              ? null
-              : (v) async {
-                  await LaunchAtLogin.setEnabled(v);
-                  final now = await LaunchAtLogin.isEnabled();
-                  if (mounted) setState(() => _launchAtLogin = now);
-                },
-        ),
-      ],
     );
   }
 }
