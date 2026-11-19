@@ -20,7 +20,7 @@ come later (checklist at the bottom).
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `ci.yml` | every push, every PR | `flutter pub get`; build_runner in `packages/core` and fail if generated code isn't committed; `dart analyze` + `dart test --exclude-tags live` in core; `flutter analyze` + `flutter test` in `ui` and `app` (tests skipped if no `test/`); `packages/ui/tool/check_tokens.dart` if present. |
+| `ci.yml` | every push, every PR | `flutter pub get`; build_runner in `packages/core` and fail if generated code isn't committed; `dart analyze` + `dart test --exclude-tags live` in core; `flutter analyze` + `flutter test` in `ui` and `app`; `dart run packages/ui/tool/check_tokens.dart`. All steps run even if one fails. |
 | `build.yml` | push to `v1`/`main`, tags `v*`, manual | Builds release installers on macOS / Windows / Ubuntu 22.04 and uploads them as workflow artifacts. On `v*` tags, also creates the GitHub Release with the three files and the install notes from `packaging/release-notes.md`. |
 
 Artifacts (branch builds get version `X.Y.Z-<sha7>`):
@@ -31,8 +31,13 @@ Artifacts (branch builds get version `X.Y.Z-<sha7>`):
 | Windows | `AntManager-<version>-windows-setup.exe` (x64, per-user install) | `packaging/windows/installer.iss` (Inno Setup) |
 | Linux | `AntManager-<version>-x86_64.AppImage` | `packaging/linux/make_appimage.sh` (appimagetool 1.9.1, checksum-pinned) |
 
-The Linux AppImage bundles the tray (ayatana-appindicator, dbusmenu), hotkey (keybinder) and notification
-(libnotify) libraries; GTK and glib come from the host. The Windows installer ships the MSVC runtime DLLs.
+The Linux AppImage bundles libnotify (notifications); GTK, glib, X11 and libsecret (SPEC #77) come from the host. Tray (D-Bus StatusNotifierItem) and hotkeys (X11) are in nativeapi's own `.so`, built by its native-asset
+hook (needs `libgtk-3-dev libx11-dev libxi-dev`), so no ayatana/keybinder. `make_appimage.sh` fails if any bundled
+`.so` has an unresolved dependency. Users need a secret service (gnome-keyring / KWallet) and, on GNOME, the
+AppIndicator extension for the tray. The Windows installer ships the MSVC runtime DLLs.
+
+CI runs every check step even after an earlier one fails (`if: ${{ !cancelled() }}`), so one red test suite
+doesn't hide the others. Branch builds: `gh workflow run build.yml --ref <branch>`.
 
 ## Build locally (macOS)
 

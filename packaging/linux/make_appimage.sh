@@ -29,17 +29,24 @@ chmod +x "$appdir/AppRun"
 cp -R "$bundle" "$appdir/app"
 cp "$root/app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png" "$appdir/ant-manager.png"
 
-# 2. Bundle desktop-integration libraries that many distros don't ship by default
-#    (tray: ayatana-appindicator + dbusmenu, hotkeys: keybinder, notifications: libnotify).
-#    GTK/glib and everything else come from the host system.
+# 2. Bundle libnotify (notifications), which minimal distros may lack. libsecret stays a host
+#    requirement (SPEC #77). Tray (D-Bus StatusNotifierItem) and hotkeys (X11) are in nativeapi's own .so,
+#    which Flutter already puts in app/lib. GTK, glib and X11 come from the host system.
 { ldd "$appdir/app/ant_manager" "$appdir"/app/lib/*.so || true; } \
   | awk '/=> \// {print $3}' \
-  | { grep -E '/lib(ayatana-|dbusmenu-|keybinder-|notify)' || true; } \
+  | { grep -E '/libnotify\.so' || true; } \
   | sort -u \
   | while read -r lib; do
       echo "Bundling $lib"
       cp -L "$lib" "$appdir/app/lib/"
     done
+
+# Fail on unresolved libraries (e.g. a plugin needing a -dev package the workflow didn't install).
+missing="$(for f in "$appdir/app/ant_manager" "$appdir"/app/lib/*.so; do
+  LD_LIBRARY_PATH="$appdir/app/lib" ldd "$f" | sed "s|^|$(basename "$f"): |"
+done | grep 'not found' || true)"
+[[ -z "$missing" ]] || { echo "Unresolved libraries:" >&2; echo "$missing" >&2; exit 1; }
+echo "Bundled libraries:"; ls "$appdir/app/lib"
 
 # 3. Build the AppImage with a pinned, checksum-verified appimagetool.
 tool="$work/appimagetool"
