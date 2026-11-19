@@ -245,7 +245,8 @@ maintained from it, and every output reads from that Narrative.
 - **Quick capture:** a global hotkey opens a floating note box from anywhere (on macOS the main window shrinks to it, #101).
 - **Onboarding:** create profile → add identities → scan repos → connect optional sources → pick AI provider
   (structured-output probe) → first import and report. Each step can be skipped. Shown once for a profile with no
-  identities and no sources, until finished or skipped (#105).
+  identities and no sources, until finished or skipped (#105). **TODO:** a short intro first explaining what the app is
+  and how it works, in the app's own design ([lld/README.md](./lld/README.md#todo)).
 - Diagnostics: a "Copy diagnostics" button with local rotating logs.
 - **English only** in v1 (#87); no localization framework.
 
