@@ -75,8 +75,7 @@ void main() {
         [svc.enqueueSync('gh'), svc.enqueueSync('gh'), sched.tick().then((l) => l.isNotEmpty)]);
     expect(r.where((x) => x), hasLength(1));
     expect(await h.jobs(SyncService.syncJob), hasLength(1));
-  }, skip: 'BUG: enqueueSync is check-then-insert outside a transaction, so two interleaved callers both '
-      'enqueue a sources.sync for the same source (sync_service.dart:146-154)');
+  });
 
   test('no second job while one is queued or running; a new one once it is done or failed', () async {
     await h.addRow('gh', SourceKind.github);

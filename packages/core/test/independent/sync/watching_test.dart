@@ -177,6 +177,5 @@ void main() {
     await settle(600);
     await slow.stopWatching();
     expect((await syncJobs()).map((j) => j.args), contains('{"source_id":"a"}'));
-  }, skip: "BUG: _rewatch() -> stopWatching() cancels every pending debounce timer, so a change burst on "
-      "source A is dropped when any source is added/updated/removed within the debounce (sync_service.dart:132)");
+  });
 }
