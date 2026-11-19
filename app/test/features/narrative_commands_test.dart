@@ -24,7 +24,8 @@ import 'support.dart';
 final _png = Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
 final _jpg = Uint8List.fromList([255, 216, 255, 224, 9, 9]);
 
-String _day(DateTime d) => dayOf(d, d.timeZoneOffset);
+// The harness profile zone is UTC (support/fakes.dart), so days are UTC days.
+String _day(DateTime d) => dayOf(d, Duration.zero);
 
 EngineCommand<void> _setStarredCmd(String id) => (rt) => rt.engine.setStarred(id, true);
 
@@ -323,10 +324,10 @@ void main() {
         h.runtime(generateReportCmd(report)),
         throwsA(isA<EngineCommandException>().having((e) => e.message, 'message', contains('locked'))),
       );
-      final today = DateTime.now();
+      final today = DateTime.now().toUtc(); // the harness profile zone is UTC
       await h.runtime(enqueueJobCmd(
         Scheduler.dailyReport,
-        args: {'due': DateTime(today.year, today.month, today.day, 23).toUtc().toIso8601String()},
+        args: {'due': DateTime.utc(today.year, today.month, today.day, 23).toIso8601String()},
       ));
       expect(await h.runtime(runJobCmd(JobLane.llm)), isTrue);
       expect(llm.chatCalls, calls);

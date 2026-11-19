@@ -6,7 +6,7 @@ Guidance for coding agents in this repo.
 - `docs/`: v1 design. `SPEC.md` = what (authoritative); `DECISIONS.md` = numbered why-log (append only, mark superseded
   rows `⟶ see #N`); `lld/` = low-level design, step status in `lld/README.md`; `OWNER_TODO.md` = owner-only external tasks.
 - `app/`, `packages/core`, `packages/ui`: v1 code (Dart pub workspace).
-- `legacy/`: old app, reference only. `web/` + `wrangler.json`: Cloudflare Pages site; don't move.
+- `web/` + `wrangler.json`: Cloudflare Pages site; don't move.
 
 ## Architecture rules
 - Harness: Sources → Evidence (payloads) → Narrative (typed facts citing payload revisions) → read-only Reports / Wins

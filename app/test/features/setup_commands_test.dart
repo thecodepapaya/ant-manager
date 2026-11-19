@@ -251,9 +251,10 @@ void main() {
     });
 
     test('a due nudge schedule enqueues the nudge job', () async {
-      final now = DateTime.now();
+      // The harness profile zone is UTC, so the schedule's day and weekday are UTC.
+      final now = DateTime.now().toUtc();
       await h.runtime(_ruleCmd(nudgeJobKind, ScheduleRule(hour: 0, weekdays: [now.weekday]),
-          DateTime(now.year, now.month, now.day).subtract(const Duration(days: 2)).toUtc()));
+          DateTime.utc(now.year, now.month, now.day).subtract(const Duration(days: 2))));
       await h.runtime(tickCmd(DateTime.now().toUtc()));
       final jobs = await h.db.select(h.db.jobs).get();
       expect(jobs.map((j) => j.kind), contains(nudgeJobKind));

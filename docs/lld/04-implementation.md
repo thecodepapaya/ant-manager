@@ -108,7 +108,7 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
   backstop; at most one pending sync job per source. Status (`lastSuccessAt`, `lastError`) lives on the source's
   `''`-scope SyncCursor row. Removing a source only disables it (evidence, cursors, secret kept); editing its config
   keeps its cursors. The git picker treats only enabled repos as "Added"; ticking a removed repo re-enables its
-  existing source (and syncs it) rather than adding a second one for the same path (#112).
+  existing source (and syncs it) rather than adding a second one for the same path (#113).
 
 ## 4.4 Importance scoring
 
@@ -241,7 +241,7 @@ No undo. A confirmation dialog states exactly what will be removed.
 
 - `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
   `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row and its
-  `.sqlite` file are deleted (#112).
+  `.sqlite` file are deleted (#113).
 - **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
   `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
   `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no
