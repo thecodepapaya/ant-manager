@@ -109,6 +109,9 @@ void main() {
       await svc.removeSource(id);
       await h.engine.jobs.runOne(JobLane.io);
       expect(await h.externalIds(id), isEmpty);
+      final job = (await h.jobs(SyncService.syncJob)).single;
+      expect((job.state, job.attempts), (JobState.done, 0)); // skipped, not failed
+
     });
 
     test('both jobs are on the IO lane', () async {

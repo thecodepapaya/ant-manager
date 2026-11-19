@@ -173,7 +173,7 @@ void main() {
     await slow.startWatching(onEnqueue: () => kicks++);
     watch.emit('a');
     await Future<void>.delayed(Duration.zero); // timer for 'a' pending
-    await slow.addSource(SourceKind.gitRepo, 'other', {}); // _rewatch -> stopWatching cancels all timers
+    await slow.addSource(SourceKind.gitRepo, 'other', {}); // rewatch must keep other sources' pending timers
     await settle(600);
     await slow.stopWatching();
     expect((await syncJobs()).map((j) => j.args), contains('{"source_id":"a"}'));
