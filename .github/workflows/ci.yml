@@ -22,13 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Desktop plugin build deps (tray, secure storage, hotkeys, notifications).
+      # `flutter test` runs native-asset build hooks (cnativeapi: pkg-config gtk+-3.0, x11, xi).
       - name: Install Linux desktop deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            clang cmake ninja-build pkg-config libgtk-3-dev \
-            libayatana-appindicator3-dev libsecret-1-dev libkeybinder-3.0-dev libnotify-dev
+            clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev
 
       - uses: subosito/flutter-action@v2
         with:
@@ -40,6 +39,7 @@ jobs:
         run: flutter pub get
 
       - name: Generated code is committed
+        if: ${{ !cancelled() }}
         working-directory: packages/core
         run: |
           dart run build_runner build --delete-conflicting-outputs
@@ -51,32 +51,34 @@ jobs:
           fi
 
       - name: core - analyze
+        if: ${{ !cancelled() }}
         run: dart analyze packages/core
 
       - name: core - test
+        if: ${{ !cancelled() }}
         working-directory: packages/core
         run: dart test --exclude-tags live
 
       - name: ui - analyze
+        if: ${{ !cancelled() }}
         working-directory: packages/ui
         run: flutter analyze
 
       - name: ui - test
+        if: ${{ !cancelled() }}
         working-directory: packages/ui
-        run: if [ -d test ]; then flutter test; else echo "No tests in packages/ui, skipping"; fi
+        run: flutter test
 
       - name: ui - design tokens check
-        run: |
-          if [ -f packages/ui/tool/check_tokens.dart ]; then
-            dart run packages/ui/tool/check_tokens.dart
-          else
-            echo "packages/ui/tool/check_tokens.dart not present, skipping"
-          fi
+        if: ${{ !cancelled() }}
+        run: dart run packages/ui/tool/check_tokens.dart
 
       - name: app - analyze
+        if: ${{ !cancelled() }}
         working-directory: app
         run: flutter analyze
 
       - name: app - test
+        if: ${{ !cancelled() }}
         working-directory: app
-        run: if [ -d test ]; then flutter test; else echo "No tests in app, skipping"; fi
+        run: flutter test

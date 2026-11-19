@@ -8,7 +8,7 @@ import 'package:core/core.dart';
 import 'package:core/src/ai/clients/openai_compatible.dart';
 import 'package:test/test.dart';
 
-/// Runs only with OPENROUTER_API_KEY set: `dart test -t live`.
+/// Runs only with OPENROUTER_API_KEY set: `dart test -t live --run-skipped`.
 void main() {
   final key = Platform.environment['OPENROUTER_API_KEY'];
 

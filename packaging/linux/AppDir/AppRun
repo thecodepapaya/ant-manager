@@ -1,6 +1,6 @@
 #!/bin/sh
-# AppImage entry point. The Flutter bundle lives in app/; libraries we bundle (tray, hotkeys,
-# notifications) sit next to Flutter's own in app/lib.
+# AppImage entry point. The Flutter bundle lives in app/; libraries we bundle (libnotify)
+# sit next to Flutter's own in app/lib.
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/app/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 exec "$HERE/app/ant_manager" "$@"
