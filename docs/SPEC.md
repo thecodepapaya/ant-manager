@@ -87,7 +87,8 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   without triggering it. If git is missing, show a friendly install screen.
 - **Self-hosted networking:** a per-connection "trust custom CA certificate" option (plus an explicit insecure toggle with a warning). *Not built yet for sources; providers have it (§6).*
 - **Sync:** each source is due 15 min after its last success (ICS 60 min), watched sources included; status (last success,
-  last error) is shown per source. Removing a source only disables it (evidence kept) (#102).
+  last error) is shown per source. Removing a source only disables it (evidence kept) (#102); re-adding
+  a removed git repo re-enables that source instead of adding a duplicate (#112).
 
 ## 6. AI providers & routing
 
@@ -178,7 +179,7 @@ maintained from it, and every output reads from that Narrative.
   is running, plus on demand. Scheduled runs use the period kind's default built-in template (#108). Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79).
 - Every claim in a report links to the **facts and evidence** behind it (Markdown footnotes `[^fN]: <statement> (fact:<id>)`, #108).
 - **Wins = a view** over Outcome facts + starred evidence, plus model-suggested wins you accept or reject. Filterable
-  by period and project.
+  by period and project. Starred evidence counts as having a win only once an accepted Outcome fact cites it (#112).
 - **Review / brag doc** = a quarterly or custom report with a review template.
 - **Templates:** built-in templates (Standup, Manager update, Weekly review, Monthly recap, Wins summary, Brag doc) that
   can be duplicated and edited (editing a built-in duplicates it; copies keep their origin for reset, #108), with
@@ -202,7 +203,8 @@ maintained from it, and every output reads from that Narrative.
   Backup status (last success, last error) appears in Settings; options live in profile Settings (#105).
 - **Secrets are never included.** API keys and OAuth tokens stay in the OS keychain; after a restore you sign in again.
 - **Restore:** pick a backup file, preview it (profile, date range, item counts,
-  backup date), then restore into a **new profile** ("… (restored)"), never over an existing one (#105). Newer schema versions refuse to restore with a clear message.
+  backup date), then restore into a **new profile** ("… (restored)"), never over an existing one (#105); a failed restore leaves no profile or database file
+  behind (#112). Newer schema versions refuse to restore with a clear message.
   Backups from older versions are migrated on restore.
 - **Not sync.** Restoring on another machine is a one-time copy; the live DB must never sit in a shared folder.
 - **No encryption in v1:** backups are plaintext. Settings states this, since a synced folder puts full diffs and

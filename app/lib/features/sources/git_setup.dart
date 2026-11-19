@@ -125,13 +125,21 @@ class RepoScanController extends ChangeNotifier {
     return out;
   }
 
-  /// Adds the ticked repos that aren't sources yet. Returns how many were added.
-  Future<int> addSelected(Set<String> existing) async {
+  /// Adds the ticked repos that aren't sources yet and re-enables removed ones. Returns how many were added.
+  Future<int> addSelected(List<SourceStatus> sources) async {
     final h = await _ref.read(engineProvider.future);
+    final known = repoSourcesByPath(sources);
     var n = 0;
     for (final path in selected) {
-      if (existing.contains(path)) continue;
-      final id = await h.runtime(addSourceCmd(SourceKind.gitRepo, p.basename(path), {'path': path}));
+      final row = known[path];
+      if (row != null && row.enabled) continue;
+      final String id;
+      if (row == null) {
+        id = await h.runtime(addSourceCmd(SourceKind.gitRepo, p.basename(path), {'path': path}));
+      } else {
+        id = row.id;
+        await h.runtime(updateSourceCmd(id, enabled: true));
+      }
       await h.runtime(syncSourceCmd(id));
       n++;
     }
@@ -139,11 +147,19 @@ class RepoScanController extends ChangeNotifier {
   }
 }
 
-/// Paths of the git repos already added.
-Set<String> existingRepoPaths(List<SourceStatus> sources) => {
+/// Git repo sources by path, removed (disabled) ones included.
+Map<String, SourceRow> repoSourcesByPath(List<SourceStatus> sources) => {
       for (final s in sources)
-        if (s.row.kind == SourceKind.gitRepo && s.row.enabled) ?(jsonDecode(s.row.config) as Map)['path'] as String?,
+        if (s.row.kind == SourceKind.gitRepo)
+          if ((jsonDecode(s.row.config) as Map)['path'] case final String path) path: s.row,
     };
+
+/// Paths of every git repo source, removed ones included (re-adding one re-enables it, never duplicates).
+Set<String> existingRepoPaths(List<SourceStatus> sources) => repoSourcesByPath(sources).keys.toSet();
+
+/// Paths of the git repos currently added (enabled); the picker shows these as "Added".
+Set<String> activeRepoPaths(List<SourceStatus> sources) =>
+    {for (final e in repoSourcesByPath(sources).entries) if (e.value.enabled) e.key};
 
 /// Friendly install screen when git is missing (SPEC §5).
 class GitInstallGuide extends StatelessWidget {
@@ -354,7 +370,8 @@ class _GitSetupDialogState extends ConsumerState<GitSetupDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final existing = existingRepoPaths(ref.watch(sourcesProvider).value ?? const []);
+    final sources = ref.watch(sourcesProvider).value ?? const <SourceStatus>[];
+    final existing = activeRepoPaths(sources);
     return ListenableBuilder(
       listenable: c,
       builder: (context, _) {
@@ -372,7 +389,7 @@ class _GitSetupDialogState extends ConsumerState<GitSetupDialog> {
                   : () async {
                       setState(() => _adding = true);
                       try {
-                        final n = await c.addSelected(existing);
+                        final n = await c.addSelected(sources);
                         if (context.mounted) {
                           toast(context, 'Added $n repo${n == 1 ? '' : 's'} · importing the last 30 days', tone: AntTone.ok);
                           Navigator.of(context).pop();

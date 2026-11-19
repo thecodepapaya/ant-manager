@@ -89,8 +89,6 @@ void main() {
 
     test(
       'dropped GIF / WebP images keep their own mime type',
-      skip: 'BUG: packages/core/lib/src/engine/engine.dart:117 maps every non-.png attachment to image/jpeg, '
-          'but NoteComposer accepts gif/webp/heic (app/lib/widgets/note_composer.dart:14)',
       () async {
         final id = await note('Anim', images: [(_png, 'gif'), (_png, 'webp')]);
         final ps = await payloadsOf(id);

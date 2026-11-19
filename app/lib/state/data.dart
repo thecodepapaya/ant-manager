@@ -245,7 +245,7 @@ final starredWithoutWinProvider = StreamProvider.family<List<Evidence>, ({String
            AND (?1 IS NULL OR e.day >= ?1) AND (?2 IS NULL OR e.day <= ?2)
            AND NOT EXISTS (SELECT 1 FROM payloads p JOIN citations c ON c.payload_id = p.id
              JOIN facts f ON f.id = c.fact_id
-             WHERE p.evidence_id = e.id AND f.retired = 0 AND f.win_status = 'accepted')
+             WHERE p.evidence_id = e.id AND f.retired = 0 AND f.type = 'outcome' AND f.win_status = 'accepted')
            ORDER BY e.occurred_start DESC''',
         variables: [Variable(q.start), Variable(q.end)],
         readsFrom: {db.evidences, db.payloads, db.citations, db.facts},

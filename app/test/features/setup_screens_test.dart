@@ -254,13 +254,13 @@ void main() {
     final scan = RepoScanController(ref);
     addTearDown(scan.dispose);
     scan.selected.addAll(['/r/a', '/r/b']);
-    final added = await tester.runAsync(() => scan.addSelected(existingRepoPaths(sources.read().value!)));
+    final added = await tester.runAsync(() => scan.addSelected(sources.read().value!));
     expect(added, 1);
     final rows = await read(tester, () => h.db.select(h.db.sources).get());
     expect(rows.map((r) => jsonDecode(r.config)['path']).toList()..sort(), ['/r/a', '/r/b']);
     // Running it again adds nothing.
     await settle(tester, until: () => (sources.read().value ?? const []).length == 2);
-    expect(await tester.runAsync(() => scan.addSelected(existingRepoPaths(sources.read().value!))), 0);
+    expect(await tester.runAsync(() => scan.addSelected(sources.read().value!)), 0);
     expect(await read(tester, () => h.db.select(h.db.sources).get()), hasLength(2));
     await killEngine(tester, h);
   });
