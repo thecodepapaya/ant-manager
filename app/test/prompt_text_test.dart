@@ -84,6 +84,18 @@ void main() {
     expect(result(), (done: true, value: 'Payments'));
   });
 
+  testWidgets('multi-line prompt: Enter does not submit; Save returns the text', (tester) async {
+    final result = await open(tester, maxLines: 3);
+    await tester.enterText(find.byType(EditableText), 'line one\nline two ');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('Rename'), findsOneWidget, reason: 'still open');
+    expect(result().done, isFalse);
+    await tester.tap(find.text('Save'));
+    await closeFully(tester);
+    expect(result(), (done: true, value: 'line one\nline two'));
+  });
+
   testWidgets('barrier dismiss returns null without errors', (tester) async {
     final result = await open(tester);
     await tester.tapAt(const Offset(5, 5));

@@ -139,7 +139,16 @@ void main() {
     final cites = await (h.db.select(h.db.citations)..where((c) => c.factId.equals(id))).get();
     expect(cites.map((c) => c.payloadId).toSet(), payloads.map((p) => p.id).toSet());
     final ev = await evidence(e);
-    expect((ev.starred, ev.importance), (true, 1.0));
+    expect((ev.starred, ev.hidden, ev.importance, ev.importanceSetBy), (true, false, 1.0, ImportanceSetBy.user));
+  });
+
+  test('starring unknown evidence surfaces as EngineCommandException; engine stays usable', () async {
+    await expectLater(
+      h.runtime(starEvidenceCmd('missing')).timeout(const Duration(seconds: 5)),
+      throwsA(isA<EngineCommandException>()),
+    );
+    expect(model.bodies, isEmpty);
+    expect(await h.runtime(_noteCmd('still works')), isNotEmpty);
   });
 
   test('existing Outcome → upgraded to accepted, no model call', () async {

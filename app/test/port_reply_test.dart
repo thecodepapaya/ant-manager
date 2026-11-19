@@ -82,7 +82,6 @@ EngineCommand<List<int>> _concurrentStreamsCmd() => (rt) async {
 EngineCommand<void> _watchAppleCalendarCmd() => (rt) async {
       await rt.sync.addSource(SourceKind.appleCalendar, 'Calendar', const {});
       await rt.sync.startWatching();
-      await Future<void>.delayed(const Duration(milliseconds: 300));
     };
 
 EngineCommand<int> _pingCmd() => (rt) async => 42;
@@ -172,9 +171,17 @@ void main() {
     });
 
     test('watching an Apple Calendar source without a host calendar does not kill the engine', () async {
-      final h = await EngineHandle.start(testConfig(dir.path, calendar: true), host: CountingHost());
+      final host = CountingHost();
+      final h = await EngineHandle.start(testConfig(dir.path, calendar: true), host: host);
       addTearDown(h.shutdown);
       await h.runtime(_watchAppleCalendarCmd());
+      final end = DateTime.now().add(const Duration(seconds: 5));
+      while (host.watchCalls == 0 && DateTime.now().isBefore(end)) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(host.watchCalls, 1, reason: 'the source subscribed and the host answered with an error');
+      // Give the error reply time to land in the engine; a fatal uncaught error would kill it.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
       expect(await h.runtime(_pingCmd()).timeout(const Duration(seconds: 5)), 42);
     });
 

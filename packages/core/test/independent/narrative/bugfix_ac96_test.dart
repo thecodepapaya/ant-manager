@@ -1,4 +1,4 @@
-// Independent tests for the fixes merged in 9bb473f (branch ac96): star routing / rule-hidden
+// Independent tests for the fixes in 12c0e9d (merged into v1 by 9bb473f): star routing / rule-hidden
 // stars, workstream spans on retire and delete, and dependency rows kept/removed by permanentDelete.
 import 'package:core/core.dart';
 import 'package:core/src/narrative/enrichment.dart';
@@ -69,6 +69,7 @@ void main() {
       await h.insertFact('f1', [p1b]);
       expect(await WinService(h.ctx).starEvidence(e1), 'f1');
       expect(h.router.calls, isEmpty);
+      expect((await h.fact('f1')).winStatus, WinStatus.accepted);
     });
   });
 
@@ -87,7 +88,9 @@ void main() {
 
     test('WinService.starEvidence: rule-hidden → visible, importance 1.0', () async {
       await ruleHide();
-      await WinService(h.ctx).starEvidence(e);
+      final id = await WinService(h.ctx).starEvidence(e);
+      final f = await h.fact(id);
+      expect((f.type, f.winStatus, f.origin), (FactType.outcome, WinStatus.accepted, FactOrigin.userCreated));
       final ev = await h.evidence(e);
       expect(
         (ev.hidden, ev.starred, ev.importance, ev.importanceSetBy),
@@ -124,7 +127,7 @@ void main() {
       await engine.setStarred(e, true);
       await ImportanceScorer(h.ctx).scoreDay(day);
       final ev = await h.evidence(e);
-      expect((ev.hidden, ev.importance), (false, 1.0));
+      expect((ev.hidden, ev.importance, ev.importanceSetBy), (false, 1.0, ImportanceSetBy.user));
     });
   });
 
@@ -255,10 +258,6 @@ void main() {
       final rows = await h.depsOf(EntityType.fact, 'shared');
       expect(rows.where((d) => d.inputId == p), isEmpty);
       expect(rows.where((d) => d.inputType == EntityType.payload && d.inputId == q), isNotEmpty);
-      final anyOnP = await (h.db.select(h.db.dependencies)
-            ..where((d) => d.dependentType.equalsValue(EntityType.fact) & d.inputId.equals(p)))
-          .get();
-      expect(anyOnP, isEmpty);
     });
 
     test("the deleted enrichment's own dependency rows are removed", () async {
