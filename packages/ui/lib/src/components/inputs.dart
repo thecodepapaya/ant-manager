@@ -53,12 +53,7 @@ class AntTextField extends StatelessWidget {
       borderSide: BorderSide(color: c, width: w),
     );
     final single = maxLines == 1;
-    final vPad = single
-        ? (antControlHeight(t, size) -
-                  (base.fontSize! * base.height!) -
-                  2 * t.stroke.hairline) /
-              2
-        : t.space.md;
+    final vPad = single ? (antControlHeight(t, size) - (base.fontSize! * base.height!)) / 2 : t.space.md;
     final field = Material(
       type: MaterialType.transparency,
       child: TextField(
@@ -80,9 +75,7 @@ class AntTextField extends StatelessWidget {
           // The app theme is compact; without this the decorator shrinks the
           // drawn box below the control height (padding is set exactly here).
           visualDensity: VisualDensity.standard,
-          constraints: single
-              ? BoxConstraints.tightFor(height: antControlHeight(t, size))
-              : null,
+          constraints: single ? BoxConstraints.tightFor(height: antControlHeight(t, size)) : null,
           filled: true,
           fillColor: t.inputBg,
           hoverColor: t.hover.withValues(alpha: 0),
@@ -90,17 +83,9 @@ class AntTextField extends StatelessWidget {
           hintStyle: base.copyWith(color: t.placeholder),
           errorText: errorText,
           errorStyle: t.typo.small.copyWith(color: t.dangerText),
-          prefixIcon: leadingIcon == null
-              ? null
-              : Icon(leadingIcon, size: t.icon.sm, color: t.muted),
-          prefixIconConstraints: BoxConstraints(
-            minWidth: t.density.controlMd,
-            minHeight: t.icon.sm,
-          ),
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: t.space.md,
-            vertical: vPad,
-          ),
+          prefixIcon: leadingIcon == null ? null : Icon(leadingIcon, size: t.icon.sm, color: t.muted),
+          prefixIconConstraints: BoxConstraints(minWidth: t.density.controlMd, minHeight: t.icon.sm),
+          contentPadding: EdgeInsets.symmetric(horizontal: t.space.md, vertical: vPad),
           border: border(t.borderStrong, t.stroke.hairline),
           enabledBorder: border(t.borderStrong, t.stroke.hairline),
           disabledBorder: border(t.border, t.stroke.hairline),
@@ -126,13 +111,7 @@ class AntTextField extends StatelessWidget {
 
 /// On/off toggle.
 class AntSwitch extends StatelessWidget {
-  const AntSwitch({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.semanticLabel,
-    this.focusNode,
-  });
+  const AntSwitch({super.key, required this.value, required this.onChanged, this.semanticLabel, this.focusNode});
 
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -164,9 +143,7 @@ class AntSwitch extends StatelessWidget {
             height: d.switchHeight,
             padding: EdgeInsets.all(inset),
             decoration: BoxDecoration(
-              color: value
-                  ? (s.hovered ? t.accentHover : t.accent)
-                  : (s.hovered ? t.raw : t.borderStronger),
+              color: value ? (s.hovered ? t.accentHover : t.accent) : (s.hovered ? t.raw : t.borderStronger),
               borderRadius: radius,
             ),
             child: AnimatedAlign(
@@ -176,10 +153,7 @@ class AntSwitch extends StatelessWidget {
               child: Container(
                 width: thumb,
                 height: thumb,
-                decoration: BoxDecoration(
-                  color: value ? t.onAccent : t.text2,
-                  borderRadius: radius,
-                ),
+                decoration: BoxDecoration(color: value ? t.onAccent : t.text2, borderRadius: radius),
               ),
             ),
           ),
@@ -191,13 +165,7 @@ class AntSwitch extends StatelessWidget {
 
 /// Checkbox with an optional clickable label.
 class AntCheckbox extends StatelessWidget {
-  const AntCheckbox({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.label,
-    this.focusNode,
-  });
+  const AntCheckbox({super.key, required this.value, required this.onChanged, this.label, this.focusNode});
 
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -230,33 +198,20 @@ class AntCheckbox extends StatelessWidget {
                 height: size,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: value
-                      ? (s.hovered ? t.accentHover : t.accent)
-                      : t.inputBg,
+                  color: value ? (s.hovered ? t.accentHover : t.accent) : t.inputBg,
                   borderRadius: radius,
                   border: Border.all(
-                    color: value
-                        ? t.accent
-                        : (s.hovered ? t.raw : t.borderStronger),
+                    color: value ? t.accent : (s.hovered ? t.raw : t.borderStronger),
                     width: t.stroke.hairline,
                   ),
                 ),
-                child: value
-                    ? Icon(
-                        Icons.check_rounded,
-                        size: t.icon.xs,
-                        color: t.onAccent,
-                      )
-                    : null,
+                child: value ? Icon(Icons.check_rounded, size: t.icon.xs, color: t.onAccent) : null,
               ),
             ),
             if (label != null) ...[
               SizedBox(width: t.space.md),
               Flexible(
-                child: Text(
-                  label!,
-                  style: t.typo.body.copyWith(color: t.text2),
-                ),
+                child: Text(label!, style: t.typo.body.copyWith(color: t.text2)),
               ),
             ],
           ],

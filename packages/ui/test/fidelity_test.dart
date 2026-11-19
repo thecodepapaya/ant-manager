@@ -20,10 +20,15 @@ double _borderHeight(WidgetTester tester) {
 }
 
 Future<void> _pumpField(WidgetTester tester, AntTokens t, AntSize size, {IconData? icon, String? label}) =>
-    tester.pumpWidget(host(
-      SizedBox(width: 300, child: AntTextField(placeholder: 'Search', size: size, leadingIcon: icon, label: label)),
-      tokens: t,
-    ));
+    tester.pumpWidget(
+      host(
+        SizedBox(
+          width: 300,
+          child: AntTextField(placeholder: 'Search', size: size, leadingIcon: icon, label: label),
+        ),
+        tokens: t,
+      ),
+    );
 
 void main() {
   group('AntTextField under compact density', () {
@@ -38,22 +43,19 @@ void main() {
           expect(tester.getSize(find.byType(InputDecorator)).height, antControlHeight(tokens, size));
         });
 
-        // Without the density override the border is drawn ~8px short (e.g. 20 in a 28 slot). The 2px
-        // tolerance only absorbs the separate 1.5px shortfall pinned by the skipped BUG test below.
+        // Without the density override the border is drawn ~8px short (e.g. 20 in a 28 slot).
         // _borderHeight relies on the decorator's border being its CustomPaint foregroundPainter.
-        testWidgets('${tokens.brightness.name} ${size.name}: border is not shrunk by compact density',
-            (tester) async {
+        testWidgets('${tokens.brightness.name} ${size.name}: border is not shrunk by compact density', (tester) async {
           await _pumpField(tester, tokens, size);
           expect(_borderHeight(tester), greaterThanOrEqualTo(antControlHeight(tokens, size) - 2));
         });
 
-        testWidgets('${tokens.brightness.name} ${size.name}: border is drawn at the full control height',
-            (tester) async {
+        testWidgets('${tokens.brightness.name} ${size.name}: border is drawn at the full control height', (
+          tester,
+        ) async {
           await _pumpField(tester, tokens, size);
           expect(_borderHeight(tester), antControlHeight(tokens, size));
-        },
-            // BUG: AntTextField border paints 1.5px short of antControlHeight (e.g. 26.5 in 28).
-            skip: bugSkip);
+        });
       }
     }
 
