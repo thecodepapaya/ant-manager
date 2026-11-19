@@ -15,7 +15,6 @@ const _seeds = <Color>[
   Color(0xFF6E9BEA),
   Color(0xFF000000),
   Color(0xFFFFFFFF),
-  Color(0x80FF0000),
 ];
 
 /// tokens.css name -> AntTokens role.
