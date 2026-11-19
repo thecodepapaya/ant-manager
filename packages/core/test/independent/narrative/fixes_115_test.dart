@@ -41,6 +41,7 @@ void main() {
       final id = await engine.addNote(text: 'shots', at: at(10), attachmentPaths: byPath.keys.toList());
       final payload = (await h.payloadsOf(id)).single;
       final atts = await (h.db.select(h.db.attachments)..where((a) => a.payloadId.equals(payload.id))).get();
+      expect(atts, hasLength(exts.length), reason: 'one attachment row per image');
       expect(atts.map((a) => a.path).toSet(), byPath.keys.toSet());
       return {for (final a in atts) byPath[a.path]!: a.mime};
     }
@@ -89,7 +90,7 @@ void main() {
     Map<String, Object?> byTitle(String fact, String title, String? summary) =>
         {'fact_id': fact, 'workstream_id': null, 'new_title': title, 'new_summary': summary};
 
-    test('a user-touched workstream reused by title keeps its summary', () async {
+    test('a user-touched workstream reused by title keeps its summary and title', () async {
       await h.db.into(h.db.workstreams).insert(WorkstreamsCompanion.insert(
             id: 'mine',
             title: 'Payments Retry',
@@ -100,7 +101,37 @@ void main() {
       answer([byTitle('new', 'payments retry', 'Model words.')]);
       await ws.assignDay(day);
       expect((await h.fact('new')).workstreamId, 'mine');
+      final w = await wsRow('mine');
+      expect((w.title, w.summary), ('Payments Retry', 'My words.'));
+    });
+
+    test('an offered user-touched workstream keeps its summary; an offered non-touched one takes new_summary', () async {
+      await h.db.into(h.db.workstreams).insert(WorkstreamsCompanion.insert(
+            id: 'mine',
+            title: 'Mine',
+            summary: const Value('My words.'),
+            userTouched: const Value(true),
+            spanStart: const Value(day),
+            spanEnd: const Value(day),
+          ));
+      await h.db.into(h.db.workstreams).insert(WorkstreamsCompanion.insert(
+            id: 'auto',
+            title: 'Auto',
+            summary: const Value('Old.'),
+            spanStart: const Value(day),
+            spanEnd: const Value(day),
+          ));
+      await h.insertFact('a', [p]);
+      await h.insertFact('b', [p]);
+      answer([
+        {'fact_id': 'a', 'workstream_id': 'mine', 'new_title': null, 'new_summary': 'Model words.'},
+        {'fact_id': 'b', 'workstream_id': 'auto', 'new_title': null, 'new_summary': 'New.'},
+      ]);
+      await ws.assignDay(day);
+      expect((await h.fact('a')).workstreamId, 'mine');
+      expect((await h.fact('b')).workstreamId, 'auto');
       expect((await wsRow('mine')).summary, 'My words.');
+      expect((await wsRow('auto')).summary, 'New.');
     });
 
     test('a non-touched workstream reused by title takes the trimmed new_summary', () async {
@@ -111,7 +142,8 @@ void main() {
       answer([byTitle('new', 'Payments Retry', '  New summary.  ')]);
       await ws.assignDay(day);
       expect((await h.fact('new')).workstreamId, 'auto');
-      expect((await wsRow('auto')).summary, 'New summary.');
+      final w = await wsRow('auto');
+      expect((w.title, w.summary), ('Payments Retry', 'New summary.'));
     });
 
     test('a non-touched workstream reused by title with a blank new_summary keeps its summary', () async {

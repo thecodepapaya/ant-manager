@@ -63,6 +63,7 @@ void main() {
       ));
       final payload = (await (h.db.select(h.db.payloads)..where((x) => x.evidenceId.equals(id))).get()).single;
       final atts = await (h.db.select(h.db.attachments)..where((a) => a.payloadId.equals(payload.id))).get();
+      expect(atts, hasLength(6), reason: 'one attachment row per image');
       final byExt = {for (final a in atts) p.extension(a.path).substring(1): a.mime};
       expect(byExt, {
         'JPG': 'image/jpeg',
@@ -82,7 +83,8 @@ void main() {
       final suggestedOnly = await h.runtime(addNoteCmd(text: 'Fixed flaky CI', at: now));
       final retiredWin = await h.runtime(addNoteCmd(text: 'Cut costs', at: now));
       final notStarred = await h.runtime(addNoteCmd(text: 'Not starred', at: now));
-      for (final id in [decisionOnly, won, suggestedOnly, retiredWin]) {
+      final older = await h.runtime(addNoteCmd(text: 'Older star', at: now.subtract(const Duration(days: 3))));
+      for (final id in [decisionOnly, won, suggestedOnly, retiredWin, older]) {
         await h.runtime(_setStarredCmd(id));
       }
       await h.runtime(createFactCmd([decisionOnly], type: FactType.decision, winStatus: WinStatus.accepted));
@@ -96,11 +98,11 @@ void main() {
       addTearDown(c.dispose);
       final expected = {decisionOnly, suggestedOnly, retiredWin};
       final all = await _next(c, starredWithoutWinProvider((start: null, end: null)), (v) => v.isNotEmpty);
-      expect(all.map((e) => e.id).toSet(), expected);
+      expect(all.map((e) => e.id).toSet(), {...expected, older});
       final today = _day(now);
       final inPeriod =
           await _next(c, starredWithoutWinProvider((start: today, end: today)), (v) => v.isNotEmpty);
-      expect(inPeriod.map((e) => e.id).toSet(), expected);
+      expect(inPeriod.map((e) => e.id).toSet(), expected, reason: 'the older star is outside the period');
     });
 
     test('a failed restore (unsafe attachment path) leaves no profile row, DB file or blobs', () async {
@@ -115,6 +117,7 @@ void main() {
         bad.addFile(ArchiveFile.bytes(f.name, f.readBytes()!));
       }
       bad.addFile(ArchiveFile.bytes('attachments/../x', Uint8List.fromList([1])));
+      expect(bad.files.map((f) => f.name).last, 'attachments/../x', reason: 'unsafe entry comes after the DB and blob');
       final badFile = File(p.join(dir.path, 'bad.antbackup'))..writeAsBytesSync(ZipEncoder().encodeBytes(bad));
       expect((await h.runtime(inspectBackupCmd(badFile.path))).profile, 'Work', reason: 'manifest still readable');
 
@@ -205,7 +208,7 @@ void main() {
 
     Finder rowOf(String name) => find.ancestor(of: find.text(name), matching: find.byType(PanelRow));
 
-    testWidgets('a removed repo is tickable and not "Added"; an enabled one is "Added"', (tester) async {
+    testWidgets('a removed repo is tickable, not "Added", and Add re-enables it (update + sync, no new source)', (tester) async {
       tester.view.physicalSize = const Size(1400, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -219,8 +222,14 @@ void main() {
               ])),
           identitiesProvider.overrideWith((ref) => Stream.value(const <Identity>[])),
         ],
-        child: MaterialApp(theme: antTheme(AntTokens.dark()), home: const Scaffold(body: GitSetupDialog())),
+        child: pageApp(Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showDialog<void>(context: context, builder: (_) => const GitSetupDialog()),
+            child: const Text('open'),
+          ),
+        )),
       ));
+      await tester.tap(find.text('open'));
       await flush(tester);
       h.calls[0].complete(const GitStatus('/usr/bin/git', '2.40'));
       await flush(tester);
@@ -249,6 +258,21 @@ void main() {
       await tester.pump();
       expect(find.text('Add 1 repo'), findsOneWidget);
       expect(h.calls, hasLength(2), reason: 'nothing written yet');
+
+      // Add: the removed repo is re-enabled (a void update), then synced; never added as a new source.
+      await tester.tap(find.text('Add 1 repo'));
+      await flush(tester);
+      expect(h.types.sublist(2), [_typeOf<void>()], reason: 'updateSourceCmd, not addSourceCmd (String)');
+      h.calls[2].complete(null);
+      await flush(tester);
+      expect(h.types.sublist(2), [_typeOf<void>(), bool], reason: 'then syncSourceCmd');
+      h.calls[3].complete(true);
+      await flush(tester);
+      expect(h.calls, hasLength(4), reason: 'the already-added repo is skipped');
+      await tester.pumpAndSettle();
+      expect(find.text('Added 1 repo · importing the last 30 days'), findsOneWidget);
+      expect(find.byType(GitSetupDialog), findsNothing, reason: 'dialog closed');
+      await tester.pump(const Duration(seconds: 10)); // let the toast expire
     });
   });
 }
@@ -266,10 +290,14 @@ class _FixedEngine extends EngineController {
 /// Every runtime() call stays pending until the test completes it, in call order.
 class _PendingHandle implements EngineHandle {
   final calls = <Completer<Object?>>[];
+
+  /// The result type of each call (commands are closures; their type tells them apart).
+  final types = <Type>[];
   @override
   Future<T> runtime<T>(EngineCommand<T> cmd) {
     final c = Completer<Object?>();
     calls.add(c);
+    types.add(T);
     return c.future.then((v) => v as T);
   }
 
@@ -292,3 +320,5 @@ Future<T> _next<T>(ProviderContainer c, ProviderListenable<AsyncValue<T>> provid
   }, fireImmediately: true);
   return done.future.timeout(const Duration(seconds: 5)).whenComplete(sub.close);
 }
+
+Type _typeOf<T>() => T;
