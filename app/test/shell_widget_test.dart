@@ -52,6 +52,8 @@ void main() {
 
   testWidgets('shows every section in the sidebar and the active profile', (tester) async {
     final (_, h) = await boot(tester);
+    final active = find.byKey(const ValueKey('active-profile'));
+    await settle(tester, until: () => tester.widget<Text>(active).data == 'Work');
     for (final s in ShellSection.values) {
       expect(sidebarTile(s), findsOneWidget, reason: s.label);
       expect(find.descendant(of: sidebarTile(s), matching: find.text(s.label)), findsOneWidget);
@@ -111,7 +113,9 @@ void main() {
     },
   );
 
-  // Same controller-dispose pattern as Add note, but the cancel path doesn't trip it here.
+  // app.dart _ProfileSwitcher._create has the same dispose-after-showDialog pattern as Add note;
+  // the cancel path doesn't trip it under the test binding (the Create path restarts the engine,
+  // which widget tests avoid).
   testWidgets(
     'New profile dialog opens from the profile switcher and can be cancelled',
     (tester) async {

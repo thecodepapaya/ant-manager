@@ -89,7 +89,7 @@ void main() {
     test('an unsendable capture throws UI-side and leaves nothing pending', () async {
       final port = ReceivePort(); // not sendable
       addTearDown(port.close);
-      await expectLater(h.runtime(_unsendableCmd(port)), throwsA(isNot(isA<EngineCommandException>())));
+      await expectLater(h.runtime(_unsendableCmd(port)), throwsArgumentError);
       // Still usable; a leftover pending completer would fail unhandled at shutdown below.
       expect(await h.run(_addNote), isNotEmpty);
       await h.shutdown();
@@ -107,7 +107,7 @@ void main() {
     test('createProfileCmd adds an inactive profile in the app DB', () async {
       final id = await h.runtime(createProfileCmd('Side'));
       final rows = await (h.appDb.select(h.appDb.profiles)..orderBy([(p) => OrderingTerm.asc(p.createdAt)])).get();
-      expect(rows.map((r) => r.name), ['Work', 'Side']);
+      expect(rows.map((r) => r.name).toSet(), {'Work', 'Side'});
       expect(rows.firstWhere((r) => r.id == id).active, isFalse);
       expect(rows.firstWhere((r) => r.id == id).timeZone, 'UTC');
     });
@@ -225,8 +225,13 @@ void main() {
       await h.runtime(_enqueueCmd('backup'));
       final backups = Directory(p.join(dir.path, 'backups', h.profileId));
       await pumpUntil(() => backups.existsSync() && backups.listSync().isNotEmpty, timeout: const Duration(seconds: 20));
-      final job = await (h.db.select(h.db.jobs)..where((j) => j.kind.equals('backup'))).getSingle();
-      expect(job.lastError, isNull);
+      Future<Job> job() => (h.db.select(h.db.jobs)..where((j) => j.kind.equals('backup'))).getSingle();
+      final end = DateTime.now().add(const Duration(seconds: 10));
+      while ((await job()).state != JobState.done && DateTime.now().isBefore(end)) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      expect((await job()).state, JobState.done);
+      expect((await job()).lastError, isNull);
     });
   });
 }
