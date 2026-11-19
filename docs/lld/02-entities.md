@@ -243,7 +243,7 @@ erDiagram
 | **Evidence** | A *moment of work*. Usually holds one payload; sometimes several (see grouping). | id (ULID), profile, occurred_start, occurred_end?, **day** (local date in the profile's time zone, set at ingest), title, project?, starred, hidden, **importance** {score, reason, set_by: model\|user\|rule}, created_at, updated_at |
 | **Payload** | One typed piece of content inside an evidence item, from exactly one source. | id, evidence, **kind**, source, **external_id**, content (typed JSON per kind), **content_hash**, **revision**, tombstoned_at? |
 | **PayloadRevision** | Append-only change log: what each payload looked like at each revision. | payload, revision, content, content_hash, observed_at, cause (sync \| user \| merge \| split) |
-| **Attachment** | Binary content (screenshots) stored on disk, referenced by a payload. | id, payload, path, mime, sha256, size |
+| **Attachment** | Binary content (screenshots) stored on disk, referenced by a payload. mime from the file extension: png, gif, webp, heic, else jpeg (#115). | id, payload, path, mime, sha256, size |
 | **Enrichment** | Model-derived data on top of raw content: image description, transcript summary, combined summary. Never overwrites raw payloads. | id, target (payload \| evidence), kind, output, model, created_at (inputs recorded via Dependency) |
 
 ### Narrative

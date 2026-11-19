@@ -145,7 +145,8 @@ summary (covering its earlier work too); otherwise new_summary null.''';
       }
       if (wsId == null) continue;
       final summary = (a['new_summary'] as String?)?.trim();
-      final existing = byId[wsId];
+      // Any existing workstream (offered or reused by title); a just-created one already has its summary.
+      final existing = all.where((w) => w.id == wsId).firstOrNull;
       if (existing != null && !existing.userTouched && summary != null && summary.isNotEmpty) {
         summaries[wsId] = summary;
       }

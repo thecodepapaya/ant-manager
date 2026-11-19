@@ -114,7 +114,13 @@ class AntEngine {
           id: newId(at),
           payloadId: payloadId,
           path: path,
-          mime: path.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          mime: switch (path.split('.').last.toLowerCase()) {
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'heic' => 'image/heic',
+            _ => 'image/jpeg',
+          },
           sha256: sha256BytesHex(bytes),
           size: bytes.length,
         ));

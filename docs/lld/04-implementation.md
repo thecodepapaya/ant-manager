@@ -107,7 +107,8 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
 - **Sync service (#102):** a source is due 15 min after its last success (ICS 60 min), watched sources included as a
   backstop; at most one pending sync job per source. Status (`lastSuccessAt`, `lastError`) lives on the source's
   `''`-scope SyncCursor row. Removing a source only disables it (evidence, cursors, secret kept); editing its config
-  keeps its cursors.
+  keeps its cursors. The git picker treats only enabled repos as "Added"; ticking a removed repo re-enables its
+  existing source (and syncs it) rather than adding a second one for the same path (#115).
 
 ## 4.4 Importance scoring
 
@@ -165,7 +166,7 @@ re-pins citations to the proposal's payloads at current revisions (#103).
 Time facts are computed in code, so they're reproducible and defensible:
 - **Measured:** sum of durations of non-declined, non-hidden calendar events per project per day (overlaps merged).
 - **Estimated:** commit activity sessions (#109): only commits **authored** by your email identities count (one with
-  no author email counts too). The day's commits across **all projects** form sessions: consecutive commits less than
+  no or an empty author email counts too, #115). The day's commits across **all projects** form sessions: consecutive commits less than
   90 min apart; a session counts from 30 min before its first commit to its last commit. Each commit owns the stretch
   since the previous commit of its session (the first commit: its 30 min lead), credited to that commit's project;
   summed per project per day, excluding time already measured by meetings.
@@ -179,8 +180,8 @@ Time facts are computed in code, so they're reproducible and defensible:
 After a day's extraction, new facts without a workstream go to the Extraction route with the active workstreams
 (last 30 days: id, title, summary). Structured output: per fact, an existing workstream id **or** a new title. Users can
 rename, merge or move facts between workstreams (user changes are never overwritten). Workstream span updates from its
-facts; the same call refreshes an existing workstream's summary (`new_summary` on an assignment to it, ignored for
-user-touched workstreams, #109). A workstream with no live facts has a null span and is not active (#110).
+facts; the same call refreshes an existing workstream's summary (`new_summary` on an assignment to it, by id or
+by a reused title, ignored for user-touched workstreams, #109, #115). A workstream with no live facts has a null span and is not active (#110).
 
 ## 4.9 Report generation
 
@@ -239,7 +240,8 @@ No undo. A confirmation dialog states exactly what will be removed.
 ## 4.13 Backup & readable export (#105, #108)
 
 - `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
-  `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105).
+  `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row, its
+  `.sqlite` file and its `blobs/<id>/` folder are deleted (#115).
 - **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
   `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
   `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no

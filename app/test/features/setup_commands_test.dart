@@ -454,9 +454,6 @@ void main() {
 
     test(
       'a removed (disabled) repo is not added a second time',
-      skip: 'BUG: app/lib/features/sources/git_setup.dart:127-130 existingRepoPaths ignores disabled repo '
-          'sources, and removeSource only disables (core sync_service.dart:204), so re-ticking a removed repo in '
-          'the git dialog / onboarding adds a duplicate gitRepo source for the same path instead of re-enabling it',
       () async {
         final a = await h.runtime(addSourceCmd(SourceKind.gitRepo, 'a', {'path': '/r/a'}));
         await h.runtime(removeSourceCmd(a));

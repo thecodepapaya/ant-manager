@@ -115,7 +115,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             }
             _scan.autoSelect({..._picked, for (final (k, v) in _manual) if (k == 'email') v.toLowerCase()});
           case _Step.repos:
-            await _scan.addSelected(existingRepoPaths(ref.read(sourcesProvider).value ?? const []));
+            await _scan.addSelected(ref.read(sourcesProvider).value ?? const []);
           default:
         }
       } else if (_step == _Step.identities) {
@@ -314,7 +314,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 ? 'Add the folder where you keep your code. New repos there will be suggested automatically.'
                 : 'Scanned ${_scan.roots.map(tildePath).join(' and ')}. New repos there will be suggested automatically.',
           ),
-          RepoPicker(c: _scan, existing: existingRepoPaths(ref.watch(sourcesProvider).value ?? const [])),
+          RepoPicker(c: _scan, existing: activeRepoPaths(ref.watch(sourcesProvider).value ?? const [])),
         ];
       case _Step.sources:
         final connected = {
