@@ -72,7 +72,7 @@ summary (covering its earlier work too); otherwise new_summary null.''';
     final since = shiftDay(day, -activeDays);
     final active = await (db.select(
       db.workstreams,
-    )..where((w) => w.spanEnd.isBiggerOrEqualValue(since) | w.spanEnd.isNull())).get();
+    )..where((w) => w.spanEnd.isBiggerOrEqualValue(since))).get(); // null span = no live facts (#110)
     final user = jsonEncode({
       'workstreams': [
         for (final w in active) {'id': w.id, 'title': w.title, 'summary': w.summary, 'project_id': w.projectId},
@@ -92,10 +92,10 @@ summary (covering its earlier work too); otherwise new_summary null.''';
 
     // Short write transaction after the model call. Re-read: facts the user touched, moved, retired
     // or that changed meanwhile, and workstreams removed meanwhile, are skipped.
-    await db.transaction(() => _apply(day, out, facts));
+    await db.transaction(() => _apply(day, out, facts, {for (final w in active) w.id}));
   }
 
-  Future<void> _apply(String day, Map<String, Object?> out, List<Fact> asked) async {
+  Future<void> _apply(String day, Map<String, Object?> out, List<Fact> asked, Set<String> offered) async {
     final asOf = {for (final f in asked) f.id: f.revision};
     final facts = await (db.select(db.facts)..where(
           (f) =>
@@ -105,12 +105,14 @@ summary (covering its earlier work too); otherwise new_summary null.''';
               f.origin.equalsValue(FactOrigin.inferred),
         ))
         .get();
-    final since = shiftDay(day, -activeDays);
-    final active = await (db.select(
-      db.workstreams,
-    )..where((w) => w.spanEnd.isBiggerOrEqualValue(since) | w.spanEnd.isNull())).get();
-    final byId = {for (final w in active) w.id: w};
-    final byTitle = {for (final w in active) w.title.toLowerCase(): w.id};
+    // Ids: offered ones that still exist (one may have emptied meanwhile). Titles: any existing workstream,
+    // so a new title reuses an empty one instead of duplicating it (#110).
+    final all = await db.select(db.workstreams).get();
+    final byId = {
+      for (final w in all)
+        if (offered.contains(w.id)) w.id: w,
+    };
+    final byTitle = {for (final w in all) w.title.toLowerCase(): w.id};
     final factById = {
       for (final f in facts)
         if (asOf[f.id] == f.revision) f.id: f,

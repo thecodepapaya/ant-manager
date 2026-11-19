@@ -37,23 +37,39 @@ class RepoScanController extends ChangeNotifier {
   List<String> roots = defaultScanRoots();
   List<RepoScan> repos = const [];
   final selected = <String>{};
+  bool _disposed = false;
+
+  // Scans outlive the page that started them: drop updates after dispose.
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   Future<void> checkGit() async {
     checking = true;
     notifyListeners();
     final h = await _ref.read(engineProvider.future);
-    git = await h.runtime(gitStatusCmd());
+    final status = await h.runtime(gitStatusCmd());
+    if (_disposed) return;
+    git = status;
     checking = false;
     notifyListeners();
   }
 
   Future<void> scan() async {
-    if (git?.path == null) return;
+    if (_disposed || git?.path == null) return;
     scanning = true;
     notifyListeners();
     final h = await _ref.read(engineProvider.future);
     final manual = repos.where((r) => !roots.any((root) => p.isWithin(root, r.path))).toList();
     final found = await h.runtime(scanReposCmd(roots));
+    if (_disposed) return;
     repos = [...found, for (final m in manual) if (!found.any((f) => f.path == m.path)) m];
     scanning = false;
     notifyListeners();
