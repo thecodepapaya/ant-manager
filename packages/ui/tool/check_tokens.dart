@@ -34,7 +34,9 @@ void main(List<String> args) {
     if (!d.existsSync()) continue;
     for (final f in d.listSync(recursive: true).whereType<File>()) {
       final path = f.path.replaceAll(r'\', '/');
-      if (!path.endsWith('.dart') || path.contains(_allowed)) continue;
+      // Match on the absolute path so the check works from any cwd.
+      final abs = f.absolute.path.replaceAll(r'\', '/');
+      if (!path.endsWith('.dart') || abs.contains('/$_allowed')) continue;
       files++;
       violations.addAll(_check(path, f.readAsStringSync()));
     }

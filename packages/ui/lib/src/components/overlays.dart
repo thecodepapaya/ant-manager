@@ -61,6 +61,12 @@ class AntMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final transparent = t.raised.withValues(alpha: 0);
+    // Focus the first enabled item on open, so a mouse-opened menu still
+    // takes Escape and arrow keys.
+    final first = items
+        .whereType<AntMenuItem>()
+        .where((e) => e.onSelected != null)
+        .firstOrNull;
     return MenuAnchor(
       controller: controller,
       alignmentOffset: Offset(0, t.space.xs),
@@ -89,17 +95,26 @@ class AntMenu extends StatelessWidget {
                 color: t.divider,
               ),
             ),
-            AntMenuItem() => _item(t, e, transparent),
+            AntMenuItem() when e == first => _FocusOnOpen(
+              builder: (node) => _item(t, e, transparent, node),
+            ),
+            AntMenuItem() => _item(t, e, transparent, null),
           },
       ],
       builder: (context, controller, _) => builder(context, controller),
     );
   }
 
-  Widget _item(AntTokens t, AntMenuItem e, Color transparent) {
+  Widget _item(
+    AntTokens t,
+    AntMenuItem e,
+    Color transparent,
+    FocusNode? focusNode,
+  ) {
     final fg = e.danger ? t.dangerText : t.text2;
     return MenuItemButton(
       onPressed: e.onSelected,
+      focusNode: focusNode,
       leadingIcon: e.icon == null
           ? null
           : Icon(e.icon, size: t.icon.sm, color: e.danger ? t.danger : t.muted),
@@ -126,6 +141,40 @@ class AntMenu extends StatelessWidget {
       child: Text(e.label),
     );
   }
+}
+
+/// Owns a [FocusNode], focuses it after first build and hands focus back to
+/// the previous owner (the trigger) on dispose.
+class _FocusOnOpen extends StatefulWidget {
+  const _FocusOnOpen({required this.builder});
+
+  final Widget Function(FocusNode node) builder;
+
+  @override
+  State<_FocusOnOpen> createState() => _FocusOnOpenState();
+}
+
+class _FocusOnOpenState extends State<_FocusOnOpen> {
+  final _node = FocusNode();
+  final _previous = FocusManager.instance.primaryFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _node.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    if (_node.hasFocus && _previous?.context != null) _previous!.requestFocus();
+    _node.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_node);
 }
 
 // ---------------------------------------------------------------------------
@@ -435,43 +484,46 @@ class AntToastHostState extends State<AntToastHost> {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Stack(
-      children: [
-        widget.child,
-        Positioned(
-          right: t.space.xl,
-          bottom: t.space.xl,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (final e in _toasts)
-                Padding(
-                  key: ValueKey(e.id),
-                  padding: EdgeInsets.only(top: t.space.md),
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: t.motion.slow,
-                    curve: t.motion.standard,
-                    builder: (context, v, child) => Opacity(
-                      opacity: v,
-                      child: Transform.translate(
-                        offset: Offset(0, (1 - v) * t.space.md),
-                        child: child,
+    // Own Overlay so the dismiss tooltip works above MaterialApp's Navigator.
+    return Overlay.wrap(
+      child: Stack(
+        children: [
+          widget.child,
+          Positioned(
+            right: t.space.xl,
+            bottom: t.space.xl,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final e in _toasts)
+                  Padding(
+                    key: ValueKey(e.id),
+                    padding: EdgeInsets.only(top: t.space.md),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: t.motion.slow,
+                      curve: t.motion.standard,
+                      builder: (context, v, child) => Opacity(
+                        opacity: v,
+                        child: Transform.translate(
+                          offset: Offset(0, (1 - v) * t.space.md),
+                          child: child,
+                        ),
+                      ),
+                      child: AntToast(
+                        message: e.message,
+                        tone: e.tone,
+                        action: e.action,
+                        onDismiss: () => _remove(e),
                       ),
                     ),
-                    child: AntToast(
-                      message: e.message,
-                      tone: e.tone,
-                      action: e.action,
-                      onDismiss: () => _remove(e),
-                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

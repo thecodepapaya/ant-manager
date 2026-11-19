@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'helpers.dart';
-
 final _script = File('tool/check_tokens.dart').absolute.path;
 
 /// Literal patterns the check must reject (SPEC §10, #41).
@@ -143,7 +141,7 @@ void main() {
     _write('packages/ui/lib/src/tokens/t.dart', 'const c = Color(0xFF000000);');
     final r = await _run(['lib'], cwd: '${_tmp.path}/packages/ui');
     expect(r.exitCode, 0, reason: '${r.stdout}${r.stderr}');
-  }, skip: bugSkip);
+  });
 
   test('the real repo passes the check', () async {
     final r = await _run([], cwd: Directory('../..').absolute.path);

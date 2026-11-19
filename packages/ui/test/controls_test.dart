@@ -180,7 +180,6 @@ void main() {
             );
             handle.dispose();
           },
-          skip: bugSkip,
         );
 
         testWidgets('one semantics node with the label and enabled state', (
@@ -219,7 +218,7 @@ void main() {
           });
           expect(children, isEmpty, reason: 'child nodes: $children');
           handle.dispose();
-        }, skip: bugSkip);
+        });
 
         testWidgets('focus ring only on keyboard focus', (tester) async {
           final node = FocusNode();
@@ -488,7 +487,7 @@ void main() {
       expect(labels.join('|'), 'Today', reason: '${w.runtimeType}');
     }
     handle.dispose();
-  }, skip: bugSkip);
+  });
 
   group('AntIconButton', () {
     testWidgets('selected flag in semantics', (tester) async {

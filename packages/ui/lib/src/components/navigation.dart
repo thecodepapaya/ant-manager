@@ -136,49 +136,53 @@ class AntSidebarItem extends StatelessWidget {
       onTap: onPressed,
       semanticLabel: label,
       selected: selected,
+      excludeChildSemantics: true,
       builder: (context, s) {
         final fg = selected || s.hovered ? t.text : t.textSoft;
         return AntFocusRing(
           visible: s.focused,
           borderRadius: radius,
-          child: AnimatedContainer(
-            duration: t.motion.fast,
-            height: t.density.sidebarItemHeight,
-            padding: EdgeInsets.symmetric(horizontal: t.space.md),
-            decoration: BoxDecoration(
-              color: selected
-                  ? t.active
-                  : s.pressed
-                  ? t.active
-                  : s.hovered
-                  ? t.hover
-                  : t.hover.withValues(alpha: 0),
-              borderRadius: radius,
-            ),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(
-                    icon,
-                    size: t.icon.md,
-                    color: selected ? t.accentText : t.muted,
+          child: AntDisabled(
+            enabled: s.enabled,
+            child: AnimatedContainer(
+              duration: t.motion.fast,
+              height: t.density.sidebarItemHeight,
+              padding: EdgeInsets.symmetric(horizontal: t.space.md),
+              decoration: BoxDecoration(
+                color: selected
+                    ? t.active
+                    : s.pressed
+                    ? t.active
+                    : s.hovered
+                    ? t.hover
+                    : t.hover.withValues(alpha: 0),
+                borderRadius: radius,
+              ),
+              child: Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: t.icon.md,
+                      color: selected ? t.accentText : t.muted,
+                    ),
+                    SizedBox(width: t.space.md),
+                  ],
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: (selected ? t.typo.bodyStrong : t.typo.body)
+                          .copyWith(color: fg),
+                    ),
                   ),
-                  SizedBox(width: t.space.md),
+                  if (trailing != null) ...[
+                    SizedBox(width: t.space.sm),
+                    ExcludeSemantics(child: trailing!),
+                  ],
                 ],
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: (selected ? t.typo.bodyStrong : t.typo.body)
-                        .copyWith(color: fg),
-                  ),
-                ),
-                if (trailing != null) ...[
-                  SizedBox(width: t.space.sm),
-                  ExcludeSemantics(child: trailing!),
-                ],
-              ],
+              ),
             ),
           ),
         );

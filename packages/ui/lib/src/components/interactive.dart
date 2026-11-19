@@ -100,7 +100,7 @@ class _AntInteractiveState extends State<AntInteractive> {
       toggled: widget.toggled,
       inMutuallyExclusiveGroup: widget.inMutuallyExclusiveGroup,
       focusable: active,
-      focused: active && _hasFocus,
+      focused: active ? _hasFocus : null,
       onTap: active ? widget.onTap : null,
       onFocus: active ? _node.requestFocus : null,
       child: FocusableActionDetector(
@@ -124,6 +124,7 @@ class _AntInteractiveState extends State<AntInteractive> {
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          excludeFromSemantics: true,
           onTapDown: active ? (_) => _setPressed(true) : null,
           onTapUp: active ? (_) => _setPressed(false) : null,
           onTapCancel: active ? () => _setPressed(false) : null,

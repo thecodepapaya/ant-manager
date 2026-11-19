@@ -135,11 +135,7 @@ class _Colors {
 _Colors _colors(AntTokens t, AntButtonVariant v, AntInteraction s) {
   switch (v) {
     case AntButtonVariant.primary:
-      final bg = s.pressed
-          ? t.accent
-          : s.hovered
-          ? t.accentHover
-          : t.accent;
+      final bg = s.pressed || s.hovered ? t.accentHover : t.accent;
       return _Colors(bg, t.onAccent, bg);
     case AntButtonVariant.secondary:
       return _Colors(
