@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -21,6 +22,13 @@ const pausedSettingKey = 'collection.paused';
 
 /// Backup destination folder; default `<dataDir>/backups/<profileId>`.
 const backupFolderSettingKey = 'backup.folder';
+const backupKeepSettingKey = 'backup.keep';
+const backupReadableSettingKey = 'backup.readableExport';
+const backupLastSuccessSettingKey = 'backup.lastSuccessAt';
+const backupLastErrorSettingKey = 'backup.lastError';
+
+/// Job + schedule kind of the daily nudge notification.
+const nudgeJobKind = 'nudge';
 
 /// Job kind the sync orchestrator (core, not built yet) registers to sync every enabled source.
 const syncAllJobKind = 'sources.syncAll';
@@ -124,17 +132,67 @@ class EngineRuntime {
     ]) {
       engine.jobs.register(kind, JobLane.llm, scheduledReportHandler(generator, period, offset));
     }
-    final backup = BackupService(db, profileName: profile.name, appVersion: config.appVersion, blobs: ports.blobs);
-    engine.jobs.register(Scheduler.backup, JobLane.io, (_) async {
-      final row = await (db.select(db.settings)..where((s) => s.key.equals(backupFolderSettingKey))).getSingleOrNull();
-      await backup.createBackup(row?.value ?? p.join(config.dataDir, 'backups', profile.id));
-    });
+    late final EngineRuntime rt;
+    engine.jobs.register(Scheduler.backup, JobLane.io, (_) => rt.backupNow());
+    engine.jobs.register(nudgeJobKind, JobLane.io, (_) => rt._nudge());
     final scheduler = Scheduler(db, engine.jobs, utcOffset: offset);
     await scheduler.seedDefaults();
+    // Daily nudge (SPEC §7): weekdays at 18:05 by default; edited in Settings → Schedule.
+    await db.into(db.schedules).insert(
+          SchedulesCompanion.insert(
+            id: nudgeJobKind,
+            kind: nudgeJobKind,
+            rule: jsonEncode(const ScheduleRule(hour: 18, minute: 5, weekdays: [1, 2, 3, 4, 5]).toJson()),
+            lastRunAt: Value(DateTime.now().toUtc()),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
 
     final pausedRow =
         await (db.select(db.settings)..where((s) => s.key.equals(pausedSettingKey))).getSingleOrNull();
-    return EngineRuntime._(config, appDb, db, profile, engine, scheduler, pausedRow?.value == 'true');
+    return rt = EngineRuntime._(config, appDb, db, profile, engine, scheduler, pausedRow?.value == 'true');
+  }
+
+  Future<String?> setting(String key) async =>
+      (await (db.select(db.settings)..where((s) => s.key.equals(key))).getSingleOrNull())?.value;
+
+  Future<void> putSetting(String key, String value) =>
+      db.into(db.settings).insertOnConflictUpdate(SettingsCompanion.insert(key: key, value: value));
+
+  String get defaultBackupFolder => p.join(config.dataDir, 'backups', profile.id);
+
+  /// Runs a backup with the Settings → Backup options and records its status (SPEC §9).
+  /// Returns the bundle path.
+  Future<String> backupNow() async {
+    final folder = await setting(backupFolderSettingKey) ?? defaultBackupFolder;
+    final keep = int.tryParse(await setting(backupKeepSettingKey) ?? '') ?? 14;
+    final readable = await setting(backupReadableSettingKey) == 'true';
+    final service =
+        BackupService(db, profileName: profile.name, appVersion: config.appVersion, blobs: engine.ports.blobs, keep: keep);
+    try {
+      final file = await service.createBackup(folder, readableExport: readable);
+      await putSetting(backupLastSuccessSettingKey, DateTime.now().toUtc().toIso8601String());
+      await putSetting(backupLastErrorSettingKey, '');
+      return file.path;
+    } catch (e) {
+      await putSetting(backupLastErrorSettingKey, '$e');
+      rethrow;
+    }
+  }
+
+  /// "Your day is drafted" nudge; skipped on days with no evidence (SPEC §7).
+  Future<void> _nudge() async {
+    final today = dayOf(DateTime.now(), DateTime.now().timeZoneOffset);
+    final any = await (db.select(db.evidences)
+          ..where((e) => e.day.equals(today))
+          ..limit(1))
+        .getSingleOrNull();
+    if (any == null) return;
+    await engine.ports.notifier?.show(
+      title: 'Your day is drafted',
+      body: '2-minute review?',
+      actionId: 'open-today',
+    );
   }
 
   static QueryExecutor _open(EngineConfig config, String path) {

@@ -27,6 +27,7 @@ dependencies:
   file_selector: ^1.1.0
   drift: ^2.35.4
   path: ^1.9.1
+  dio: ^5.11.1
 
 dev_dependencies:
   flutter_test:
