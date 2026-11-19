@@ -13,6 +13,7 @@ import 'package:ant_manager/state/data.dart';
 import 'package:ant_manager/state/providers.dart';
 import 'package:ant_manager/widgets/common.dart' show originLabel;
 import 'package:core/core.dart' hide Provider;
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:flutter_test/flutter_test.dart';
@@ -44,7 +45,10 @@ void main() {
       h.runtime(addNoteCmd(text: text, at: at ?? DateTime.now(), images: images));
 
   Future<List<Payload>> payloadsOf(String evidenceId) =>
-      (h.db.select(h.db.payloads)..where((x) => x.evidenceId.equals(evidenceId))).get();
+      (h.db.select(h.db.payloads)
+            ..where((x) => x.evidenceId.equals(evidenceId))
+            ..orderBy([(x) => OrderingTerm.asc(x.id)])) // same order as evidenceProvider
+          .get();
 
   group('notes and evidence', () {
     setUp(start);
@@ -81,6 +85,25 @@ void main() {
       }
       final item = EvidenceItem(await evidenceOf(h, id), ps, const {});
       expect(item.attachments.toSet(), atts.map((a) => a.path).toSet());
+    });
+
+    test(
+      'dropped GIF / WebP images keep their own mime type',
+      skip: 'BUG: packages/core/lib/src/engine/engine.dart:117 maps every non-.png attachment to image/jpeg, '
+          'but NoteComposer accepts gif/webp/heic (app/lib/widgets/note_composer.dart:14)',
+      () async {
+        final id = await note('Anim', images: [(_png, 'gif'), (_png, 'webp')]);
+        final ps = await payloadsOf(id);
+        final atts = await (h.db.select(h.db.attachments)..where((a) => a.payloadId.equals(ps.single.id))).get();
+        expect(atts.map((a) => a.mime).toSet(), {'image/gif', 'image/webp'});
+      },
+    );
+
+    test('annotating a screenshot note shows the annotation, not the screenshot body', () async {
+      final id = await note('Screenshot', images: [(_png, 'png')]);
+      await h.runtime(addNoteCmd(text: 'This is the bug', at: DateTime.now(), attachTo: id));
+      final item = EvidenceItem(await evidenceOf(h, id), await payloadsOf(id), const {});
+      expect(item.annotations.map(payloadText), ['This is the bug']);
     });
 
     test('hide and unhide', () async {
@@ -258,6 +281,7 @@ void main() {
       expect(f.winStatus, WinStatus.rejected);
       expect(originLabel(f.origin), 'Edited by you');
       expect(await recomputeEntries(h), contains((EntityType.reportSnapshot, snap)));
+      expect(await stale(), isTrue);
     });
 
     test('review: Accept applies the proposed statement', () async {

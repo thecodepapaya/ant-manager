@@ -185,9 +185,11 @@ void main() {
       expect(refs.keys, ['X-Team']);
       expect(secrets.values[refs['X-Team']], 'c');
       expect(secrets.values.containsKey(old), isFalse);
-      // The header is sent to the provider.
+      // The current header (read back from the secret store) is sent; the removed one isn't.
       await h.runtime(listProviderModelsCmd(pid));
       expect(llm.requests.last.$1, '/v1/models');
+      expect(llm.headers.last['x-team'], 'c');
+      expect(llm.headers.last.containsKey('x-old'), isFalse);
     });
 
     test('removing a provider clears routes to its models and its secrets', () async {
@@ -438,7 +440,7 @@ void main() {
       expect(await h.db.select(h.db.curationRules).get(), hasLength(1));
     });
 
-    test('existingRepoPaths lists added (enabled) git repos only', () async {
+    test('existingRepoPaths lists the added git repos (not other sources)', () async {
       final a = await h.runtime(addSourceCmd(SourceKind.gitRepo, 'a', {'path': '/r/a'}));
       await h.runtime(addSourceCmd(SourceKind.gitRepo, 'b', {'path': '/r/b'}));
       await h.runtime(addSourceCmd(SourceKind.ics, 'ICS', {'url': 'https://x.example/c.ics'}));
@@ -446,10 +448,23 @@ void main() {
       addTearDown(c.dispose);
       var all = await _next(c, sourcesProvider, (v) => v.length == 3);
       expect(existingRepoPaths(all), {'/r/a', '/r/b'});
-      await h.runtime(removeSourceCmd(a));
-      all = await _next(c, sourcesProvider, (v) => v.any((s) => !s.row.enabled));
-      expect(existingRepoPaths(all), {'/r/b'});
+      expect(a, isNotEmpty);
     });
+
+    test(
+      'a removed (disabled) repo is not added a second time',
+      skip: 'BUG: app/lib/features/sources/git_setup.dart:127-130 existingRepoPaths ignores disabled repo '
+          'sources, and removeSource only disables (core sync_service.dart:204), so re-ticking a removed repo in '
+          'the git dialog / onboarding adds a duplicate gitRepo source for the same path instead of re-enabling it',
+      () async {
+        final a = await h.runtime(addSourceCmd(SourceKind.gitRepo, 'a', {'path': '/r/a'}));
+        await h.runtime(removeSourceCmd(a));
+        final c = ProviderContainer(overrides: [engineProvider.overrideWith(() => _FixedEngine(h))]);
+        addTearDown(c.dispose);
+        final all = await _next(c, sourcesProvider, (v) => v.any((s) => !s.row.enabled));
+        expect(existingRepoPaths(all), contains('/r/a'));
+      },
+    );
   });
 
   group('onboarding gate', () {

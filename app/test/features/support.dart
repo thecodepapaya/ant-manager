@@ -32,6 +32,9 @@ class FakeLlm {
   /// Every request as (path, decoded JSON body or null).
   final requests = <(String, Map<String, Object?>?)>[];
 
+  /// Request headers, parallel to [requests] (lower-cased names).
+  final headers = <Map<String, String>>[];
+
   /// Chat completions answer 500.
   bool fail = false;
 
@@ -57,6 +60,9 @@ class FakeLlm {
     final raw = await utf8.decoder.bind(req).join();
     final body = raw.isEmpty ? null : jsonDecode(raw) as Map<String, Object?>;
     requests.add((req.uri.path, body));
+    final h = <String, String>{};
+    req.headers.forEach((name, values) => h[name.toLowerCase()] = values.join(','));
+    headers.add(h);
     final res = req.response;
     if (req.uri.path.endsWith('/models')) {
       res.headers.contentType = ContentType.json;
