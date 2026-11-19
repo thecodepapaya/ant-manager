@@ -319,9 +319,6 @@ void main() {
 
     test(
       'a router throwing a non-LlmFailure exception → LlmFailure',
-      skip:
-          'BUG: structured.dart:21 router.resolve() runs outside the try, so a non-LlmFailure exception from the '
-          'router (e.g. a DB/secret-store error) escapes StructuredOutput untranslated',
       () async {
         await expectLater(run(_Empty(), routerError: const FileSystemException('keychain locked')), _fails());
       },
