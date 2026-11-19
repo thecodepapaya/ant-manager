@@ -11,6 +11,8 @@ Composition root, platform adapters and desktop shell. Design: `docs/lld/03-clas
 - `lib/platform/`: port adapters (secure storage, blob store, file watcher, notifier, EventKit bridge, screen
   capture, launch at login, system time zone).
 - `lib/shell/`: tray menu, global hotkey (⌥⌘N / Ctrl+Alt+N), close-to-tray, quick capture.
-- `lib/pages/`: placeholder pages per sidebar section (replaced by the feature screens).
+- `lib/features/`: screens per sidebar section; `lib/state/` Riverpod providers; `lib/widgets/` shared widgets.
 - `macos/Runner/MainFlutterWindow.swift`: EventKit channels `ant/calendar` + `ant/calendar/changes`, and the
   `launch_at_startup` channel via `SMAppService` (macOS 13+).
+- Dev: `flutter run --dart-define=ANT_DATA_DIR=<dir>` uses a separate data folder; `packages/core/tool/seed_demo.dart`
+  fills it with demo data (#107).

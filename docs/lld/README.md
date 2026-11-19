@@ -7,9 +7,30 @@ Hello Interview-style LLD flow. Guiding principle: **simple over complete** (#67
 |---|---|---|
 | 1. Requirements | [01-requirements.md](./01-requirements.md) | Agreed |
 | 2. Entities & relationships | [02-entities.md](./02-entities.md) | Agreed |
-| 3. Class design | [03-class-design.md](./03-class-design.md) | Part 1 (core) agreed, simplification pass done (#67–82); Part 2 (app/ui) after step 4 |
-| 4. Implementation (key algorithms) | [04-implementation.md](./04-implementation.md) | Agreed (#88–#92) |
+| 3. Class design | [03-class-design.md](./03-class-design.md) | Part 1 agreed (#67–82); Part 2 (app/ui) built directly (#101, #105, #107) |
+| 4. Implementation (key algorithms) | [04-implementation.md](./04-implementation.md) | Agreed (#88–#92), refined while building (#100–#108) |
 | 5. Extensibility | — | Not started |
+
+**Build (on `v1`):** implementation **done**; independent tests (#99) **in progress**; end-to-end run with OpenRouter
+(#96) **in progress**.
+
+## Known gaps
+
+Accepted for now under #67, verified against the code (2026-11-19):
+- Profile IANA time zone not supported: day boundaries use the system offset (#97).
+- `appVersion` hard-coded (`0.1.0` in `EngineConfig`), so backup manifests don't track releases.
+- Sentry DSN not wired: crash-report opt-in stores the preference only (#105, OWNER_TODO).
+- Auto-update not wired: appcast generation is a TODO in `build.yml` and `auto_updater` isn't called; no Linux
+  "update available" notice either.
+- Google OAuth client id/secret are placeholders (`google_oauth.dart`, OWNER_TODO).
+- GitHub device flow later: PAT only (#106).
+- Workstream summary is set on creation and never refreshed.
+- Time allocation doesn't filter "commits by you" (every captured commit counts), and commit sessions are formed per
+  project.
+- Existing profile DBs keep old triggers: no migration (schema v1, pre-release).
+- GitHub issues you closed without being subscribed are missed (#106).
+- Custom CA / insecure TLS options exist for AI providers only, not for self-hosted sources (SPEC §5).
+- Stale reports aren't regenerated when opened (shown "Out of date"; regenerate on demand). No nudge snooze.
 
 Every decision is logged with its rationale in [../DECISIONS.md](../DECISIONS.md).
 
