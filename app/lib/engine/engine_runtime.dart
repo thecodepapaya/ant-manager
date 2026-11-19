@@ -72,7 +72,8 @@ Future<void> engineMain(EngineBoot boot) async {
 
 /// What a command sees inside the engine isolate.
 class EngineRuntime {
-  EngineRuntime._(this.config, this.appDb, this.db, this.profile, this.engine, this.scheduler, this.paused);
+  EngineRuntime._(
+      this.config, this.appDb, this.db, this.profile, this.engine, this.scheduler, this.reports, this.paused);
 
   final EngineConfig config;
   final AppDb appDb;
@@ -80,6 +81,9 @@ class EngineRuntime {
   final Profile profile;
   final AntEngine engine;
   final Scheduler scheduler;
+
+  /// On-demand report generation (Reports and Today screens).
+  final ReportGenerator reports;
   bool paused;
 
   var _stopped = false;
@@ -112,6 +116,7 @@ class EngineRuntime {
     registerCodeSources(engine.sources);
     registerOtherSources(engine.sources);
     registerBuiltinTools(engine.tools);
+    registerNarrativePipeline(engine);
     await TemplateService(db).seedBuiltins();
 
     // Scheduled reports (LLM lane) and backups (IO lane), LLD 04 §4.11.
@@ -134,7 +139,7 @@ class EngineRuntime {
 
     final pausedRow =
         await (db.select(db.settings)..where((s) => s.key.equals(pausedSettingKey))).getSingleOrNull();
-    return EngineRuntime._(config, appDb, db, profile, engine, scheduler, pausedRow?.value == 'true');
+    return EngineRuntime._(config, appDb, db, profile, engine, scheduler, generator, pausedRow?.value == 'true');
   }
 
   static QueryExecutor _open(EngineConfig config, String path) {

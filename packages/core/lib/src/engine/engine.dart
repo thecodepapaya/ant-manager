@@ -147,6 +147,74 @@ class AntEngine {
         ));
       });
 
+  /// User assigns evidence to a project (null = no project). Re-runs its day via the curation trigger.
+  Future<void> setEvidenceProject(String evidenceId, String? projectId) =>
+      (db.update(db.evidences)..where((x) => x.id.equals(evidenceId)))
+          .write(EvidencesCompanion(projectId: Value(projectId), updatedAt: Value(ports.clock.now())));
+
+  // ---------- Projects ----------
+
+  Future<String> createProject(String name, {String? colour}) async {
+    final id = newId();
+    await db.into(db.projects).insert(ProjectsCompanion.insert(
+          id: id,
+          name: name,
+          colour: colour == null ? const Value.absent() : Value(colour),
+        ));
+    return id;
+  }
+
+  Future<void> updateProject(String id, {String? name, String? colour, bool? archived}) =>
+      (db.update(db.projects)..where((p) => p.id.equals(id))).write(ProjectsCompanion(
+        name: name == null ? const Value.absent() : Value(name),
+        colour: colour == null ? const Value.absent() : Value(colour),
+        archived: archived == null ? const Value.absent() : Value(archived),
+      ));
+
+  // ---------- Workstreams (user edits mark them user-touched) ----------
+
+  Future<void> renameWorkstream(String id, String title) =>
+      (db.update(db.workstreams)..where((w) => w.id.equals(id)))
+          .write(WorkstreamsCompanion(title: Value(title), userTouched: const Value(true)));
+
+  /// Moves a fact into [workstreamId] (null = none). Membership isn't fact content: no revision bump.
+  Future<void> moveFactToWorkstream(String factId, String? workstreamId) => db.transaction(() async {
+        final f = await _fact(factId);
+        await (db.update(db.facts)..where((x) => x.id.equals(factId)))
+            .write(FactsCompanion(workstreamId: Value(workstreamId)));
+        for (final id in {f.workstreamId, workstreamId}.nonNulls) {
+          await _updateSpan(id);
+        }
+        if (workstreamId != null) {
+          await (db.update(db.workstreams)..where((w) => w.id.equals(workstreamId)))
+              .write(const WorkstreamsCompanion(userTouched: Value(true)));
+        }
+      });
+
+  /// Moves every fact of [fromId] into [intoId] and deletes [fromId].
+  Future<void> mergeWorkstreams(String fromId, String intoId) => db.transaction(() async {
+        if (fromId == intoId) return;
+        await (db.update(db.facts)..where((f) => f.workstreamId.equals(fromId)))
+            .write(FactsCompanion(workstreamId: Value(intoId)));
+        await (db.delete(db.workstreams)..where((w) => w.id.equals(fromId))).go();
+        await (db.update(db.workstreams)..where((w) => w.id.equals(intoId)))
+            .write(const WorkstreamsCompanion(userTouched: Value(true)));
+        await _updateSpan(intoId);
+      });
+
+  Future<void> _updateSpan(String workstreamId) async {
+    final row = await db
+        .customSelect(
+          'SELECT MIN(period_start) AS s, MAX(period_end) AS e FROM facts WHERE workstream_id = ? AND retired = 0',
+          variables: [Variable.withString(workstreamId)],
+          readsFrom: {db.facts},
+        )
+        .getSingle();
+    await (db.update(db.workstreams)..where((w) => w.id.equals(workstreamId))).write(
+      WorkstreamsCompanion(spanStart: Value(row.read<String?>('s')), spanEnd: Value(row.read<String?>('e'))),
+    );
+  }
+
   // ---------- Narrative commands (user-touched rules, #50 #62 #63) ----------
 
   Future<void> confirmFact(String factId) => _touchFact(factId, origin: FactOrigin.confirmed);
