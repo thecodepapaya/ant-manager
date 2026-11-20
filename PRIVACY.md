@@ -76,7 +76,7 @@ Links you open (evidence links, the git download page) open in your browser.
 - An `.antbackup` is a zip of the profile database snapshot, its attachments and a manifest. **It is not encrypted**
   (#36); Settings says so.
 - **Secrets are never included.** Providers live in `app.sqlite` and are not backed up either. A restored profile's
-  sources have no credentials: sign in to each again (#NEXT).
+  sources have no credentials and start disabled: sign in to each again (#NEXT).
 - The optional readable export (`<profile>-export/`, Markdown + JSON of facts, reports, wins, notes and evidence
   metadata) is rewritten on each backup. It has no source configs or credential references (#108).
 

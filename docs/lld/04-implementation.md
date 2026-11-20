@@ -109,7 +109,7 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
   `''`-scope SyncCursor row. Removing a source only disables it (evidence, cursors, secret kept); editing its config
   keeps its cursors. The git picker treats only enabled repos as "Added"; ticking a removed repo re-enables its
   existing source (and syncs it) rather than adding a second one for the same path (#115).
-- **git hardening (#NEXT):** every call runs `git -C <repo> -c log.showSignature=false …`; `log` and `show` add
+- **git hardening (#NEXT):** every call runs `git -C <repo> -c log.showSignature=false …`; capture's `log` and `show` add
   `--no-textconv --no-ext-diff`, so a repo's config / `.gitattributes` can't make our reads run its commands.
 
 ## 4.4 Importance scoring
@@ -245,8 +245,8 @@ No undo. A confirmation dialog states exactly what will be removed.
 
 - `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
   `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row, its
-  `.sqlite` file and its `blobs/<id>/` folder are deleted (#115). Restore sets `sources.credential_ref` to NULL in the
-  restored database, so every source needs signing in again (#NEXT).
+  `.sqlite` file and its `blobs/<id>/` folder are deleted (#115). Restore sets `credential_ref = NULL, enabled = 0` on every
+  source that had a credential in the restored database; saving it with a new secret re-enables it (#NEXT).
 - **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
   `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
   `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no

@@ -53,7 +53,8 @@ defence is citations plus your review, not detection. A cloud provider also sees
 The app runs the system `git` (`git log`, `git show`) in repos you add, with `GIT_TERMINAL_PROMPT=0` and
 `GIT_PAGER=cat`. Arguments are passed as a list (no shell).
 
-Fixed (#NEXT): `git log` and `git show` pass `--no-textconv --no-ext-diff`, and every call passes
+Fixed (#NEXT): the capture source's `git log` and `git show` pass `--no-textconv --no-ext-diff` (the setup scan's
+`git log` calls request no diff), and every call passes
 `-c log.showSignature=false`, so a repo whose `.git` came from an untrusted source can't make our reads run a
 `textconv` driver, external diff or `gpg.program`. Hooks and fsmonitor don't run on these read-only commands.
 Residual: other repo config reachable by `log` / `show` / `rev-parse` was not audited; only add repos you would run
@@ -108,8 +109,8 @@ As built:
   profile's attachments folder, otherwise the restore fails ("Unsafe path in backup"). Other entries are ignored.
   The blob store also refuses paths outside its root when reading or deleting.
 - Backups from a newer schema are refused; older ones are migrated on open.
-- Restore clears every source's **credential reference** (#NEXT), so restored sources need signing in again even on
-  the same machine, and an edited backup can't point an existing token at another URL.
+- Restore clears every source's **credential reference** and disables those sources (#NEXT), so they need signing in
+  again even on the same machine, and an edited backup can't point an existing token at another URL.
 
 Gaps:
 - Backups are **plaintext** (#36). Anyone who can read the folder can read your evidence.
