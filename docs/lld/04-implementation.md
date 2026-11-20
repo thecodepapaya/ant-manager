@@ -219,7 +219,7 @@ blank summary takes the first later non-blank one (#116). A workstream with no l
   enqueue a one-off extraction for that evidence that must produce an Outcome fact, created as `accepted` with
   origin `user-created`.
   That call (`win` schema: `fact_id|null`, `statement`, `citations`) also lists the live model-owned facts citing the
-  evidence; if the model returns one's `fact_id`, that fact becomes the win (type Outcome, the new statement, origin
+  evidence; if the model returns one's `fact_id`, that fact becomes the win (only an outcome, problem-solved or invisible-work fact; type Outcome, the new statement, importance 1, citations + the call's, origin
   `confirmed`, `accepted`) instead of a new fact (#NEXT).
 - The Wins view = `type = Outcome AND win_status = accepted`, filterable by period and project.
 

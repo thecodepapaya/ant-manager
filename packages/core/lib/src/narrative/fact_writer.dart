@@ -100,8 +100,9 @@ class FactWriter {
   }
 
   /// User accepts a win (same semantics as AntEngine.setWinStatus): user-touched from then on.
-  /// A star may turn an equivalent non-outcome fact into the win: it becomes an Outcome with [statement].
-  Future<void> acceptWin(Fact f, {String? statement}) async {
+  /// A star may turn an equivalent non-outcome fact into the win: it becomes an Outcome with [statement],
+  /// re-pinned to [citations] and set to [importance].
+  Future<void> acceptWin(Fact f, {String? statement, List<String>? citations, double? importance}) async {
     final rev = f.revision + 1;
     final origin = f.origin.isUserTouched ? f.origin : FactOrigin.confirmed;
     final st = statement ?? f.statement;
@@ -109,6 +110,7 @@ class FactWriter {
       FactsCompanion(
         type: const Value(FactType.outcome),
         statement: Value(st),
+        importance: importance == null ? const Value.absent() : Value(importance),
         origin: Value(origin),
         winStatus: const Value(WinStatus.accepted),
         revision: Value(rev),
@@ -118,6 +120,7 @@ class FactWriter {
       ),
     );
     await _revision(f.id, rev, st, f.details, origin, 'user');
+    if (citations != null) return _pin(f.id, rev, citations);
     await ctx.deps.record(
       (type: EntityType.fact, id: f.id),
       rev,

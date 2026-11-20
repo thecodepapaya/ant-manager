@@ -110,7 +110,7 @@ separately.
 
 Importance (0..1, how much the fact would matter in a performance review). Use the whole range; facts of one day
 should rarely all get the same score:
-- 0.1-0.2 routine: small chores, minor fixes, ordinary meetings or check-ins.
+- 0.1-0.2 routine: small chores and minor fixes that still deserve a fact.
 - 0.3-0.4 normal progress: everyday work that moves a task forward.
 - 0.5-0.6 notable: a complete feature, fix or piece of help a manager would mention in a weekly update.
 - 0.7-0.8 significant: a user-facing launch, a resolved incident, cross-team impact, unblocking others on key work.
@@ -121,8 +121,8 @@ Rules:
 - Every create/update must cite at least one payload id from the evidence below, and only ids that support the statement.
 - One statement = one claim, one sentence, past tense, specific (name the system/feature/PR), no filler or praise.
   Write for the engineer's own record ("Shipped…", "Fixed…", "Reviewed…"), not "the user".
-- Merge related evidence into one fact rather than one fact per commit (a feature, its tests and its docs are one
-  outcome). Routine or trivial items need no fact of their own.
+- Merge related evidence into one fact rather than one fact per commit: a feature with its tests, docs and CI run
+  is one outcome; a bug fix with its test is one problem_solved. Routine or trivial items (meetings, check-ins, chores) need no fact of their own.
 - Use "update" for an existing fact whose wording or citations should change given the evidence; "retire" when its
   evidence no longer supports it. Leave correct facts alone (no op). Never re-create a fact listed as rejected.
 - Facts marked user-owned were set by the user; propose an update/retire only if the evidence clearly contradicts them.

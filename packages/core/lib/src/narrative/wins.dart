@@ -125,7 +125,8 @@ it is the same piece of work, not merely related.''';
       // Reuse the fact the model picked if it is still an unprotected live fact citing this evidence.
       final pick = (await _candidates(payloads.map((p) => p.id))).where((f) => f.id == out['fact_id']).firstOrNull;
       if (pick != null) {
-        await writer.acceptWin(pick, statement: statement);
+        final cites = {...await writer.citedPayloads(pick.id), ...live}.toList();
+        await writer.acceptWin(pick, statement: statement, citations: cites, importance: 1.0);
         return pick.id;
       }
       return writer.create(
@@ -141,13 +142,14 @@ it is the same piece of work, not merely related.''';
     });
   }
 
-  /// Live, model-owned facts citing any of [payloadIds]: the facts a star may turn into the win.
+  /// Live, model-owned result facts (outcome, problem solved, invisible work) citing any of [payloadIds]: the facts
+  /// a star may turn into the win. Decisions and hiccups are never retyped.
   Future<List<Fact>> _candidates(Iterable<String> payloadIds) async {
     final q = db.select(db.facts).join([innerJoin(db.citations, db.citations.factId.equalsExp(db.facts.id))])
       ..where(
         db.citations.payloadId.isIn(payloadIds) &
             db.facts.retired.equals(false) &
-            db.facts.type.equalsValue(FactType.timeAllocation).not(),
+            db.facts.type.isInValues(const [FactType.outcome, FactType.problemSolved, FactType.invisibleWork]),
       );
     final byId = {for (final r in await q.get()) r.readTable(db.facts).id: r.readTable(db.facts)};
     return byId.values.where((f) => !isProtected(f)).toList();
