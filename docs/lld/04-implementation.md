@@ -225,7 +225,7 @@ blank summary takes the first later non-blank one (#116). A workstream with no l
   quarterly first day 09:00, backup 02:00, nudge weekdays 18:05, #105). Editing a schedule sets `lastRunAt = now`, so it
   never fires a missed run. On launch and every minute: for each schedule, if its latest due time is
   after its last run → enqueue once (catch up once, #79). Each occurrence converts its wall time with the profile
-  offset at that instant, not the current one (#NEXT); a wall time skipped by spring-forward lands an hour off.
+  offset at that instant, not the current one (#117); a wall time skipped by spring-forward lands an hour off.
 
 ## 4.12 Delete permanently (#85)
 
