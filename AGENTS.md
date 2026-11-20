@@ -23,5 +23,5 @@ Guidance for coding agents in this repo.
   (DeepSeek v4.1 flash, read-only) verifies them.
 - Record every decision in DECISIONS + SPEC + the relevant LLD doc (+ OWNER_TODO if external).
 - Explain tradeoffs briefly before asking. Keep responses concise.
-- Git: agents work on short branches merged into `v1`; push allowed; tagged releases are public and unsigned.
+- Git: `main` is the source of truth; work happens on `v1.1` (agents branch from it and merge back); push to `v1.1` allowed, never to `main`; tagged releases are public and unsigned (#134).
 

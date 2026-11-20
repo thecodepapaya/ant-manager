@@ -11,7 +11,7 @@ Hello Interview-style LLD flow. Guiding principle: **simple over complete** (#67
 | 4. Implementation (key algorithms) | [04-implementation.md](./04-implementation.md) | Agreed (#88–#92), refined while building (#100–#108) |
 | 5. Extensibility | — | Not started |
 
-**Build (on `v1`):** implementation **done**; independent tests (#99) **in progress**; end-to-end run with OpenRouter
+**Build (v1 merged to `main`; ongoing work on `v1.1`, #134):** implementation **done**; independent tests (#99) **in progress**; end-to-end run with OpenRouter
 (#96) **in progress**.
 
 ## Known gaps

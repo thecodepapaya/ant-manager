@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Privacy notes
-    url: https://github.com/thecodepapaya/ant-manager/blob/v1/PRIVACY.md
+    url: https://github.com/thecodepapaya/ant-manager/blob/main/PRIVACY.md
     about: What Ant Manager keeps on your computer and what it sends where.
