@@ -82,7 +82,7 @@ class AiModelsTab extends ConsumerWidget {
     return PageBody(
       maxWidth: t.widePage,
       children: [
-        if (models.isEmpty)
+        if (models.isEmpty && ref.watch(llmModelsProvider).hasValue)
           // Fresh profile: one obvious next step, like the other empty states.
           AntCard(
             child: AntEmptyState(

@@ -68,7 +68,8 @@ class _EvidenceRowState extends ConsumerState<EvidenceRow> {
     final e = item.e;
     final projects = ref.watch(allProjectsProvider).value ?? const <Project>[];
     final project = projects.where((x) => x.id == e.projectId).firstOrNull;
-    final showActions = _hovered || _focusWithin || widget.highlighted;
+    // Not pinned on a highlighted row: the toolbar would cover its time.
+    final showActions = _hovered || _focusWithin;
     final noteBody = item.noteText;
     final extras = <Widget>[
       if (noteBody != null && noteBody.contains('\n'))
