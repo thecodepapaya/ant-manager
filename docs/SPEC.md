@@ -119,7 +119,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 - **Image understanding** (screenshots in notes and recognition) uses a vision-capable model. If the chosen model
   can't read images, the UI says so and suggests a vision-capable one (e.g. a local `llava`/`qwen2.5-vl` or a cloud model).
   There is no OS OCR. With a cloud model, screenshots leave the machine; the cloud consent notice covers this.
-- Streaming output into the report view, with cancel. Token and cost estimate shown before long runs (where pricing is known).
+- Reports appear when generation finishes (no streaming or cancel in v1, #132). Token and cost estimate shown before long runs (where pricing is known).
 - **Data sent:** full evidence (including diffs and meeting details) goes to whichever provider is configured.
   A one-time consent notice appears when any non-localhost provider is first enabled (#74). See [PRIVACY.md](../PRIVACY.md) and [THREAT_MODEL.md](../THREAT_MODEL.md).
 
@@ -164,8 +164,8 @@ maintained from it, and every output reads from that Narrative.
 - **Daily nudge:** a gentle notification at the chosen time ("Your day is drafted, 2-minute review?") that opens Today.
   Snooze or skip (snooze not built yet). Default weekdays 18:05; skipped automatically on days with no evidence;
   "Include weekends" adds Sat/Sun to it and the daily report (#105). No streaks, no scores.
-- **Share:** Slack mrkdwn, rich text/HTML for email or Docs, Markdown (copy or file), PDF. Every format is available;
-  the default copy format is configurable per profile. Rich-text copy and image paste use a small native clipboard
+- **Share:** Slack mrkdwn, rich text/HTML for email or Docs, Markdown (copy), PDF. Every format is available from the
+  share menu (no Markdown file export or per-profile default copy format in v1, #132). Rich-text copy and image paste use a small native clipboard
   channel on macOS (#107).
 
 ## 8. Narrative, Reports, Wins
@@ -251,7 +251,7 @@ maintained from it, and every output reads from that Narrative.
     Extraction, Reports) sit in a collapsed section with an "inherits default" state (#75).
   - **Notes are first-class and easy to find:** a visible "Add note" in Today and Timeline, the quick-capture hotkey,
     and notes on any date with an optional project (no tags in v1, #84).
-- Keyboard: navigation, actions and a command menu for commands (not full-text search, which is out of v1).
+- Keyboard: navigation and actions (no command menu in v1, #132; no full-text search).
 - **Menu bar / tray app:** keeps running when the window is closed. Handles sync, scheduled generation,
   "write your day?" nudge notifications and the quick-capture hotkey. Launch at login is optional.
 - **Quick capture:** a global hotkey opens a floating note box from anywhere (on macOS the main window shrinks to it, #101).

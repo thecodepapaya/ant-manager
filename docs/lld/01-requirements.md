@@ -80,7 +80,7 @@ reporting are not wired yet (see [README.md](./README.md) known gaps).
 
 | # | Requirement | Target / definition |
 |---|---|---|
-| N1 | **Perceived low latency** | Opening Today or a report is instant (< 200 ms from local data). Generation streams: first token ≤ 2 s on cloud, ≤ 5 s on a warm local model. Scheduled reports and fact extraction are precomputed. Fact extraction is incremental, and prompt size is budgeted. Generation never blocks the UI and can be cancelled. (Total generation time on slow local hardware is explicitly *not* guaranteed.) |
+| N1 | **Perceived low latency** | Opening Today or a report is instant (< 200 ms from local data). Scheduled reports and fact extraction are precomputed; on-demand generation shows progress until the report is ready (no streaming in v1, #132). Fact extraction is incremental, and prompt size is budgeted. Generation never blocks the UI. (Total generation time on slow local hardware is explicitly *not* guaranteed.) |
 | N2 | **Privacy** | All data at rest stays on the machine. Network traffic goes only to the configured AI provider and connected source APIs. No telemetry unless opted in. Secrets live only in the OS keychain. Every non-localhost provider gets a one-time consent notice (#74). |
 | N3 | **Durability** | No data loss on crash or force-quit: transactional writes (SQLite WAL), idempotent and resumable syncs and extraction, a job queue that survives restarts. |
 | N4 | **Offline-first** | Everything except cloud AI calls and remote source sync works offline. |
