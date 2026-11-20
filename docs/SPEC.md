@@ -119,7 +119,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   There is no OS OCR. With a cloud model, screenshots leave the machine; the cloud consent notice covers this.
 - Streaming output into the report view, with cancel. Token and cost estimate shown before long runs (where pricing is known).
 - **Data sent:** full evidence (including diffs and meeting details) goes to whichever provider is configured.
-  A one-time consent notice appears when any non-localhost provider is first enabled (#74). PRIVACY.md and THREAT_MODEL.md get updated to match.
+  A one-time consent notice appears when any non-localhost provider is first enabled (#74). See [PRIVACY.md](../PRIVACY.md) and [THREAT_MODEL.md](../THREAT_MODEL.md).
 
 ## 7. Core product flow
 
@@ -176,7 +176,7 @@ maintained from it, and every output reads from that Narrative.
   regenerated, shows "facts changed since lock", can be unlocked). Version history is kept. A report is **out of date**
   when any input under it changed (transitively, down to payloads) or a new fact appeared in its period (#104).
 - **Generation:** automatic on a configurable schedule (e.g. daily at 18:00, weekly on Monday 09:00) when the tray app
-  is running, plus on demand. Scheduled runs use the period kind's default built-in template (#108). Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79).
+  is running, plus on demand. Scheduled runs use the period kind's default built-in template (#108). Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79). Schedule times are local wall time on each day, using the profile offset valid on that day (so 18:00 stays 18:00 across a DST change, #117).
 - Every claim in a report links to the **facts and evidence** behind it (Markdown footnotes `[^fN]: <statement> (fact:<id>)`, #108).
 - **Wins = a view** over Outcome facts + starred evidence, plus model-suggested wins you accept or reject. Filterable
   by period and project. Starred evidence counts as having a win only once an accepted Outcome fact cites it (#115).
@@ -255,7 +255,7 @@ maintained from it, and every output reads from that Narrative.
 ## 11. Repo layout
 
 - **Done (2026-11-18):** all previous code moved to `legacy/`; **removed (2026-11-20, #112)**: the old app, Python core,
-  Go port and docs live only in git history (before `legacy/` was deleted). PRIVACY / THREAT_MODEL get rewritten for v1.
+  Go port and docs live only in git history (before `legacy/` was deleted). [PRIVACY.md](../PRIVACY.md) and [THREAT_MODEL.md](../THREAT_MODEL.md) are rewritten for v1 at the root.
 - Root: `docs/`, `PHILOSOPHY.md`, `LICENSE`, `web/` + `wrangler.json` (Cloudflare Pages site; left in place),
   v1 code in `app/`, `packages/core`, `packages/ui` (#45), plus `packaging/`, `scripts/` and `.github/workflows/`.
   Firebase is not used. Dev builds can use `--dart-define=ANT_DATA_DIR=…` for a separate data folder (#107).

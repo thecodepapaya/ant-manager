@@ -20,7 +20,7 @@ come later (checklist at the bottom).
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `ci.yml` | every push, every PR | `flutter pub get`; build_runner in `packages/core` and fail if generated code isn't committed; `dart analyze` + `dart test --exclude-tags live` in core; `flutter analyze` + `flutter test` in `ui` and `app`; `dart run packages/ui/tool/check_tokens.dart`. All steps run even if one fails. |
+| `ci.yml` | every push, every PR | `flutter pub get`; build_runner in `packages/core` and fail if generated code isn't committed; `dart analyze` + `dart test --exclude-tags live` in core; `flutter analyze` + `flutter test` in `ui` and `app`; `dart run packages/ui/tool/check_tokens.dart`. All steps run even if one fails. A second job on `macos-latest` seeds a demo data folder (`seed_demo.dart`) and runs `app/integration_test/smoke_test.dart` against it (#117). |
 | `build.yml` | push to `v1`/`main`, tags `v*`, manual | Builds release installers on macOS / Windows / Ubuntu 22.04 and uploads them as workflow artifacts. On `v*` tags, also creates the GitHub Release with the three files and the install notes from `packaging/release-notes.md`. |
 
 Artifacts (branch builds get version `X.Y.Z-<sha7>`):

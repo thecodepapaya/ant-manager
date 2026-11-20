@@ -82,3 +82,27 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: app
         run: flutter test
+
+  smoke:
+    name: macOS smoke test
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Pub get (workspace)
+        run: flutter pub get
+
+      # Launches the real app on a seeded throwaway data folder (app/integration_test/smoke_test.dart).
+      - name: app - smoke test
+        if: ${{ !cancelled() }}
+        run: |
+          dart run packages/core/tool/seed_demo.dart "$RUNNER_TEMP/ant-data"
+          cd app
+          flutter test integration_test/smoke_test.dart -d macos --dart-define=ANT_DATA_DIR="$RUNNER_TEMP/ant-data"
