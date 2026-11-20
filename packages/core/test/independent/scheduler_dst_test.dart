@@ -100,6 +100,30 @@ void main() {
       const r = ScheduleRule(hour: 1, minute: 30);
       expect(r.latestDue(DateTime.utc(2026, 11, 1, 12), newYork), DateTime.utc(2026, 11, 1, 5, 30));
     });
+
+    test('02:00 on the fall-back day (first guess lands on the transition) is 02:00 EST = 07:00Z', () {
+      // wall 02:00 → offsetAt(02:00Z) = EDT → 06:00Z → offsetAt(06:00Z) = EST → at = 07:00Z.
+      expect(
+        const ScheduleRule(hour: 2).latestDue(DateTime.utc(2026, 11, 1, 12), newYork),
+        DateTime.utc(2026, 11, 1, 7),
+      );
+    });
+  });
+
+  group('latestDue: other zone shapes', () {
+    test('London skipped 01:30 on 2026-03-29 resolves after the gap: 01:30Z = 02:30 BST', () {
+      // Pinned, accepted under #67; note the opposite direction to New York's skipped 02:00.
+      const r = ScheduleRule(hour: 1, minute: 30);
+      expect(r.latestDue(DateTime.utc(2026, 3, 29, 12), london), DateTime.utc(2026, 3, 29, 1, 30));
+    });
+
+    test('Sydney DST end (2026-04-04T16:00Z): Monday catch-up lands on Fri 18:00 AEDT = 07:00Z', () {
+      final sydney = zoneOffset('Australia/Sydney');
+      // Mon 2026-04-06 08:00 AEST.
+      expect(weekdays18.latestDue(DateTime.utc(2026, 4, 5, 22), sydney), DateTime.utc(2026, 4, 3, 7));
+      // Mon 18:00 AEST = 08:00Z.
+      expect(weekdays18.latestDue(DateTime.utc(2026, 4, 6, 8), sydney), DateTime.utc(2026, 4, 6, 8));
+    });
   });
 
   group('fixed offsets are unchanged (regression)', () {
@@ -134,22 +158,21 @@ void main() {
       clock = MutableClock(DateTime.utc(2026, 11, 2, 12));
       jobs = JobQueue(db, clock: clock);
       jobs.register(Scheduler.dailyReport, JobLane.llm, (_) async {});
+      jobs.register('custom', JobLane.io, (_) async {});
     });
     tearDown(() => db.close());
 
-    Future<void> addDaily(DateTime lastRun) => db
+    Future<void> addRule(String id, ScheduleRule rule, DateTime lastRun) => db
         .into(db.schedules)
         .insert(
-          SchedulesCompanion.insert(
-            id: Scheduler.dailyReport,
-            kind: Scheduler.dailyReport,
-            rule: jsonEncode(weekdays18.toJson()),
-            lastRunAt: Value(lastRun),
-          ),
+          SchedulesCompanion.insert(id: id, kind: id, rule: jsonEncode(rule.toJson()), lastRunAt: Value(lastRun)),
         );
+    Future<void> addDaily(DateTime lastRun) => addRule(Scheduler.dailyReport, weekdays18, lastRun);
 
     Future<List<String>> dues() async => [
-      for (final j in await (db.select(db.jobs)..orderBy([(j) => OrderingTerm.asc(j.createdAt)])).get())
+      for (final j in await (db.select(
+        db.jobs,
+      )..orderBy([(j) => OrderingTerm.asc(j.createdAt), (j) => OrderingTerm.asc(j.id)])).get())
         (jsonDecode(j.args) as Map<String, Object?>)['due'] as String,
     ];
 
@@ -185,6 +208,32 @@ void main() {
       clock.t = DateTime.utc(2026, 3, 30, 17); // Mon 18:00 BST
       expect(await s.tick(), hasLength(1));
       expect((await dues()).last, DateTime.utc(2026, 3, 30, 17).toIso8601String());
+    });
+
+    test('NY fall back: 01:30 fires once at 05:30Z, not again at the repeated 01:30 EST (06:30Z)', () async {
+      await addRule('custom', const ScheduleRule(hour: 1, minute: 30), DateTime.utc(2026, 10, 31, 5, 31));
+      final s = Scheduler(db, jobs, utcOffset: newYork, clock: clock);
+      clock.t = DateTime.utc(2026, 11, 1, 5, 29);
+      expect(await s.tick(), isEmpty);
+      clock.t = DateTime.utc(2026, 11, 1, 5, 30);
+      expect(await s.tick(), hasLength(1));
+      for (final t in [DateTime.utc(2026, 11, 1, 6, 30), DateTime.utc(2026, 11, 1, 12)]) {
+        clock.t = t;
+        expect(await s.tick(), isEmpty);
+      }
+      expect(await dues(), [DateTime.utc(2026, 11, 1, 5, 30).toIso8601String()]);
+    });
+
+    test('NY spring forward: skipped 02:00 backup fires once at 06:00Z (pinned, #67)', () async {
+      await addRule('custom', const ScheduleRule(hour: 2), DateTime.utc(2026, 3, 7, 7, 1));
+      final s = Scheduler(db, jobs, utcOffset: newYork, clock: clock);
+      clock.t = DateTime.utc(2026, 3, 8, 5, 59);
+      expect(await s.tick(), isEmpty);
+      clock.t = DateTime.utc(2026, 3, 8, 6);
+      expect(await s.tick(), hasLength(1));
+      clock.t = DateTime.utc(2026, 3, 8, 7, 30); // 03:30 EDT
+      expect(await s.tick(), isEmpty);
+      expect(await dues(), [DateTime.utc(2026, 3, 8, 6).toIso8601String()]);
     });
   });
 }
