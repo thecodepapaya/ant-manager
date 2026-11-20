@@ -51,6 +51,7 @@ void main() {
 
   test('no outcome → one model call → userCreated + accepted with valid citations only', () async {
     h.router.responders['win'] = (_) => {
+      'fact_id': null,
       'statement': ' Shipped payment retries. ',
       'citations': [p1, p2, 'bogus'],
     };

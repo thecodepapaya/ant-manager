@@ -147,6 +147,11 @@ left is listed as one line per item):
   { "op": "retire", "fact_id": "…", "reason": "evidence removed" } ] }
 ```
 
+**Prompt (#NEXT):** each fact type has a definition, an example and a "not this" line (tests/docs/CI of a change fold
+into its outcome; when unsure, not an outcome); importance follows a rubric (0.1-0.2 routine, 0.3-0.4 normal,
+0.5-0.6 notable, 0.7-0.8 significant, 0.9-1.0 exceptional); `suggest_win` only for outcomes at >= 0.7. Op fields are
+ordered citations → statement → type → importance.
+
 **FactReconciler rules (enforce invariants, one transaction per day):**
 1. Drop any op whose citations reference payloads not in the input (logged as an extraction error, counted for evals).
 2. `create` → new Fact (origin `inferred`, revision 1) + FactRevision + Citations pinned to current payload revisions.
@@ -213,6 +218,9 @@ blank summary takes the first later non-blank one (#116). A workstream with no l
 - **Star an evidence item:** if an Outcome fact already cites one of its payloads → set that fact `accepted`. Otherwise,
   enqueue a one-off extraction for that evidence that must produce an Outcome fact, created as `accepted` with
   origin `user-created`.
+  That call (`win` schema: `fact_id|null`, `statement`, `citations`) also lists the live model-owned facts citing the
+  evidence; if the model returns one's `fact_id`, that fact becomes the win (type Outcome, the new statement, origin
+  `confirmed`, `accepted`) instead of a new fact (#NEXT).
 - The Wins view = `type = Outcome AND win_status = accepted`, filterable by period and project.
 
 ## 4.11 Jobs & scheduler

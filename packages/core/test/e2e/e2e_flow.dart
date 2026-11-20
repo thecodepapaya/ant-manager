@@ -554,7 +554,15 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
       expect(ws, isNotEmpty);
       expect(() => e.tools['get_facts'].call({'start': week.start, 'end': week.end, 'bogus': 1}, ctx),
           throwsA(isA<ArgumentError>()));
-      if (live) print('--- win ---\n${win.statement}');
+      if (live) {
+        final notePayloads = (await (db.select(db.payloads)..where((x) => x.evidenceId.equals(noteEvidence))).get())
+            .map((x) => x.id);
+        final citing = await (db.select(db.facts).join([
+          innerJoin(db.citations, db.citations.factId.equalsExp(db.facts.id)),
+        ])..where(db.citations.payloadId.isIn(notePayloads) & db.facts.retired.equals(false))).get();
+        print('--- win ---\n${win.statement} (origin=${win.origin.name})');
+        print('live facts citing the starred note: ${citing.map((r) => r.readTable(db.facts).type.name).toList()}');
+      }
     });
 
     test('8. backup and restore into a fresh DB: row counts match', () async {
