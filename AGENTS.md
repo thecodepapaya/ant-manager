@@ -4,7 +4,7 @@ Guidance for coding agents in this repo.
 
 ## Layout
 - `docs/`: v1 design. `SPEC.md` = what (authoritative); `DECISIONS.md` = numbered why-log (append only, mark superseded
-  rows `⟶ see #N`); `lld/` = low-level design, step status in `lld/README.md`; `OWNER_TODO.md` = owner-only external tasks.
+  rows `⟶ see #N`); `lld/` = low-level design, step status in `lld/README.md`; `OWNER_TODO.md` = owner-only external tasks. `BACKLOG.md` = owner's fix list for the next cycle.
 - `app/`, `packages/core`, `packages/ui`: v1 code (Dart pub workspace).
 - `web/` + `wrangler.json`: Cloudflare Pages site; don't move.
 

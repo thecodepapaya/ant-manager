@@ -6,7 +6,7 @@ None of these block development; placeholders are used until each is done. Tick 
 ## Signing & distribution
 - [ ] **Apple Developer Program** ($99/yr) → create a *Developer ID Application* certificate. Export it as a `.p12` and add it to GitHub Actions secrets with an app-specific password or App Store Connect API key for notarization.
 - [ ] **Windows code-signing certificate** (OV/EV, or Azure Trusted Signing) → add to CI secrets. Until then SmartScreen warns users.
-- [ ] Decide the **bundle ID** (e.g. `com.<you>.antmanager`). It's used by signing, OAuth redirects and keychain entries, so it's hard to change later.
+- [x] **Bundle ID:** `dev.thecodepapaya.antmanager` (DECISIONS #135).
 - [ ] Host **appcast feeds** (GitHub Releases works; or under the `web/` site via Cloudflare). Confirm which domain.
 - [ ] Generate a **Sparkle EdDSA key pair** for update signing and store the private key in CI secrets. (I'll give you the command.)
 - [ ] **Protect release tags:** GitHub → Settings → Rules → add a tag ruleset for `v*` so only you can create them. Every `v*` tag publishes a public release ([RELEASE.md](./RELEASE.md)).
