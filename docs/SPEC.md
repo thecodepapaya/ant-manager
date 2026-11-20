@@ -262,7 +262,7 @@ maintained from it, and every output reads from that Narrative.
 
 - **Done (2026-11-18):** all previous code moved to `legacy/`; **removed (2026-11-20, #112)**: the old app, Python core,
   Go port and docs live only in git history (before `legacy/` was deleted). [PRIVACY.md](../PRIVACY.md) and [THREAT_MODEL.md](../THREAT_MODEL.md) are rewritten for v1 at the root.
-- Root: `docs/`, `PHILOSOPHY.md`, `LICENSE`, `web/` + `wrangler.json` (Cloudflare Pages site; left in place),
+- Root: `docs/`, `PHILOSOPHY.md`, `LICENSE`, `web/` + `wrangler.json` (Cloudflare Pages site; left in place; a static page in the app's design language with real screenshots, #125),
   v1 code in `app/`, `packages/core`, `packages/ui` (#45), plus `packaging/`, `scripts/` and `.github/workflows/`.
   Firebase is not used. Dev builds can use `--dart-define=ANT_DATA_DIR=…` for a separate data folder (#107).
 
