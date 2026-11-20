@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in Ant Manager doesn't work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: This issue is public, so please leave out work content, names and keys.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: >-
+        In the app, open Settings → General → Diagnostics, click Copy, and paste the result here. It is already
+        redacted: versions, setup shape and recent log lines, with no content, names, URLs or keys.
+      render: text
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: macOS 15.1, Windows 11, …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in Settings → General → About.
+      placeholder: 1.0.0
+    validations:
+      required: true

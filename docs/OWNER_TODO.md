@@ -26,6 +26,8 @@ None of these block development; placeholders are used until each is done. Tick 
 ## GitHub
 - [ ] Register a **GitHub OAuth App** with **device flow enabled** (Settings → Developer settings → OAuth Apps) and give me the client ID. Until then GitHub sign-in is PAT only (DECISIONS #106).
 
+- [ ] **Issue forms go live on `main`** (DECISIONS #NEXT): GitHub reads `.github/ISSUE_TEMPLATE/` from the default branch only, so the app and website "Report a bug" / "Request a feature" links open the plain new-issue page until v1 is merged to `main`. Make sure the `bug` and `enhancement` labels exist (they are GitHub defaults).
+
 ## Crash reporting
 - [ ] Create a **Sentry project** (free tier is fine) and give me the DSN. Reports stay opt-in in the app.
 
