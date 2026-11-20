@@ -5,7 +5,7 @@ resolution: workspace
 version: 0.1.0+1
 
 environment:
-  sdk: ^3.13.0
+  sdk: ^3.14.0
 
 dependencies:
   flutter:
@@ -15,9 +15,9 @@ dependencies:
   ui:
     path: ../packages/ui
   flutter_riverpod: ^3.5.0
-  window_manager: ^0.6.0
-  tray_manager: ^0.8.3
-  hotkey_manager: ^0.3.0
+  window_manager: ^0.7.0
+  tray_manager: ^0.9.0
+  hotkey_manager: ^0.4.0
   launch_at_startup: ^0.5.1
   local_notifier: ^0.1.6
   flutter_secure_storage: ^10.3.4
