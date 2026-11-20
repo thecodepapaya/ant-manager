@@ -62,7 +62,8 @@ Finder _footerOf(Finder of) => find.ancestor(
         b.top.color == _t.divider &&
         b.top.width == _t.stroke.hairline &&
         b.bottom == BorderSide.none &&
-        b.left == BorderSide.none;
+        b.left == BorderSide.none &&
+        b.right == BorderSide.none;
   }),
 );
 
@@ -143,7 +144,7 @@ void main() {
       expect(_r(tester, find.text('Body text')).bottom, lessThan(f.top));
       expect(
         _r(tester, save).right,
-        closeTo(panel.right - _t.space.xxl, 1),
+        closeTo(panel.right - _t.space.xxl - _t.stroke.hairline, 0.5),
         reason: 'right-aligned with the content padding',
       );
       expect(_r(tester, cancel).right, lessThan(_r(tester, save).left));
@@ -164,8 +165,14 @@ void main() {
       final save = find.widgetWithText(AntButton, 'Save');
       expect(_footerOf(back), findsOneWidget, reason: 'in the divided footer');
       final panel = _r(tester, _panel());
-      expect(_r(tester, back).left, closeTo(panel.left + _t.space.xxl, 1));
-      expect(_r(tester, save).right, closeTo(panel.right - _t.space.xxl, 1));
+      expect(
+        _r(tester, back).left,
+        closeTo(panel.left + _t.space.xxl + _t.stroke.hairline, 0.5),
+      );
+      expect(
+        _r(tester, save).right,
+        closeTo(panel.right - _t.space.xxl - _t.stroke.hairline, 0.5),
+      );
       expect(
         _r(tester, back).center.dy,
         closeTo(_r(tester, save).center.dy, 0.5),
@@ -217,6 +224,19 @@ void main() {
       await tester.pumpAndSettle();
       await _openDialog(tester, dialog(width: 700));
       expect(_r(tester, _panel()).width, closeTo(700, 0.5));
+    });
+
+    testWidgets('a short body fits: nothing to scroll', (tester) async {
+      await _size(tester, const Size(1400, 900));
+      await _openDialog(tester, dialog());
+      final scroll = find.descendant(
+        of: find.byType(AntDialog),
+        matching: find.byType(Scrollable),
+      );
+      expect(
+        tester.state<ScrollableState>(scroll).position.maxScrollExtent,
+        0,
+      );
     });
 
     testWidgets('a tall body scrolls on a short screen; header and footer stay '

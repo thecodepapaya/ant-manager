@@ -29,10 +29,6 @@ import 'package:ui/ui.dart';
 
 import 'support.dart';
 
-/// Tests documenting a known BUG are skipped unless run with `--dart-define=RUN_BUGS=true`
-/// (same convention as packages/ui/test/helpers.dart).
-const bugSkip = !bool.fromEnvironment('RUN_BUGS');
-
 final _t = AntTokens.light();
 
 /// The quick-capture window size (DesktopShell.quickCaptureSize).

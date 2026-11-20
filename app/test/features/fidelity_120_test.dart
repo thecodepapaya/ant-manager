@@ -191,6 +191,27 @@ void main() {
       await killEngine(tester, h);
     });
 
+    testWidgets('a hidden item is dimmed until hovered', (tester) async {
+      final (_, h, id) = await today(tester);
+      await cmd(tester, h, setHiddenCmd(id, true));
+      await settle(tester, until: () => find.text('Show hidden').evaluate().isNotEmpty);
+      await tester.tap(find.text('Show hidden'));
+      await settle(tester, until: () => find.text(title).evaluate().isNotEmpty);
+      final row = _rowOf(title);
+      Finder dim() => find.ancestor(
+          of: find.text(title),
+          matching: find.byWidgetPredicate((w) => w is Opacity && w.opacity == _t.stroke.disabledOpacity));
+      expect(dim(), findsOneWidget, reason: 'dimmed');
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: const Offset(1, 1));
+      await mouse.moveTo(tester.getCenter(row));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(dim(), findsNothing, reason: 'full opacity while the toolbar shows');
+      expect(_in(row, find.byTooltip('Unhide')).hitTestable(), findsOneWidget);
+      await killEngine(tester, h);
+    });
+
     testWidgets('Today: the time sits at the panel edge, and showing the toolbar moves nothing', (tester) async {
       final (_, h, _) = await today(tester);
       final row = _rowOf(title);
@@ -219,6 +240,14 @@ void main() {
       final more = _r(tester, _in(row, find.byTooltip('More')));
       expect(more.right, lessThanOrEqualTo(_r(tester, row).right), reason: 'inside the row');
       expect(more.right, greaterThan(_r(tester, time).left), reason: 'over the right edge, not after the time');
+      // A small raised toolbar: raised fill, subtle hairline border, token shadow; inset from the row edge.
+      final bar = find.ancestor(of: _in(row, find.byTooltip('More')), matching: find.byType(Container)).first;
+      final deco = tester.widget<Container>(bar).decoration as BoxDecoration;
+      expect(deco.color, _t.raised);
+      expect((deco.border as Border).top.color, _t.borderSubtle);
+      expect(deco.boxShadow, _t.shadow);
+      expect(_r(tester, bar).right, closeTo(_r(tester, row).right - _t.space.sm, 0.5));
+      expect(_r(tester, bar).top, closeTo(_r(tester, row).top + _t.space.sm, 0.5), reason: 'by the title');
       await killEngine(tester, h);
     });
   });
@@ -264,6 +293,8 @@ void main() {
         final tallest = [time, dot, text, muted, chip].map((f) => _r(tester, f).height).reduce((a, b) => a > b ? a : b);
         expect(rowRect.height, closeTo(tallest + 2 * (_t.space.md + _t.stroke.hairline), 1), reason: '$title: one line high');
         _expectActions(tester, row, shown: false, reason: 'compact rows hide actions too');
+        final bar = find.ancestor(of: _in(row, find.byTooltip('More')), matching: find.byType(Container)).first;
+        expect(_r(tester, bar).top, closeTo(rowRect.top + _t.space.xxs, 0.5), reason: 'level with the first line');
       }
       // Project dot uses the project colour; no project → a different (neutral) colour.
       final withP = tester.widget<AntDot>(_in(_rowOf('Paired on the retry worker'), find.byType(AntDot)));
@@ -375,8 +406,8 @@ void main() {
       );
       expect(footer, findsOneWidget);
       expect(find.ancestor(of: find.widgetWithText(AntButton, 'Back'), matching: footer), findsOneWidget);
-      expect(_r(tester, find.widgetWithText(AntButton, 'Back')).left, closeTo(_r(tester, panel).left + t.space.xxl, 1));
-      expect(_r(tester, find.widgetWithText(AntButton, 'Add')).right, closeTo(_r(tester, panel).right - t.space.xxl, 1));
+      expect(_r(tester, find.widgetWithText(AntButton, 'Back')).left, closeTo(_r(tester, panel).left + t.space.xxl + t.stroke.hairline, 0.5));
+      expect(_r(tester, find.widgetWithText(AntButton, 'Add')).right, closeTo(_r(tester, panel).right - t.space.xxl - t.stroke.hairline, 0.5));
     });
   });
 
@@ -398,6 +429,8 @@ void main() {
       await settle(tester, until: () => find.byType(ProviderDialog).evaluate().isNotEmpty);
       final pd = tester.widget<ProviderDialog>(find.byType(ProviderDialog));
       expect((pd.preset.kind, pd.existing), (ProviderKind.openrouter, null));
+      expect(find.descendant(of: find.byType(ProviderDialog), matching: find.byType(WideDialog)), findsOneWidget,
+          reason: 'the provider flow uses the shared wide dialog');
       expect(find.text('Connect OpenRouter'), findsWidgets, reason: 'dialog title');
       await killEngine(tester, h);
     });
