@@ -42,6 +42,8 @@ class DbModelRouter implements ModelRouter {
     return ResolvedModel(
       client: createClient(provider, apiKey: apiKey, headers: headers),
       modelName: model.modelName,
+      providerKind: provider.kind,
+      host: Uri.tryParse(provider.baseUrl)?.host,
       info: ModelInfo(
         name: model.modelName,
         vision: model.vision,

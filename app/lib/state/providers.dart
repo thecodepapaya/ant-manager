@@ -37,6 +37,7 @@ class EngineController extends AsyncNotifier<EngineHandle> {
     final old = _current;
     if (old == null || old.profileId == id) return;
     await old.runtime(setActiveProfileCmd(id));
+    Log.info('engine.restart', {'reason': 'profile_switch'});
     state = const AsyncLoading();
     _current = null;
     await old.shutdown();

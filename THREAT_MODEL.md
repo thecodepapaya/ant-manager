@@ -125,6 +125,11 @@ Gaps:
   checked, PKCE).
 - Notifications carry no content ("Your day is drafted / 2-minute review?").
 - Quick-capture screenshots go to the temp folder and are deleted once saved into the note.
+- Diagnostic logs (`logs/`, #126) are plaintext like the databases but hold no content or secrets: error text is
+  redacted by pattern before writing (URLs, emails, paths, quoted strings, JSON bodies, auth headers, key-like
+  tokens). Residual: the redaction is pattern-based, so an unusual secret or content fragment in an error message
+  (unquoted, short, no recognisable shape) could slip through; provider host names and model names are logged on
+  purpose. "Copy diagnostics" only reaches the clipboard.
 
 ### 8. Supply chain and updates
 

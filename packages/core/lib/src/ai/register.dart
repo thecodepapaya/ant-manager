@@ -10,7 +10,7 @@ import 'llm.dart';
 
 /// Builds the client for a provider row. [apiKey] and [headers] are already resolved from the SecretStore.
 /// `native` protocol means the provider's own API (Anthropic or Gemini).
-/// Every request path builds its client here, so consent for a non-loopback base URL is enforced here (#NEXT).
+/// Every request path builds its client here, so consent for a non-loopback base URL is enforced here (#118).
 LlmClient createClient(Provider row, {required String? apiKey, Map<String, String> headers = const {}}) {
   if (requiresConsent(row.baseUrl) && !row.consentGiven) {
     throw LlmFailure('${row.name} at ${row.baseUrl} has no consent to receive your data. '

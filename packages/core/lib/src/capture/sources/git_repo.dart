@@ -20,7 +20,7 @@ class GitRepoSource implements WatchableSource {
   // Each record: NUL, then sha, author name/email, committer name/email, author/committer ISO dates and raw
   // body, each NUL-terminated, then the numstat lines. No field can contain NUL, so splitting on NUL gives
   // exactly 1 + 9 × records tokens whatever the message contains. NUL can't be passed in argv, hence `%x00`.
-  // The repo's own config / .gitattributes must not make our reads run its commands (textconv, external diff, #NEXT).
+  // The repo's own config / .gitattributes must not make our reads run its commands (textconv, external diff, #118).
   static const _noRepoCommands = ['--no-textconv', '--no-ext-diff'];
   static const _format = '%x00%H%x00%an%x00%ae%x00%cn%x00%ce%x00%aI%x00%cI%x00%B%x00';
 

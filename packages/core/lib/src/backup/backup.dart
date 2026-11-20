@@ -190,7 +190,7 @@ class BackupService {
       if (await f.exists()) await f.delete();
     }
     await target.writeAsBytes(dbBytes, flush: true);
-    // After a restore you sign in again (SPEC §9, #NEXT): a restored source must not reuse a token in this
+    // After a restore you sign in again (SPEC §9, #118): a restored source must not reuse a token in this
     // machine's secret store, which an edited backup could point at another URL. Sources that had one are
     // disabled so they don't fail every sync; saving the source with a new secret re-enables it.
     final restored = sqlite3.open(targetDbPath);

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../data/profile_db.dart';
+import '../diagnostics/log.dart';
 import '../domain/enums.dart';
 import '../ports/ports.dart';
 import '../util/ids.dart';
@@ -59,12 +60,15 @@ class JobQueue {
     });
     if (job == null) return false;
     final handler = _handlers[job.kind]?.$2;
+    final watch = Stopwatch()..start();
+    Log.info('job.start', {'kind': job.kind, 'lane': lane, 'attempt': job.attempts + 1});
     try {
       if (handler == null) throw StateError('No handler for job ${job.kind}');
       await handler(jsonDecode(job.args) as Map<String, Object?>);
       await (db.update(db.jobs)..where((t) => t.id.equals(job.id)))
           .write(const JobsCompanion(state: Value(JobState.done), leaseUntil: Value(null)));
-    } catch (e) {
+      Log.info('job.finish', {'kind': job.kind, 'ms': watch.elapsedMilliseconds});
+    } catch (e, st) {
       final attempt = job.attempts + 1; // attempts count failures, not leases
       final failed = attempt > backoff.length;
       final failedAt = clock.now();
@@ -75,6 +79,12 @@ class JobQueue {
         leaseUntil: const Value(null),
         lastError: Value(e.toString()),
       ));
+      Log.error('job.fail', e, st, {
+        'kind': job.kind,
+        'ms': watch.elapsedMilliseconds,
+        'attempt': attempt,
+        'next': failed ? 'gave_up' : 'retry',
+      });
     }
     return true;
   }

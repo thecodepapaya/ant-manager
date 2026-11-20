@@ -9,7 +9,7 @@ Composition root, platform adapters and desktop shell. Design: `docs/lld/03-clas
   (closures copied to the engine isolate; build them in `commands.dart`). Plugin-backed ports (keychain,
   notifications, EventKit) are proxied back to the UI isolate (`port_bridge.dart` ⇄ `ui_port_host.dart`).
 - `lib/platform/`: port adapters (secure storage, blob store, file watcher, notifier, EventKit bridge, screen
-  capture, launch at login, system time zone).
+  capture, launch at login, system time zone, rotating log files).
 - `lib/shell/`: tray menu, global hotkey (⌥⌘N / Ctrl+Alt+N), close-to-tray, quick capture.
 - `lib/features/`: screens per sidebar section; `lib/state/` Riverpod providers; `lib/widgets/` shared widgets.
 - `macos/Runner/MainFlutterWindow.swift`: EventKit channels `ant/calendar` + `ant/calendar/changes`, and the

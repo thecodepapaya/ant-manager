@@ -39,7 +39,7 @@ class ScheduleRule {
       (!quarterly || (localDate.day == 1 && (localDate.month - 1) % 3 == 0));
 
   /// The latest occurrence at or before [now] (UTC result), or null if none in the last ~13 months.
-  /// Each occurrence is [hour]:[minute] wall time with the profile offset valid on that day (#87, #NEXT),
+  /// Each occurrence is [hour]:[minute] wall time with the profile offset valid on that day (#87, #117),
   /// so catching up across a DST change still lands on local [hour]:[minute].
   DateTime? latestDue(DateTime now, UtcOffset offsetAt) {
     final utcNow = now.toUtc();

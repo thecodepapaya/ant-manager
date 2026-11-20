@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../diagnostics/log.dart';
 import '../domain/enums.dart';
 import 'llm.dart';
 
@@ -18,8 +19,17 @@ class StructuredOutput {
     List<LlmImage> images = const [],
     void Function(String delta)? onDelta,
   }) async {
+    ResolvedModel? m;
+    final watch = Stopwatch()..start();
+    Map<String, Object?> fields() => {
+          'route': route,
+          'provider': m?.providerKind,
+          'host': m?.host,
+          'model': m?.modelName,
+          'ms': watch.elapsedMilliseconds,
+        };
     try {
-      final m = await router.resolve(route);
+      m = await router.resolve(route);
       final req = LlmRequest(
         model: m.modelName,
         schema: schema,
@@ -33,21 +43,30 @@ class StructuredOutput {
         switch (e) {
           case LlmDelta(:final text):
             onDelta?.call(text);
-          case LlmDone(:final text):
-            return parseStructured(text, schema);
+          case LlmDone(:final text, :final inputTokens, :final outputTokens):
+            final out = parseStructured(text, schema);
+            Log.info('llm.ok', {...fields(), 'in_tokens': inputTokens, 'out_tokens': outputTokens});
+            return out;
         }
       }
-    } on LlmFailure {
+      throw LlmFailure('Stream ended without a result');
+    } on LlmFailure catch (e) {
+      _fail(e, fields());
       rethrow;
     } on FormatException catch (e) {
-      throw LlmFailure('Unexpected response from the model: ${e.message}');
+      throw _fail(LlmFailure('Unexpected response from the model: ${e.message}'), fields());
     } on TypeError catch (e) {
       // A client cast an unexpected stream payload shape.
-      throw LlmFailure('Unexpected response from the model: $e');
+      throw _fail(LlmFailure('Unexpected response from the model: $e'), fields());
     } on Exception catch (e) {
-      throw LlmFailure('Model call failed: $e');
+      throw _fail(LlmFailure('Model call failed: $e'), fields());
     }
-    throw LlmFailure('Stream ended without a result');
+  }
+
+  /// Logs only the status code and the failure's redacted text, never the prompt or the output.
+  static LlmFailure _fail(LlmFailure e, Map<String, Object?> fields) {
+    Log.error('llm.fail', e, null, {...fields, 'status': e.statusCode});
+    return e;
   }
 }
 
