@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   auto_updater_windows
   desktop_drop
   file_selector_windows
+  firebase_core
   flutter_secure_storage_windows
   local_notifier
   url_launcher_windows
