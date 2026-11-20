@@ -138,7 +138,12 @@ class AntMenu extends StatelessWidget {
               : transparent,
         ),
       ),
-      child: Text(e.label),
+      // Long labels (e.g. project names) ellipsize instead of widening the
+      // menu off-screen.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: t.density.menuMinWidth * 2),
+        child: Text(e.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 }

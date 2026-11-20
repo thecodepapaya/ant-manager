@@ -17,6 +17,7 @@ import 'package:ant_manager/widgets/common.dart';
 import 'package:ant_manager/widgets/evidence_row.dart';
 import 'package:ant_manager/widgets/note_composer.dart';
 import 'package:core/core.dart' hide Provider;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,6 +105,11 @@ void main() {
       final (_, h) = await bootPage(tester, dir, const TodayPage());
       await cmd(tester, h, addNoteCmd(text: 'Secret meeting', at: DateTime.now()));
       await settle(tester, until: () => rows().evaluate().isNotEmpty);
+      // Row actions float over the row and only take clicks once it is hovered (UI round 2).
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(rows()));
+      await settle(tester);
       await tester.tap(find.descendant(of: rows(), matching: find.byTooltip('More')));
       await settle(tester, until: () => find.text('Delete permanently…').evaluate().isNotEmpty);
       await tester.tap(find.text('Delete permanently…'));

@@ -118,15 +118,16 @@ class _EvidenceRowState extends ConsumerState<EvidenceRow> {
                 child: Row(
                   children: [
                     Flexible(
-                      child: Text.rich(
-                        TextSpan(children: [
-                          TextSpan(text: e.title, style: t.typo.body.copyWith(color: t.text)),
-                          TextSpan(text: ' · $detail', style: t.typo.small.copyWith(color: t.muted)),
-                        ]),
+                      flex: 3,
+                      child: Text(
+                        e.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        style: t.typo.body.copyWith(color: t.text),
                       ),
                     ),
+                    SizedBox(width: t.space.xs),
+                    Flexible(child: Muted('· $detail', maxLines: 1)),
                     ...badges,
                     if (item.link != null) ...[SizedBox(width: t.space.sm), _LinkButton(item.link!)],
                   ],
