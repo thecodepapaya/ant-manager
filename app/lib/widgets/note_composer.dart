@@ -1,4 +1,3 @@
-
 import 'package:core/core.dart' hide Provider;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -44,9 +43,11 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
       if (_focus.hasFocus && !_expanded) setState(() => _expanded = true);
     });
     _focus.onKeyEvent = (node, e) {
-      final paste = e is KeyDownEvent &&
+      final paste =
+          e is KeyDownEvent &&
           e.logicalKey == LogicalKeyboardKey.keyV &&
-          (HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isControlPressed);
+          (HardwareKeyboard.instance.isMetaPressed ||
+              HardwareKeyboard.instance.isControlPressed);
       if (paste) _pasteImage();
       return KeyEventResult.ignored; // text paste still happens
     };
@@ -76,7 +77,8 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
       final ext = f.name.split('.').last.toLowerCase();
       if (!_imageExts.contains(ext)) continue;
       final bytes = await f.readAsBytes();
-      if (mounted) setState(() => _images.add((bytes, ext == 'jpeg' ? 'jpg' : ext)));
+      if (mounted)
+        setState(() => _images.add((bytes, ext == 'jpeg' ? 'jpg' : ext)));
     }
     if (mounted) setState(() => _expanded = true);
   }
@@ -84,7 +86,9 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
   DateTime _at() {
     final day = widget.day;
     if (day == null || day == todayDay()) return DateTime.now();
-    final noon = parseDay(day).add(const Duration(hours: 12)); // noon of a past/future day, profile zone
+    final noon = parseDay(
+      day,
+    ).add(const Duration(hours: 12)); // noon of a past/future day, profile zone
     return noon.subtract(profileUtcOffset(noon));
   }
 
@@ -112,7 +116,9 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
         _link.clear();
         _images.clear();
         _expanded = false;
-        _focus.unfocus();
+        _focus.unfocus(
+          disposition: UnfocusDisposition.previouslyFocusedChild,
+        ); // back to the page, so its keys work (#130)
       }
     });
   }
@@ -129,9 +135,11 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
         bindings: {
           const SingleActivator(LogicalKeyboardKey.enter, meta: true): _save,
           const SingleActivator(LogicalKeyboardKey.escape): () => setState(() {
-                _expanded = false;
-                _focus.unfocus();
-              }),
+            _expanded = false;
+            _focus.unfocus(
+              disposition: UnfocusDisposition.previouslyFocusedChild,
+            ); // back to the page, so its keys work (#130)
+          }),
         },
         child: AnimatedContainer(
           duration: t.motion.fast,
@@ -187,12 +195,21 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
                       options: [
                         const AntOption(null, 'No project'),
                         for (final p in projects)
-                          AntOption(p.id, p.name, leading: AntDot(color: projectColour(t, p), size: t.space.sm)),
+                          AntOption(
+                            p.id,
+                            p.name,
+                            leading: AntDot(
+                              color: projectColour(t, p),
+                              size: t.space.sm,
+                            ),
+                          ),
                       ],
                       onChanged: (v) => setState(() => _projectId = v),
                     ),
                     Muted(
-                      _images.isEmpty ? 'Drop or paste a screenshot to attach it' : plural(_images.length, 'screenshot'),
+                      _images.isEmpty
+                          ? 'Drop or paste a screenshot to attach it'
+                          : plural(_images.length, 'screenshot'),
                       style: t.typo.caption,
                     ),
                   ],
@@ -208,7 +225,11 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
                           children: [
                             ClipRRect(
                               borderRadius: t.radii.brMd,
-                              child: Image.memory(_images[i].$1, height: t.space.giant * 1.5, fit: BoxFit.cover),
+                              child: Image.memory(
+                                _images[i].$1,
+                                height: t.space.giant * 1.5,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                             Positioned(
                               right: 0,
@@ -217,7 +238,8 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
                                 icon: Icons.close_rounded,
                                 tooltip: 'Remove',
                                 size: AntSize.sm,
-                                onPressed: () => setState(() => _images.removeAt(i)),
+                                onPressed: () =>
+                                    setState(() => _images.removeAt(i)),
                               ),
                             ),
                           ],

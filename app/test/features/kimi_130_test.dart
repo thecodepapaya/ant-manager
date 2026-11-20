@@ -28,7 +28,6 @@ import 'package:ui/ui.dart';
 
 import 'support.dart';
 
-const bugSkip = !bool.fromEnvironment('RUN_BUGS');
 
 const _plainHttpWarning = 'Plain HTTP to another machine: your evidence travels unencrypted on the network.';
 
@@ -249,7 +248,7 @@ void main() {
       await tester.pump();
       expect(dayOfFocus(c), start, reason: '→ switches days once nothing editable has focus');
       await killEngine(tester, h);
-    }, skip: bugSkip);
+    });
   });
 
   // -------------------------------------------------------------------------
