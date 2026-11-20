@@ -29,10 +29,6 @@ import 'package:ui/ui.dart';
 
 import 'support.dart';
 
-/// Tests documenting a known BUG are skipped unless run with `--dart-define=RUN_BUGS=true`
-/// (same convention as packages/ui/test/helpers.dart).
-const bugSkip = !bool.fromEnvironment('RUN_BUGS');
-
 final _t = AntTokens.light();
 
 /// The quick-capture window size (DesktopShell.quickCaptureSize).
@@ -219,8 +215,7 @@ void main() {
     });
 
     testWidgets('a long project name does not overflow the footer', (tester) async {
-      // BUG: AntSelect's label is an unbounded Text in a min-size Row: a long project name is laid
-      // out past the 180px select and the window edge (no ellipsis, no overflow error either).
+      // Was a BUG-skip (unbounded AntSelect label); fixed by #120 (e): the label ellipsizes.
       final (c, h) = await bootPage(tester, dir, const QuickCaptureView(), size: _qcSize);
       const long = 'Platform reliability and incident follow-ups for the checkout migration';
       await cmd(tester, h, createProjectCmd(long));
@@ -240,7 +235,7 @@ void main() {
       _before(tester, select(), link());
       expect(_r(tester, saveButton()).right, lessThanOrEqualTo(_qcSize.width));
       await killEngine(tester, h);
-    }, skip: bugSkip);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -291,8 +286,7 @@ void main() {
     final narrow = 900 - _t.density.sidebarWidth;
 
     testWidgets('a long subtitle ellipsizes on one line at the narrowest page width', (tester) async {
-      // BUG: TopBar bounds the subtitle to a fixed max width (not Flexible), so at the narrowest
-      // page width title + subtitle + actions exceed the bar and the Row overflows.
+      // Was a BUG-skip (fixed-width subtitle overflowed); fixed by #120 (f).
       await _size(tester, Size(narrow, 400));
       await tester.pumpWidget(_host(bar(), width: narrow));
       expect(tester.takeException(), isNull, reason: 'no overflow');
@@ -300,7 +294,7 @@ void main() {
       expect(_r(tester, action).right, lessThanOrEqualTo(narrow - _t.space.xxxl + 0.5));
       _before(tester, find.text(subtitle), action);
       expect(_para(tester, subtitle).didExceedMaxLines, isTrue, reason: 'ellipsized, one line');
-    }, skip: bugSkip);
+    });
 
     testWidgets('at a wide width a long subtitle is still one line (bounded, ellipsized)', (tester) async {
       await _size(tester, const Size(1400, 400));
