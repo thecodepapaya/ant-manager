@@ -40,7 +40,7 @@ void main() {
     expect((await h.fact('f1')).winStatus, WinStatus.accepted);
   });
 
-  test('a decision or retired outcome is not accepted directly; with fact_id null the win call writes a new fact',
+  test('a decision or retired outcome is not the existing-outcome shortcut; model answers fact_id null → new fact',
       () async {
     // The harness's default win answer has fact_id: null, so this only covers the no-reuse path;
     // reuse via fact_id (#119) is covered in fixes_119_test.dart.

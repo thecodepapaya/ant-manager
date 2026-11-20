@@ -502,6 +502,13 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
         expect(noteFacts, hasLength(1), reason: 'the fake extraction wrote one fact for the note');
         expect(factId, noteFacts.single);
         expect((await db.select(db.facts).get()).length, factCount, reason: 'no duplicate fact');
+        final reused = await (db.select(db.facts)..where((f) => f.id.equals(factId))).getSingle();
+        expect(
+          (reused.statement, reused.origin, reused.importance),
+          ('Unblocked a teammate on the refund flow.', FactOrigin.confirmed, 1.0),
+        );
+        final cited = (await (db.select(db.citations)..where((c) => c.factId.equals(factId))).get()).map((c) => c.payloadId);
+        expect(cited, containsAll(noteIds));
       }
       await settle();
       if (!live) expect((await db.select(db.facts).get()).length, factCount, reason: 'the re-run adds no fact');

@@ -4,6 +4,7 @@
 // and a returned fact_id turns that fact into the accepted win instead of writing a new one.
 import 'package:core/core.dart';
 import 'package:core/src/narrative/extractor.dart';
+import 'package:core/src/narrative/reconciler.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:test/test.dart';
 
@@ -84,12 +85,25 @@ void main() {
       expect((await h.fact('ps')).type, FactType.outcome);
     });
 
-    test('the reused win is now protected (a later star needs no model call)', () async {
+    test('starring again returns the reused win without a model call', () async {
       await h.insertFact('iw', [p1], type: FactType.invisibleWork);
       pick('iw');
       await wins.starEvidence(e1);
       expect(await wins.starEvidence(e1), 'iw');
       expect(h.router.of('win'), hasLength(1));
+    });
+
+    test('the reused win is protected from later model updates', () async {
+      await h.insertFact('iw', [p1], type: FactType.invisibleWork);
+      pick('iw');
+      await wins.starEvidence(e1);
+      await FactReconciler(h.ctx).apply(
+        FactChangeSet(day, [
+          UpdateFact(factId: 'iw', statement: 'Model rewrite.', citations: [p1]),
+        ]),
+      );
+      final f = await h.fact('iw');
+      expect((f.statement, f.revision, f.reviewState), ('Shipped payment retries.', 2, ReviewState.needsReview));
     });
 
     test('candidates are listed with id, type and statement', () async {
@@ -121,12 +135,17 @@ void main() {
       expect(h.router.of('win').single.user, isNot(contains('Reverted retries.')));
     });
 
-    for (final (label, type) in [('decision', FactType.decision), ('hiccup', FactType.hiccup)]) {
+    for (final (label, type) in [
+      ('decision', FactType.decision),
+      ('hiccup', FactType.hiccup),
+      ('time_allocation', FactType.timeAllocation),
+    ]) {
       test('a returned $label id is ignored: new fact, $label untouched', () async {
         await h.insertFact('x', [p1], type: type);
         final before = await h.fact('x');
         pick('x');
         final id = await wins.starEvidence(e1);
+        expect(offered(), isEmpty);
         expect(id, isNot('x'));
         expect((await h.fact(id)).origin, FactOrigin.userCreated);
         final after = await h.fact('x');
@@ -179,6 +198,7 @@ void main() {
       await h.insertFact('acc', [p1], type: FactType.invisibleWork, win: WinStatus.accepted);
       pick('acc');
       await expectNew('acc');
+      expect(offered(), isEmpty);
       expect((await h.fact('acc')).type, FactType.invisibleWork);
     });
 
@@ -240,6 +260,21 @@ void main() {
     });
   });
 
+  test('picked fact loses its citation to the starred evidence mid-call → new fact, picked one untouched', () async {
+    await h.insertFact('iw', [p1, p2], type: FactType.invisibleWork);
+    h.router.onCall = (c) async {
+      if (c.schema == 'win') {
+        await (h.db.delete(h.db.citations)..where((x) => x.factId.equals('iw') & x.payloadId.equals(p1))).go();
+      }
+    };
+    pick('iw');
+    final id = await wins.starEvidence(e1);
+    expect(id, isNot('iw'));
+    final iw = await h.fact('iw');
+    expect((iw.type, iw.winStatus, iw.revision), (FactType.invisibleWork, WinStatus.none, 1));
+    expect((await h.citations('iw')).map((c) => c.payloadId), [p2]);
+  });
+
   group('extraction prompt (a)', () {
     test('system prompt has the type definitions and the importance rubric anchors', () {
       const s = LlmFactExtractor.system;
@@ -251,6 +286,7 @@ void main() {
         '0.9-1.0 exceptional',
         'When unsure whether something is an outcome, it is not.',
         'NOT an outcome on its own',
+        'Fold the work toward it (its tests, docs, follow-up commits, CI passing)',
         'suggest_win: true only for an outcome of importance 0.7 or more',
       ]) {
         expect(s, contains(anchor));
@@ -274,6 +310,12 @@ void main() {
       expect(req.messages.first.role, 'system');
       expect(req.messages.first.text, LlmFactExtractor.system);
       expect(req.schema, same(LlmFactExtractor.schema));
+    });
+
+    test('win system prompt tells the model when to return fact_id', () {
+      expect(WinService.system, contains('set fact_id to its id'));
+      expect(WinService.system, contains('otherwise fact_id is null'));
+      expect(WinService.system, contains('same piece of work, not merely related'));
     });
 
     test('win schema requires a nullable fact_id', () {
