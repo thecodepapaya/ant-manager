@@ -104,7 +104,7 @@ As built:
 - Restore always creates a **new profile**, never overwriting one (#105); a failed restore removes the profile,
   database file and attachments (#115).
 - The manifest records a SHA-256 of `db.sqlite`, checked on restore. This catches corruption, **not tampering**: the
-  manifest isn't signed, so an attacker can update both.
+  manifest isn't signed, so an attacker can update both. Accepted for v1 (#122).
 - **Unsafe archive paths are rejected:** each `attachments/…` entry is normalised and must stay inside the new
   profile's attachments folder, otherwise the restore fails ("Unsafe path in backup"). Other entries are ignored.
   The blob store also refuses paths outside its root when reading or deleting.
