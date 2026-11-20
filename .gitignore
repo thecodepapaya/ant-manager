@@ -14,7 +14,8 @@ core/.venv/
 # Claude Code agent worktrees
 .claude/worktrees/
 
-.open_router_key.claude/settings.local.json
+.open_router_key
+.claude/settings.local.json
 .dart_tool/
 build/
 dist/
