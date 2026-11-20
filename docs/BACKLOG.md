@@ -4,8 +4,8 @@ Owner notes from local runs. Each fix still follows the working rules (DECISIONS
 
 ## UI
 - [ ] **Simpler first onboarding page.** The Welcome step feels busy; cut it down to the essentials.
-- [ ] **Search in Identities** (optional filter field). Repos with many contributors make the list hard to scan.
-- [ ] **Search in Repositories**, same as Identities.
+- [x] **Search in Identities** (optional filter field). Repos with many contributors make the list hard to scan.
+- [x] **Search in Repositories**, same as Identities.
 - [ ] **Remove / change the AI key after adding it.** Once an OpenRouter key is saved in the onboarding AI-model step there's no way to undo or remove it.
 
 ## Menu bar / tray

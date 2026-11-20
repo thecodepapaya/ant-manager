@@ -55,6 +55,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   String _manualKind = 'email';
   bool _showManual = false;
   bool _identitiesReady = false;
+  final _peopleQuery = TextEditingController();
+  bool _showAllPeople = false;
 
   @override
   void initState() {
@@ -85,6 +87,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   void dispose() {
     _name.dispose();
     _manualValue.dispose();
+    _peopleQuery.dispose();
     _scan.dispose();
     super.dispose();
   }
@@ -239,17 +242,32 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         ];
       case _Step.identities:
         final authors = _scan.authors();
+        final people = authors.where((a) => !a.$1.contains('[bot]')).toList();
+        final query = _peopleQuery.text;
+        final matches = [for (final a in people) if (matchesQuery(query, [a.$1, a.$2])) a];
+        // Ticks live in _picked, so people hidden by the search or the cap stay ticked.
+        final capped = query.trim().isEmpty && !_showAllPeople;
+        final shown = capped ? matches.take(listSearchThreshold) : matches;
         return [
           _heading(context, 'Which of these are you?',
               'We found these people in your repos. Evidence from the ones you tick counts as yours.'),
+          if (_identitiesReady && people.length > listSearchThreshold)
+            ListSearchField(
+              key: const Key('onboarding-people-search'),
+              controller: _peopleQuery,
+              placeholder: 'Search people',
+              onChanged: (_) => setState(() {}),
+            ),
           ListenableBuilder(
             listenable: _scan,
             builder: (context, _) => ListPanel(children: [
               if (!_identitiesReady)
                 const PanelRow(title: 'Looking through your repos…')
               else if (authors.isEmpty && _manual.isEmpty)
-                const PanelRow(title: 'No commit authors found', hint: 'Add the email you commit with below.'),
-              for (final (email, name, repos) in authors.where((a) => !a.$1.contains('[bot]')).take(8))
+                const PanelRow(title: 'No commit authors found', hint: 'Add the email you commit with below.')
+              else if (matches.isEmpty && people.isNotEmpty)
+                const PanelRow(title: 'No matches', hint: 'Try a different name or email.'),
+              for (final (email, name, repos) in shown)
                 PanelRow(
                   dense: true,
                   onTap: () => setState(() => _picked.contains(email) ? _picked.remove(email) : _picked.add(email)),
@@ -279,6 +297,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 ),
             ]),
           ),
+          if (capped && matches.length > listSearchThreshold) ...[
+            Gap(t.space.md),
+            Row(children: [
+              AntButton.ghost(
+                label: 'Show all ${matches.length} people',
+                icon: Icons.expand_more,
+                onPressed: () => setState(() => _showAllPeople = true),
+              ),
+            ]),
+          ],
           Gap(t.space.md),
           if (!_showManual)
             Row(children: [

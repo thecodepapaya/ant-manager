@@ -230,11 +230,29 @@ class GitInstallGuide extends StatelessWidget {
   }
 }
 
-/// Chips + repo checklist (mockup onboarding "Pick the repos to watch").
-class RepoPicker extends StatelessWidget {
+/// Chips + repo checklist (mockup onboarding "Pick the repos to watch"), with a search field when
+/// many repos are found. Ticks live in [RepoScanController.selected], so hidden repos stay ticked.
+class RepoPicker extends StatefulWidget {
   const RepoPicker({super.key, required this.c, this.existing = const {}});
   final RepoScanController c;
   final Set<String> existing;
+
+  @override
+  State<RepoPicker> createState() => _RepoPickerState();
+}
+
+class _RepoPickerState extends State<RepoPicker> {
+  final _query = TextEditingController();
+  RepoScanController get c => widget.c;
+  Set<String> get existing => widget.existing;
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  bool _matches(RepoScan r) => matchesQuery(_query.text, [r.name, tildePath(r.path)]);
 
   Future<void> _addFolder(BuildContext context, {required bool root}) async {
     final dir = await getDirectoryPath(confirmButtonText: root ? 'Scan folder' : 'Add repo');
@@ -297,9 +315,17 @@ class RepoPicker extends StatelessWidget {
                       : 'Nothing under ${c.roots.map(tildePath).join(', ')}. Add another folder or a repo manually.',
                 ),
               ])
-            else
+            else ...[
+              if (c.repos.length > listSearchThreshold)
+                ListSearchField(
+                  key: const Key('repo-picker-search'),
+                  controller: _query,
+                  placeholder: 'Search repositories',
+                  onChanged: (_) => setState(() {}),
+                ),
               ListPanel(children: [
-                for (final r in c.repos)
+                if (!c.repos.any(_matches)) const PanelRow(title: 'No matches', hint: 'Try a different name or path.'),
+                for (final r in c.repos.where(_matches))
                   PanelRow(
                     dense: true,
                     onTap: existing.contains(r.path) ? null : () => c.toggle(r.path),
@@ -318,6 +344,7 @@ class RepoPicker extends StatelessWidget {
                     ],
                   ),
               ]),
+            ],
           ],
         );
       },

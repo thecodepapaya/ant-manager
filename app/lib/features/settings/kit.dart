@@ -492,3 +492,26 @@ class Bar extends StatelessWidget {
     );
   }
 }
+
+/// Lists longer than this get an optional search field (identities, repos, sources).
+const listSearchThreshold = 8;
+
+/// Case-insensitive substring match of [query] against any of [fields]; an empty query matches all.
+bool matchesQuery(String query, Iterable<String> fields) {
+  final q = query.trim().toLowerCase();
+  return q.isEmpty || fields.any((f) => f.toLowerCase().contains(q));
+}
+
+/// Search field above a long list; the caller filters with [matchesQuery] on `controller.text`.
+class ListSearchField extends StatelessWidget {
+  const ListSearchField({super.key, required this.controller, required this.placeholder, required this.onChanged});
+  final TextEditingController controller;
+  final String placeholder;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(bottom: context.tokens.space.md),
+        child: AntTextField(controller: controller, placeholder: placeholder, leadingIcon: Icons.search, onChanged: onChanged),
+      );
+}

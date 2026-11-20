@@ -233,7 +233,9 @@ Not designed up front; built under #67 and recorded as decisions. Layout: [app/R
   `app/engine/diagnostics.dart`; buttons in Settings → General (LLD 04 §4.14).
 - **macOS:** App Sandbox off, login keychain until signing, quick capture reuses the main window (#101); native
   channels `ant/calendar` (EventKit) and `ant/clipboard` (rich copy, image paste, #107).
-- **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105; Welcome step #114). New
+- **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105; Welcome step #114).
+  Long lists (> `listSearchThreshold` = 8: onboarding people, Suggested identities, `RepoPicker`, Sources grid) show a
+  `ListSearchField` filtered with `matchesQuery` (case-insensitive substring), all in `settings/kit.dart` (#NEXT). New
   `AntEngine` commands cover projects/workstreams and starring via `WinService` (#107).
   `todayProvider` re-checks the profile-zone day every minute; Today's focus and the Today count follow it.
   Evidence payloads are listed in insertion (`rowid`) order, so a note's body precedes its annotations (#130).
