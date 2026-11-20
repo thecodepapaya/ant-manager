@@ -5,7 +5,7 @@
 - **[tokens.css](./tokens.css):** the mockup's design tokens. Same names and structure as the Flutter `AntTokens`
   ThemeExtension planned in SPEC §10: semantic colours (dark + light), accent variants derived from one `--accent`
   seed, and a radius scale derived from one `--radius` base.
-- **Logo:** `app/assets/brand/logo.png` (two black ants on warm off-white).
+- **Logo:** vector sources in `app/assets/brand/`: `logo.svg` (two black ants on warm off-white, traced from the original artwork), `ant.svg` (one ant, transparent: menu bar / tray), `app-icon.svg` (rounded macOS-style tile). Raster icons (tray PNG, macOS AppIcon set, Windows `.ico`) are rendered from these with `resvg`; never edit the PNGs by hand (#123).
 
 Known gaps from the owner's review (fix in the real UI, see SPEC §10 "UX principles"): padding and spacing
 inconsistencies, no obvious global model, notes hard to find, intimidating for new users, and a placeholder
