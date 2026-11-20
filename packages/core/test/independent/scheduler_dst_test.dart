@@ -7,7 +7,6 @@
 import 'dart:convert';
 
 import 'package:core/core.dart';
-import 'package:core/src/util/time_zone.dart' show zoneOffset;
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:test/test.dart';
 
@@ -116,7 +115,7 @@ void main() {
     });
 
     test('PST -8 constant: next-UTC-day due times', () {
-      UtcOffset pst = (_) => const Duration(hours: -8);
+      Duration pst(DateTime _) => const Duration(hours: -8);
       // Sat 2026-11-21 01:00Z = Fri 17:00 PST → Thu 18:00 PST = Fri 02:00Z.
       expect(weekdays18.latestDue(DateTime.utc(2026, 11, 21, 1), pst), DateTime.utc(2026, 11, 20, 2));
       expect(weekdays18.latestDue(DateTime.utc(2026, 11, 21, 2), pst), DateTime.utc(2026, 11, 21, 2));
