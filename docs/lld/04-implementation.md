@@ -105,7 +105,7 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
   connected GitHub/GHES/GitLab source, that source covers the repo; otherwise the UI offers to connect that host.
 - **Initial import:** the last **30 days** when a source is added .
 - **Polling intervals** are constants in v1, not settings .
-- **Source HTTP** uses one shared Dio with 60 s connect/send/receive timeouts (#NEXT). GitHub lists at most 250
+- **Source sync HTTP** uses one shared Dio with 60 s connect/send/receive timeouts (#NEXT). GitHub lists at most 250
   commits per PR; larger PRs are accepted as truncated.
 - **Sync service (#102):** a source is due 15 min after its last success (ICS 60 min), watched sources included as a
   backstop; at most one pending sync job per source. Status (`lastSuccessAt`, `lastError`) lives on the source's

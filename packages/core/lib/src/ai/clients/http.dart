@@ -73,8 +73,11 @@ Stream<String> _send(Dio dio, String method, String url, Object? body, Map<Strin
     );
     final status = res.statusCode ?? 0;
     final lines = res.data!.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter());
-    if (status >= 300) { // 3xx too: redirects are not followed
+    if (status >= 300) {
       final text = await lines.join('\n');
+      // Redirects are not followed (#NEXT): name the target so the user can fix the base URL.
+      if (status < 400)
+        throw LlmFailure('Redirect to ${res.headers.value('location')} not followed', statusCode: status);
       throw LlmFailure(errorMessage(text), statusCode: status);
     }
     // Not `yield*`: it forwards source errors to the consumer without passing through the catches below.
