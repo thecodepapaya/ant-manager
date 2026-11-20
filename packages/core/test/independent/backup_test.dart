@@ -126,8 +126,9 @@ void main() {
     await tmp.delete(recursive: true);
   });
 
-  BackupService service({String name = 'Work', int keep = 14, bool withBlobs = true}) => BackupService(
+  BackupService service({String name = 'Work', String id = 'P1', int keep = 14, bool withBlobs = true}) => BackupService(
     db,
+    profileId: id,
     profileName: name,
     appVersion: '1.2.3',
     blobs: withBlobs ? blobs : null,
@@ -192,7 +193,7 @@ void main() {
     for (final f in archive.files.where((f) => f.isFile)) {
       expect(latin1.decode(f.readBytes()!, allowInvalid: true), isNot(contains(secret)), reason: f.name);
     }
-    final exportDir = Directory(p.join(dest(), 'Work-export'));
+    final exportDir = Directory(p.join(dest(), 'Work-P1-export'));
     await for (final f in exportDir.list(recursive: true)) {
       if (f is File) {
         final text = await f.readAsString();
@@ -217,7 +218,7 @@ void main() {
     "pruning and listing one profile never touch another profile's backups",
     () async {
       final work = service(name: 'Work', keep: 1);
-      final workOld = service(name: 'Work-old', keep: 5);
+      final workOld = service(name: 'Work-old', id: 'P2', keep: 5);
       await workOld.createBackup(dest());
       clock.advance(const Duration(hours: 1));
       await workOld.createBackup(dest());

@@ -14,6 +14,15 @@ class EvidenceDeleter {
   final FactWriter writer;
   ProfileDb get db => ctx.db;
 
+  /// Every BlobStore path a row still points at: `attachments` rows and payload `attachments` lists,
+  /// the same two places [permanentDelete] collects from. The engine's startup orphan sweep keeps
+  /// these and deletes any other blob file (#129).
+  static Future<Set<String>> referencedBlobPaths(ProfileDb db) async => {
+    ...(await db.select(db.attachments).get()).map((a) => a.path),
+    for (final p in await db.select(db.payloads).get())
+      if (contentOf(p)['attachments'] case final List a) ...a.whereType<String>(),
+  };
+
   Future<List<String>> permanentDelete(String evidenceId) => db.transaction(() async {
     final e = await (db.select(db.evidences)..where((x) => x.id.equals(evidenceId))).getSingleOrNull();
     if (e == null) return const <String>[];

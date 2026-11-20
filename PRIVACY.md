@@ -90,14 +90,15 @@ Links you open (evidence links, the git download page) open in your browser.
   (#36); Settings says so.
 - **Secrets are never included.** Providers live in `app.sqlite` and are not backed up either. A restored profile's
   sources have no credentials and start disabled: sign in to each again (#118).
-- The optional readable export (`<profile>-export/`, Markdown + JSON of facts, reports, wins, notes and evidence
+- The optional readable export (`<profile>-<id>-export/`, Markdown + JSON of facts, reports, wins, notes and evidence
   metadata) is rewritten on each backup. It has no source configs or credential references (#108).
 
 ## Deleting data
 
 - **Delete permanently** on an evidence item (SPEC §7, LLD 04 §4.12, #85) removes it, all its payload revisions,
   attachments, summaries and search-index entries, and deletes facts left with no citations (with their history).
-  There is no undo.
+  There is no undo. If the app stops before the attachment files are removed, they are deleted the next time it
+  starts (#129).
 - It does not touch existing backups, the last readable export (until the next backup rewrites it), locked reports,
   or anything already sent to an AI provider. SQLite may keep deleted bytes in free pages until they are reused
   (unverified: no `secure_delete` or vacuum is run).

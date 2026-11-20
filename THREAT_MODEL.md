@@ -110,7 +110,10 @@ As built:
   The blob store also refuses paths outside its root when reading or deleting.
 - Backups from a newer schema are refused; older ones are migrated on open.
 - Restore clears every source's **credential reference** and disables those sources (#118), so they need signing in
-  again even on the same machine, and an edited backup can't point an existing token at another URL.
+  again even on the same machine, and an edited backup can't point an existing token at another URL. This happens on
+  a temp file before it becomes the profile's database, so a crash mid-restore can't leave the refs in place (#129).
+- The readable export only uses a report's period start in a file name when it is `YYYY-MM-DD`, so an edited
+  database can't make it write outside the export folder (#129).
 
 Gaps:
 - Backups are **plaintext** (#36). Anyone who can read the folder can read your evidence.
