@@ -27,7 +27,7 @@ appdir="$work/AppDir"
 cp -R "$here/AppDir" "$appdir"
 chmod +x "$appdir/AppRun"
 cp -R "$bundle" "$appdir/app"
-cp "$root/app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png" "$appdir/ant-manager.png"
+cp "$root/app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png" "$appdir/ant-manager.png"
 
 # 2. Bundle libnotify (notifications), which minimal distros may lack. libsecret stays a host
 #    requirement (SPEC #77). Tray (D-Bus StatusNotifierItem) and hotkeys (X11) are in nativeapi's own .so,
