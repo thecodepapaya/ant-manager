@@ -282,7 +282,7 @@ No undo. A confirmation dialog states exactly what will be removed.
   routes set, job counts by state and by kind/state (not done), and the latest redacted job error. The UI adds
   app/OS/Flutter/Dart versions and the last 200 lines of all log files merged by timestamp (`tailLogs`), copies it to
   the clipboard and toasts. "Open folder" launches `logs/` with `url_launcher`.
-- **About (#NEXT):** below Diagnostics; version from `engineConfigProvider.appVersion`; GitHub / Report a bug /
+- **About (#127):** below Diagnostics; version from `engineConfigProvider.appVersion`; GitHub / Report a bug /
   Request a feature open `ProjectLinks` URLs (`settings/project_links.dart`) with `url_launcher` (external browser;
   error toast if it fails). The bug form asks for the Copy diagnostics output.
 

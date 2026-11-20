@@ -261,7 +261,7 @@ maintained from it, and every output reads from that Narrative.
   URLs, paths and emails, by pattern redaction); Settings → General →
   "Copy diagnostics" copies versions, setup shape (kinds, flags, counts), schema versions, job counts and the last
   200 log lines; "Open folder" opens `logs/`.
-- About (#NEXT): Settings → General shows the app version, "Open source · Apache 2.0" and links to GitHub,
+- About (#127): Settings → General shows the app version, "Open source · Apache 2.0" and links to GitHub,
   Report a bug and Request a feature (GitHub issue forms in `.github/ISSUE_TEMPLATE/`); the website links them too.
 - **English only** in v1 (#87); no localization framework.
 

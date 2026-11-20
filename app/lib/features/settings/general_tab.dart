@@ -83,7 +83,7 @@ class _GeneralTabState extends ConsumerState<GeneralTab> {
     }
   }
 
-  /// Opens a project page in the browser (About, #NEXT).
+  /// Opens a project page in the browser (About, #127).
   Future<void> _open(Uri uri) async {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
       toast(context, 'Couldn’t open the browser', tone: AntTone.err);

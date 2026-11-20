@@ -1,4 +1,4 @@
-/// Public project links shown in Settings → General → About (#NEXT). The website and the GitHub issue
+/// Public project links shown in Settings → General → About (#127). The website and the GitHub issue
 /// templates (`.github/ISSUE_TEMPLATE/`) use the same URLs.
 library;
 
