@@ -136,9 +136,13 @@ class EngineRuntime {
     );
     final secrets = BridgedSecretStore(bridge);
     final offset = zoneOffset(profile.timeZone);
+    final blobs = FileBlobStore(p.join(config.dataDir, 'blobs', profile.id));
+    // Before any command can write a blob: removes files no row references, left by a crash between
+    // a delete's commit and its blob deletes, or between writing a blob and its row (#NEXT).
+    await blobs.sweep(await EvidenceDeleter.referencedBlobPaths(db));
     final ports = EnginePorts(
       secrets: secrets,
-      blobs: FileBlobStore(p.join(config.dataDir, 'blobs', profile.id)),
+      blobs: blobs,
       git: ProcessGitExecutable(),
       watcher: IoFileWatcher(),
       calendar: config.calendarAvailable ? BridgedCalendar(bridge) : null,
@@ -239,6 +243,7 @@ class EngineRuntime {
     final readable = await setting(backupReadableSettingKey) == 'true';
     final service = BackupService(
       db,
+      profileId: profile.id,
       profileName: profile.name,
       appVersion: config.appVersion,
       blobs: engine.ports.blobs,

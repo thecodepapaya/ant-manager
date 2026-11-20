@@ -73,26 +73,29 @@ class EngineHandle {
           handle?._failAll(e);
       }
     });
-    final isolate = await Isolate.spawn(
-      engineMain,
-      EngineBoot(rx.sendPort, config),
-      debugName: 'ant-engine',
-      onError: rx.sendPort,
-      onExit: rx.sendPort,
-    );
-    final EngineReady r;
+    // Any startup failure (spawn, ready, DB connect) kills the isolate and closes the port (#NEXT).
+    Isolate? isolate;
+    AppDb? appDb;
     try {
-      r = await ready.future;
+      isolate = await Isolate.spawn(
+        engineMain,
+        EngineBoot(rx.sendPort, config),
+        debugName: 'ant-engine',
+        onError: rx.sendPort,
+        onExit: rx.sendPort,
+      );
+      final r = await ready.future;
+      appDb = AppDb(await r.appDb.connect());
+      final db = ProfileDb(await r.profileDb.connect());
+      host?.attach(r.commands);
+      profileUtcOffset = zoneOffset(r.timeZone);
+      return handle = EngineHandle._(isolate, rx, r.commands, appDb, db, r.profileId, host);
     } catch (_) {
-      isolate.kill();
+      appDb?.close().ignore();
+      isolate?.kill();
       rx.close();
       rethrow;
     }
-    final appDb = AppDb(await r.appDb.connect());
-    final db = ProfileDb(await r.profileDb.connect());
-    host?.attach(r.commands);
-    profileUtcOffset = zoneOffset(r.timeZone);
-    return handle = EngineHandle._(isolate, rx, r.commands, appDb, db, r.profileId, host);
   }
 
   /// Runs [cmd] against the active profile's [AntEngine] in the engine isolate.

@@ -31,6 +31,21 @@ class FileBlobStore implements BlobStore {
     if (await f.exists()) await f.delete();
   }
 
+  /// Deletes every file under [root] whose relative path is not in [keep] (orphan sweep, #NEXT).
+  /// Only safe while nothing is writing blobs: the engine runs it at startup.
+  Future<void> sweep(Set<String> keep) async {
+    final dir = Directory(root);
+    if (!await dir.exists()) return;
+    final kept = {for (final k in keep) p.normalize(k)};
+    var removed = 0;
+    await for (final f in dir.list(recursive: true, followLinks: false)) {
+      if (f is! File || kept.contains(p.normalize(p.relative(f.path, from: root)))) continue;
+      await f.delete();
+      removed++;
+    }
+    if (removed > 0) Log.info('blobs.swept', {'files': removed});
+  }
+
   String _resolve(String rel) {
     final full = p.normalize(p.join(root, rel));
     if (!p.isWithin(root, full)) throw ArgumentError.value(rel, 'path', 'outside the blob store');

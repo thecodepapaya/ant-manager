@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' show sqlite3;
 
 import '../data/profile_db.dart';
+import '../diagnostics/log.dart';
 import '../ports/ports.dart';
 import 'readable_export.dart';
 
@@ -79,6 +80,7 @@ class BackupException implements Exception {
 class BackupService {
   BackupService(
     this.db, {
+    required this.profileId,
     required this.profileName,
     required this.appVersion,
     this.blobs,
@@ -87,6 +89,7 @@ class BackupService {
   });
 
   final ProfileDb db;
+  final String profileId;
   final String profileName;
   final String appVersion;
 
@@ -99,8 +102,16 @@ class BackupService {
 
   static const extension = '.antbackup';
 
-  /// Writes `<profile>-<timestamp>.antbackup` into [folder], prunes to the last [keep], and
-  /// optionally refreshes the readable export in `<folder>/<profile>-export/`.
+  /// `<profile>-<profile id>`: the id keeps profiles with similar names apart in a shared folder (#NEXT).
+  String get _prefix => '${_safe(profileName)}-${_safe(profileId)}';
+
+  /// Writes `<profile>-<id>-<timestamp>.antbackup` into [folder], prunes to the last [keep], and
+  /// optionally refreshes the readable export in `<folder>/<profile>-<id>-export/`.
+  ///
+  /// The attachment list, counts and date range come from the `VACUUM INTO` snapshot, so a delete
+  /// running meanwhile can't make the bundle disagree with itself; a blob deleted after the snapshot
+  /// is skipped (#NEXT). The zip is written to `<name>.tmp` and renamed, so a crash never leaves a
+  /// partial `.antbackup` that counts toward retention.
   Future<File> createBackup(String folder, {bool readableExport = false}) async {
     await Directory(folder).create(recursive: true);
     final now = clock.now().toUtc();
@@ -109,12 +120,30 @@ class BackupService {
       final dbFile = p.join(tmp.path, 'db.sqlite');
       await db.customStatement('VACUUM INTO ?', [dbFile]);
       final dbBytes = await File(dbFile).readAsBytes();
+      final snap = sqlite3.open(dbFile);
+      final List<String> paths;
+      final String? firstDay, lastDay;
+      final Map<String, int> counts;
+      try {
+        paths = [for (final r in snap.select('SELECT path FROM attachments')) r['path'] as String];
+        firstDay = snap.select('SELECT MIN(day) AS v FROM evidences').first['v'] as String?;
+        lastDay = snap.select('SELECT MAX(day) AS v FROM evidences').first['v'] as String?;
+        counts = {for (final t in _countedTables) t: snap.select('SELECT COUNT(*) AS c FROM $t').first['c'] as int};
+      } finally {
+        snap.close();
+      }
       final archive = Archive();
-      final attachments = await db.select(db.attachments).get();
       var attachmentCount = 0;
       if (blobs != null) {
-        for (final a in attachments) {
-          archive.addFile(ArchiveFile.bytes('attachments/${a.path}', await blobs!.get(a.path)));
+        for (final path in paths) {
+          final Uint8List bytes;
+          try {
+            bytes = await blobs!.get(path);
+          } catch (_) {
+            Log.warn('backup.blob_missing'); // deleted after the snapshot
+            continue;
+          }
+          archive.addFile(ArchiveFile.bytes('attachments/$path', bytes));
           attachmentCount++;
         }
       }
@@ -124,18 +153,20 @@ class BackupService {
         schemaVersion: db.schemaVersion,
         profile: profileName,
         createdAt: now,
-        firstDay: await _scalar('SELECT MIN(day) AS v FROM evidences'),
-        lastDay: await _scalar('SELECT MAX(day) AS v FROM evidences'),
-        counts: {...await _counts(), 'attachment_files': attachmentCount},
+        firstDay: firstDay,
+        lastDay: lastDay,
+        counts: {...counts, 'attachment_files': attachmentCount},
         dbSha256: sha256.convert(dbBytes).toString(),
       );
       archive
         ..addFile(ArchiveFile.string('manifest.json', const JsonEncoder.withIndent('  ').convert(manifest.toJson())))
         ..addFile(ArchiveFile.bytes('db.sqlite', dbBytes));
-      final out = File(p.join(folder, '${_safe(profileName)}-${_stamp(now)}$extension'));
-      await out.writeAsBytes(ZipEncoder().encodeBytes(archive), flush: true);
+      final out = File(p.join(folder, '$_prefix-${_stamp(now)}$extension'));
+      final partial = File('${out.path}.tmp');
+      await partial.writeAsBytes(ZipEncoder().encodeBytes(archive), flush: true);
+      await partial.rename(out.path);
       await _prune(folder);
-      if (readableExport) await ReadableExporter(db).export(p.join(folder, '${_safe(profileName)}-export'));
+      if (readableExport) await ReadableExporter(db).export(p.join(folder, '$_prefix-export'));
       return out;
     } finally {
       await tmp.delete(recursive: true);
@@ -146,8 +177,9 @@ class BackupService {
   Future<List<File>> list(String folder) async {
     final dir = Directory(folder);
     if (!await dir.exists()) return [];
-    // Exact `<profile>-<stamp>.antbackup`, so "Work" never matches "Work-old" backups.
-    final name = RegExp('^${RegExp.escape(_safe(profileName))}-\\d{8}T\\d{6}Z${RegExp.escape(extension)}\$');
+    // Exact `<profile>-<id>-<stamp>.antbackup`, so another profile's backups never match (#NEXT).
+    // Bundles named before #NEXT (`<profile>-<stamp>`) are not pruned; they still restore from the file picker.
+    final name = RegExp('^${RegExp.escape(_prefix)}-\\d{8}T\\d{6}Z${RegExp.escape(extension)}\$');
     final files = [
       await for (final f in dir.list())
         if (f is File && name.hasMatch(p.basename(f.path))) f,
@@ -185,20 +217,26 @@ class BackupService {
     final target = File(targetDbPath);
     if (await target.exists() && !overwrite) throw BackupException('$targetDbPath already exists');
     await target.parent.create(recursive: true);
-    for (final suffix in ['-wal', '-shm']) {
-      final f = File('$targetDbPath$suffix');
-      if (await f.exists()) await f.delete();
+    final partial = '$targetDbPath.tmp';
+    for (final path in [targetDbPath, partial]) {
+      for (final suffix in ['-wal', '-shm']) {
+        final f = File('$path$suffix');
+        if (await f.exists()) await f.delete();
+      }
     }
-    await target.writeAsBytes(dbBytes, flush: true);
+    await File(partial).writeAsBytes(dbBytes, flush: true);
     // After a restore you sign in again (SPEC §9, #118): a restored source must not reuse a token in this
     // machine's secret store, which an edited backup could point at another URL. Sources that had one are
     // disabled so they don't fail every sync; saving the source with a new secret re-enables it.
-    final restored = sqlite3.open(targetDbPath);
+    // Done on a temp file that is renamed into place afterwards, so no crash leaves the refs in the
+    // profile's database (#NEXT).
+    final restored = sqlite3.open(partial);
     try {
       restored.execute('UPDATE sources SET enabled = 0, credential_ref = NULL WHERE credential_ref IS NOT NULL');
     } finally {
       restored.close();
     }
+    await File(partial).rename(targetDbPath);
     if (attachmentsDir != null) {
       final root = p.normalize(p.absolute(attachmentsDir));
       for (final f in archive.files) {
@@ -227,25 +265,17 @@ class BackupService {
     }
   }
 
-  Future<String?> _scalar(String sql) => db.customSelect(sql).map((r) => r.read<String?>('v')).getSingle();
-
-  Future<Map<String, int>> _counts() async {
-    const tables = {
-      'evidences': 'evidences',
-      'payloads': 'payloads',
-      'facts': 'facts',
-      'workstreams': 'workstreams',
-      'projects': 'projects',
-      'reports': 'reports',
-      'report_snapshots': 'report_snapshots',
-      'templates': 'templates',
-      'attachments': 'attachments',
-    };
-    return {
-      for (final MapEntry(:key, :value) in tables.entries)
-        key: await db.customSelect('SELECT COUNT(*) AS c FROM $value').map((r) => r.read<int>('c')).getSingle(),
-    };
-  }
+  static const _countedTables = [
+    'evidences',
+    'payloads',
+    'facts',
+    'workstreams',
+    'projects',
+    'reports',
+    'report_snapshots',
+    'templates',
+    'attachments',
+  ];
 
   static String _safe(String s) => s.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
 

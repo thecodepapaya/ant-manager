@@ -83,6 +83,8 @@ class ReadableExporter {
     );
     for (final s in latest.values) {
       final r = reports[s.reportId]!;
+      // The start is used in a file name; a restored (possibly edited) DB could hold `../` there (#NEXT).
+      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(r.periodStart)) continue;
       final name = '${r.periodStart}_${r.periodKind.name}_${_slug(templates[r.templateId] ?? r.templateId)}.md';
       await _write(p.join(dir, 'reports'), name, s.markdown);
     }

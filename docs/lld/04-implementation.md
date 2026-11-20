@@ -249,15 +249,21 @@ One transaction, user command only:
 
 No undo. A confirmation dialog states exactly what will be removed.
 
+**Orphan sweep (#NEXT):** on engine start, before any command runs, `FileBlobStore.sweep` deletes every file under
+`blobs/<profileId>/` not in `EvidenceDeleter.referencedBlobPaths` (`attachments.path` ∪ payload `attachments` lists).
+This cleans up after a crash between the delete's commit and its blob deletes, or between writing a blob and its row.
+
 ## 4.13 Backup & readable export (#105, #108)
 
-- `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
-  `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row, its
-  `.sqlite` file and its `blobs/<id>/` folder are deleted (#115). Restore sets `credential_ref = NULL, enabled = 0` on every
-  source that had a credential in the restored database; saving it with a new secret re-enables it (#118) under a fresh `source:<id>:<newId>` ref, so the original profile's keychain item is untouched (#121).
-- **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
+- `<folder>/<profile>-<profileId>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
+  `attachments/…`), written as `<name>.tmp` then renamed, pruned to the last `backup.keep` of this profile id. The
+  attachment list, counts and day range are read from the snapshot file; a blob missing by then is skipped (logged
+  `backup.blob_missing`). Older `<profile>-<stamp>` bundles are no longer listed or pruned but still restore (#NEXT). Restore always creates a new profile (#105); if it fails, the profile row, its
+  `.sqlite` file and its `blobs/<id>/` folder are deleted (#115). Restore writes the DB to `<target>.tmp`, sets `credential_ref = NULL, enabled = 0` on every
+  source that had a credential, then renames it into place (#NEXT); saving it with a new secret re-enables it (#118) under a fresh `source:<id>:<newId>` ref, so the original profile's keychain item is untouched (#121).
+- **Readable export** (if `backup.readableExport`): `<folder>/<profile>-<profileId>-export/`, deleted and rewritten each run:
   `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
-  `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no
+  `reports/<start>_<kind>_<template-slug>.md` (latest per report; skipped unless `<start>` is `YYYY-MM-DD`, #NEXT), `evidence.json` (metadata + payload ids, no
   content), `notes.md`. Source configs and credential refs are left out.
 
 ## 4.14 Diagnostics (#126)

@@ -588,7 +588,7 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
     });
 
     test('8. backup and restore into a fresh DB: row counts match', () async {
-      final service = BackupService(db, profileName: 'Work', appVersion: 'e2e', blobs: blobs, clock: clock);
+      final service = BackupService(db, profileId: 'P1', profileName: 'Work', appVersion: 'e2e', blobs: blobs, clock: clock);
       final bundle = await service.createBackup(p.join(tmp.path, 'backups'));
       expect(await service.list(p.join(tmp.path, 'backups')), hasLength(1));
       final target = p.join(tmp.path, 'restored', '$profileId.sqlite');

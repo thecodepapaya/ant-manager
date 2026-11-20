@@ -159,7 +159,8 @@ maintained from it, and every output reads from that Narrative.
     confirmed or edited by the user. Reports are organized by project.
   - **Delete permanently** (#85): the one exception to never deleting history, for things captured by mistake. It purges
     the evidence, all its payload revisions, attachments, enrichments and index entries; facts left with no citations are
-    deleted with their history. Existing backups are not touched (the UI says so).
+    deleted with their history. Existing backups are not touched (the UI says so). Attachment files are deleted after
+    the purge commits; any a crash leaves behind are swept when the engine next starts (#NEXT).
 - **Daily nudge:** a gentle notification at the chosen time ("Your day is drafted, 2-minute review?") that opens Today.
   Snooze or skip (snooze not built yet). Default weekdays 18:05; skipped automatically on days with no evidence;
   "Include weekends" adds Sat/Sun to it and the daily report (#105). No streaks, no scores.
@@ -198,7 +199,9 @@ maintained from it, and every output reads from that Narrative.
   - **Restorable backup:** an `.antbackup` bundle per profile (a consistent SQLite snapshot via `VACUUM INTO` +
     settings, templates, projects, rules, narrative version history, plus a manifest with app/schema version, item counts and a checksum).
   - **Readable export (optional):** Markdown + JSON of facts, report snapshots, the Wins log, notes and evidence metadata,
-    rewritten each run into `<profile>-export/` next to the backups (layout: #108).
+    rewritten each run into `<profile>-<id>-export/` next to the backups (layout: #108). Files are named
+    `<profile>-<id>-<timestamp>.antbackup`, so profiles can share a folder; a bundle is written under a temp name and
+    renamed, so an interrupted backup never counts toward retention (#NEXT).
 - **Destination: a local folder only** (#80): any folder, including Google Drive / iCloud / Dropbox / OneDrive sync
   folders and external drives. Cloud backup = pick a synced folder. No cloud-storage API connectors.
 - **Schedule:** daily by default (run by the tray app; catches up once if missed), plus "Back up now". **Keeps the last

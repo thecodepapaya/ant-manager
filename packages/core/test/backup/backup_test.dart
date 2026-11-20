@@ -69,7 +69,7 @@ void main() {
           AttachmentsCompanion.insert(id: 'a1', payloadId: 'p1', path: path, mime: 'image/png', sha256: 'x', size: 3),
         );
     clock = FixedClock(DateTime.utc(2026, 11, 18, 2));
-    svc = BackupService(fx.db, profileName: 'Work Stuff', appVersion: '1.0.0', blobs: blobs, keep: 2, clock: clock);
+    svc = BackupService(fx.db, profileId: 'P1', profileName: 'Work Stuff', appVersion: '1.0.0', blobs: blobs, keep: 2, clock: clock);
   });
   tearDown(() async {
     await fx.db.close();
@@ -79,7 +79,7 @@ void main() {
   test('round trip: create, inspect, restore, reopen', () async {
     final folder = p.join(tmp.path, 'backups');
     final file = await svc.createBackup(folder, readableExport: true);
-    expect(p.basename(file.path), 'Work_Stuff-20261118T020000Z.antbackup');
+    expect(p.basename(file.path), 'Work_Stuff-P1-20261118T020000Z.antbackup');
 
     final m = await BackupService.inspect(file.path);
     expect(m.profile, 'Work Stuff');
@@ -106,7 +106,7 @@ void main() {
       throwsA(isA<BackupException>()),
     );
 
-    final export = Directory(p.join(folder, 'Work_Stuff-export'));
+    final export = Directory(p.join(folder, 'Work_Stuff-P1-export'));
     for (final f in ['facts.json', 'facts.md', 'wins.json', 'wins.md', 'reports.json', 'notes.md', 'evidence.json']) {
       expect(File(p.join(export.path, f)).existsSync(), isTrue, reason: f);
     }
@@ -123,7 +123,7 @@ void main() {
       await svc.createBackup(folder);
     }
     final kept = (await svc.list(folder)).map((f) => p.basename(f.path)).toList();
-    expect(kept, ['Work_Stuff-20261121T020000Z.antbackup', 'Work_Stuff-20261120T020000Z.antbackup']);
+    expect(kept, ['Work_Stuff-P1-20261121T020000Z.antbackup', 'Work_Stuff-P1-20261120T020000Z.antbackup']);
     expect(other.existsSync(), isTrue);
   });
 

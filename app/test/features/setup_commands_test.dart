@@ -277,7 +277,7 @@ void main() {
       }
       final bundles = Directory(folder).listSync().whereType<File>().where((f) => f.path.endsWith('.antbackup'));
       expect(bundles.map((f) => f.path).toSet(), paths.skip(1).toSet(), reason: 'only the newest 2 kept');
-      expect(Directory(folder).listSync().whereType<Directory>().map((d) => p.basename(d.path)), ['Work-export']);
+      expect(Directory(folder).listSync().whereType<Directory>().map((d) => p.basename(d.path)), ['Work-${h.profileId}-export']);
       expect(DateTime.tryParse(await settingOf(h, backupLastSuccessSettingKey) ?? ''), isNotNull);
       expect(await settingOf(h, backupLastErrorSettingKey), '');
     });

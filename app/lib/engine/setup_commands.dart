@@ -387,9 +387,24 @@ EngineCommand<String> restoreBackupCmd(String file) => (rt) async {
           attachmentsDir: blobs.path,
         );
       } catch (_) {
-        await (rt.appDb.delete(rt.appDb.profiles)..where((x) => x.id.equals(id))).go();
-        if (dbFile.existsSync()) dbFile.deleteSync();
-        if (blobs.existsSync()) blobs.deleteSync(recursive: true);
+        // Each step is guarded so a cleanup failure never hides the restore error (#NEXT).
+        Future<void> attempt(FutureOr<void> Function() step) async {
+          try {
+            await step();
+          } catch (e, st) {
+            Log.error('restore.cleanup', e, st);
+          }
+        }
+
+        await attempt(() => (rt.appDb.delete(rt.appDb.profiles)..where((x) => x.id.equals(id))).go());
+        for (final f in [dbFile, File('${dbFile.path}.tmp')]) {
+          await attempt(() {
+            if (f.existsSync()) f.deleteSync();
+          });
+        }
+        await attempt(() {
+          if (blobs.existsSync()) blobs.deleteSync(recursive: true);
+        });
         rethrow;
       }
       return id;
