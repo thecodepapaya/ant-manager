@@ -84,7 +84,8 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 - **Git setup:** scan watched root folders (e.g. `~/Projects`), list repos showing recent activity by your identities,
   tick to include. New repos under watched roots are suggested automatically. Manual add also works.
 - **Git detection:** PATH, Homebrew, Xcode CLT, Git for Windows default paths. Detects the macOS `/usr/bin/git` stub
-  without triggering it. If git is missing, show a friendly install screen.
+  without triggering it. If git is missing, show a friendly install screen. Reads never run the repo's configured
+  commands (`--no-textconv --no-ext-diff`, `log.showSignature=false`, #NEXT).
 - **Self-hosted networking:** a per-connection "trust custom CA certificate" option (plus an explicit insecure toggle with a warning). *Not built yet for sources; providers have it (§6).*
 - **Sync:** each source is due 15 min after its last success (ICS 60 min), watched sources included; status (last success,
   last error) is shown per source. Removing a source only disables it (evidence kept) (#102); re-adding
@@ -107,6 +108,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   - **Auto-detect** stays as a convenience: `localhost:11434` (Ollama) and `localhost:1234` (LM Studio) are offered at setup.
   - **Consent:** every provider that isn't on this machine (anything but `localhost`/loopback, LAN included) gets the
     one-time consent notice, per base URL (changing the URL asks again, #105). No private/remote network classification (#74).
+    Consent is checked on every request: without it nothing is sent (#NEXT).
   - **macOS Local Network permission:** since macOS 15, reaching LAN hosts triggers a system prompt; the app ships
     `NSLocalNetworkUsageDescription` and explains the prompt before the first LAN connection.
   - Custom endpoints work anywhere a model can be chosen (Default, Vision, Extraction, Reports).
@@ -201,7 +203,8 @@ maintained from it, and every output reads from that Narrative.
 - **Schedule:** daily by default (run by the tray app; catches up once if missed), plus "Back up now". **Keeps the last
   N backups** (default 14) (#78). Warns when the last successful backup is older than a threshold.
   Backup status (last success, last error) appears in Settings; options live in profile Settings (#105).
-- **Secrets are never included.** API keys and OAuth tokens stay in the OS keychain; after a restore you sign in again.
+- **Secrets are never included.** API keys and OAuth tokens stay in the OS keychain; after a restore you sign in again
+  (restore clears every source's secret reference and disables those sources until you do, even on the same machine, #NEXT).
 - **Restore:** pick a backup file, preview it (profile, date range, item counts,
   backup date), then restore into a **new profile** ("… (restored)"), never over an existing one (#105); a failed restore leaves no profile, database file or attachments
   behind (#115). Newer schema versions refuse to restore with a clear message.

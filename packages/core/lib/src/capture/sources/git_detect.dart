@@ -117,7 +117,8 @@ class ProcessGitExecutable implements GitExecutable {
   Future<String> run(String repoPath, List<String> args) async {
     final git = await locate();
     if (git == null) throw StateError('git is not installed');
-    final full = ['-C', repoPath, ...args];
+    // log.showSignature would make `git log` run the repo's gpg.program (#NEXT).
+    final full = ['-C', repoPath, '-c', 'log.showSignature=false', ...args];
     final r = await Process.run(
       git,
       full,

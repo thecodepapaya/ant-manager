@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart' show sqlite3;
 
 import '../data/profile_db.dart';
 import '../ports/ports.dart';
@@ -161,6 +162,7 @@ class BackupService {
   }
 
   /// Restores [file] into a new database file at [targetDbPath] (and attachments into [attachmentsDir]).
+  /// Sources lose their secret references and those that had one are disabled until signed in again.
   /// Refuses bundles from a newer schema than [currentSchemaVersion]; older ones are migrated by drift
   /// when the restored DB is opened. Close any DB open at [targetDbPath] before passing [overwrite].
   static Future<BackupManifest> restore(
@@ -188,6 +190,15 @@ class BackupService {
       if (await f.exists()) await f.delete();
     }
     await target.writeAsBytes(dbBytes, flush: true);
+    // After a restore you sign in again (SPEC §9, #NEXT): a restored source must not reuse a token in this
+    // machine's secret store, which an edited backup could point at another URL. Sources that had one are
+    // disabled so they don't fail every sync; saving the source with a new secret re-enables it.
+    final restored = sqlite3.open(targetDbPath);
+    try {
+      restored.execute('UPDATE sources SET enabled = 0, credential_ref = NULL WHERE credential_ref IS NOT NULL');
+    } finally {
+      restored.close();
+    }
     if (attachmentsDir != null) {
       final root = p.normalize(p.absolute(attachmentsDir));
       for (final f in archive.files) {
