@@ -7,7 +7,6 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:core/core.dart';
 import 'package:core/src/backup/readable_export.dart';
-import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
@@ -292,9 +291,18 @@ void main() {
         BackupService.restore(backup.path, target, currentSchemaVersion: db.schemaVersion),
         throwsA(isA<BackupException>()),
       );
+      // Change the first restore so a real replacement is visible (restore edits the file, #118, so
+      // compare contents rather than the bundle checksum).
+      final first = ProfileDb(NativeDatabase(File(target)));
+      await first.into(first.settings).insert(SettingsCompanion.insert(key: 'only_in_first', value: 'x'));
+      await first.close();
       await BackupService.restore(backup.path, target, currentSchemaVersion: db.schemaVersion, overwrite: true);
-      final m = await BackupService.inspect(backup.path);
-      expect(sha256.convert(await File(target).readAsBytes()).toString(), m.dbSha256);
+      final restored = ProfileDb(NativeDatabase(File(target)));
+      addTearDown(restored.close);
+      expect(await tableCounts(restored), await tableCounts(db));
+      final keys = (await restored.select(restored.settings).get()).map((s) => s.key);
+      expect(keys, isNot(contains('only_in_first')));
+      expect(keys, contains('theme'));
     });
 
     test('attachment paths escaping the target folder are refused', () async {
