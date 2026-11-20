@@ -201,7 +201,13 @@ final todayFocusProvider = NotifierProvider<TodayFocus, ({String day, Set<String
 
 class TodayFocus extends Notifier<({String day, Set<String> highlight})> {
   @override
-  ({String day, Set<String> highlight}) build() => (day: todayDay(), highlight: const {});
+  ({String day, Set<String> highlight}) build() {
+    // Follow the day rollover only while showing today.
+    ref.listen(todayProvider, (prev, next) {
+      if (state.day == prev) setDay(next);
+    });
+    return (day: ref.read(todayProvider), highlight: const {});
+  }
 
   void setDay(String day) => state = (day: day, highlight: const {});
   void focus(String day, Set<String> ids) => state = (day: day, highlight: ids);
