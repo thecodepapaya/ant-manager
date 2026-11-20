@@ -8,14 +8,15 @@ There are no Ant Manager servers. Nothing is sent to the project or its authors.
 
 ## What is collected
 
-Only from sources you add, for the identities (emails, usernames) you list in a profile (SPEC §4–5):
+Only from sources you add. Git, GitHub and GitLab match the identities (emails, usernames) you list in a profile;
+Linear and Jira use the connected account; calendars capture the calendars you connect (SPEC §4–5):
 
 | Source | What is stored |
 |---|---|
 | Local git | Commits on all branches whose author or committer email is yours: message, stats, and the full diff (diffs over 200 KB are dropped, the commit is kept). |
-| GitHub / GitLab | PRs/MRs you opened, merged or reviewed, review comments, approvals, and issues you opened, closed or commented on. |
+| GitHub / GitLab | PRs/MRs that involve you or that you reviewed (title, description, state, merge time), review comments, approvals, and issues you opened, closed or commented on. |
 | Linear / Jira Cloud | Issues you created, completed, transitioned, were assigned or commented on. |
-| Google / Apple Calendar, ICS | Events: title, times, organizer, description, location, attendee count. Apple Calendar reads everything in Calendar.app. |
+| Google / Apple Calendar, ICS | Events: title, times, description, location, attendee count, and organizer where the source provides it (not Apple). Apple Calendar reads every calendar in Calendar.app. |
 | Transcripts | `.vtt` / `.srt` / `.txt` files you drop in. |
 | Notes, recognition, screenshots | Text, links and images you add, including quick-capture region screenshots (macOS). |
 
@@ -34,8 +35,8 @@ All on your machine, under the OS application-support folder (`…/ant_manager/`
 - **Secrets** (source tokens, Google OAuth tokens, provider API keys, custom header values) are kept in the OS secret
   store, never in the databases:
   - macOS: the login keychain (the data-protection keychain needs a signed build, DECISIONS #101).
-  - Windows: via `flutter_secure_storage`, which encrypts each value (AES-GCM) into a file in the app-support folder
-    and keeps the key in Credential Manager.
+  - Windows: via `flutter_secure_storage` 4.1.0, which encrypts all values with DPAPI (tied to your Windows login)
+    into `flutter_secure_storage.dat` in the app-support folder.
   - Linux: libsecret (GNOME Keyring / KWallet). Required; there is no fallback (#77).
 
 The databases and attachments are **not encrypted** at rest; they rely on your OS account and disk encryption.
@@ -45,12 +46,15 @@ The databases and attachments are **not encrypted** at rest; they rely on your O
 Only these, and only once you set them up:
 
 1. **The AI provider(s) you configure** (OpenRouter, OpenAI, Anthropic, Gemini, or a custom endpoint). Each
-   enrichment, extraction and report call sends the **full evidence** it needs: diffs, PR and issue text, meeting
-   details, transcripts, screenshots and notes (DECISIONS #17). There is no per-source filter. That provider's own
-   privacy policy applies.
+   enrichment, extraction and report call sends evidence content from **every source**: diffs, PR and issue text,
+   meeting details, transcripts, screenshots and notes (DECISIONS #17). There is no per-source filter. Long items are
+   cut to an excerpt (about 6,000 characters per item for summaries, 1,500 for fact extraction); reports send facts,
+   not raw evidence. That provider's own privacy policy applies.
    - A provider on `localhost` / loopback keeps everything on this machine.
    - Any other address (LAN included) shows a one-time consent notice before the first request, per base URL;
      changing the URL asks again (#74, #105). Plain `http://` to a non-local host shows a warning.
+   - Known gap: declining the notice after changing an existing provider's URL does not revert it, so models already
+     added on that provider keep using the new URL ([THREAT_MODEL.md](./THREAT_MODEL.md) §3).
 2. **The source APIs you connect** (GitHub / GitHub Enterprise, GitLab, Linear, Jira Cloud, Google Calendar, ICS
    URLs). The app sends your token and fetches your activity; it never writes to them.
    Google sign-in uses the system browser with PKCE and a loopback redirect.

@@ -88,8 +88,8 @@ An ICS source given a non-HTTP value reads it as a local file path.
 - macOS uses the **login keychain**, and the app is **unsigned and unsandboxed** (#101): other processes running as
   you may be able to read its items (subject to keychain prompts; unverified). Switching to the data-protection
   keychain is an owner to-do once signing exists.
-- Windows: values are AES-GCM encrypted files with the key in Credential Manager; any process running as you can
-  read them.
+- Windows: values are DPAPI-encrypted in one file in the app-support folder; any process running as you can
+  decrypt them.
 - Linux: libsecret; any process in your session can usually read the collection while it is unlocked.
 - Removing a source keeps its token (#102); removing a provider deletes its key and headers.
 
