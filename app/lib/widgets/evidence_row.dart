@@ -43,113 +43,189 @@ class KindIcon extends StatelessWidget {
   }
 }
 
-/// One evidence row with hover curation actions (star, annotate, hide, more).
-class EvidenceRow extends ConsumerWidget {
-  const EvidenceRow({super.key, required this.item, this.highlighted = false, this.showDay = false});
+/// One evidence row with curation actions (star, annotate, hide, more) that float over the row's
+/// right edge on hover or keyboard focus, so they reserve no space.
+class EvidenceRow extends ConsumerStatefulWidget {
+  const EvidenceRow({super.key, required this.item, this.highlighted = false, this.compact = false});
   final EvidenceItem item;
   final bool highlighted;
 
-  /// Timeline: prefix the time with nothing (day headers group rows) but show the project dot.
-  final bool showDay;
+  /// Timeline: one line (time · project dot · title · detail … source chip), as in the mockup.
+  final bool compact;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EvidenceRow> createState() => _EvidenceRowState();
+}
+
+class _EvidenceRowState extends ConsumerState<EvidenceRow> {
+  var _hovered = false;
+  var _focusWithin = false;
+
+  @override
+  Widget build(BuildContext context) {
     final t = context.tokens;
+    final item = widget.item;
     final e = item.e;
     final projects = ref.watch(allProjectsProvider).value ?? const <Project>[];
     final project = projects.where((x) => x.id == e.projectId).firstOrNull;
-    final meta = [
-      if (item.sourceName.isNotEmpty) item.sourceName,
-      kindLabel(item.kind),
-      if (showDay && project != null) project.name,
-    ].join(' · ');
+    final showActions = _hovered || _focusWithin || widget.highlighted;
     final noteBody = item.noteText;
-    return Hover(
-      builder: (context, hovered) {
-        final row = AnimatedContainer(
-          duration: t.motion.fast,
-          padding: EdgeInsets.symmetric(horizontal: t.space.md, vertical: t.space.md),
-          decoration: BoxDecoration(
-            color: highlighted ? t.accentSoft : (hovered ? t.hover : t.hover.withValues(alpha: 0)),
-            borderRadius: t.radii.brLg,
-            border: Border.all(
-              color: highlighted ? antToneBorder(t, AntTone.warn) : t.border.withValues(alpha: 0),
-              width: t.stroke.hairline,
-            ),
+    final extras = <Widget>[
+      if (noteBody != null && noteBody.contains('\n'))
+        Padding(
+          padding: EdgeInsets.only(top: t.space.xs),
+          child: Text(noteBody, style: t.typo.body.copyWith(color: t.text3)),
+        ),
+      for (final a in item.annotations) _Annotation(payloadText(a)),
+      if (item.attachments.isNotEmpty)
+        Padding(
+          padding: EdgeInsets.only(top: t.space.sm),
+          child: Wrap(
+            spacing: t.space.sm,
+            runSpacing: t.space.sm,
+            children: [for (final a in item.attachments) _Thumb(a)],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+    ];
+    final badges = [
+      if (e.starred) ...[
+        SizedBox(width: t.space.sm),
+        Icon(Icons.star_rounded, size: t.icon.sm, color: t.accent),
+      ],
+      if (e.hidden) ...[
+        SizedBox(width: t.space.sm),
+        const AntChip(label: 'Hidden'),
+      ],
+    ];
+    final time = Text(hhmm(e.occurredStart), style: t.typo.mono.copyWith(color: t.muted));
+
+    final Widget content;
+    if (widget.compact) {
+      final detail = project?.name ?? kindLabel(item.kind);
+      // Time column + gap + dot + gap: extras line up under the title.
+      final timeWidth = t.space.giant;
+      final indent = timeWidth + t.space.md * 2 + t.space.sm;
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              KindIcon(item.kind),
-              SizedBox(width: t.space.lg),
+              SizedBox(width: timeWidth, child: time),
+              SizedBox(width: t.space.md),
+              AntDot(color: projectColour(t, project), size: t.space.sm),
+              SizedBox(width: t.space.md),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            e.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: t.typo.bodyStrong.copyWith(color: t.text),
-                          ),
-                        ),
-                        if (e.starred) ...[
-                          SizedBox(width: t.space.sm),
-                          Icon(Icons.star_rounded, size: t.icon.sm, color: t.accent),
-                        ],
-                        if (e.hidden) ...[
-                          SizedBox(width: t.space.sm),
-                          const AntChip(label: 'Hidden'),
-                        ],
-                      ],
-                    ),
-                    SizedBox(height: t.space.xxs),
-                    Row(
-                      children: [
-                        Flexible(child: Muted(meta, maxLines: 1)),
-                        if (item.link != null) ...[
-                          SizedBox(width: t.space.sm),
-                          _LinkButton(item.link!),
-                        ],
-                      ],
-                    ),
-                    if (noteBody != null && noteBody.contains('\n'))
-                      Padding(
-                        padding: EdgeInsets.only(top: t.space.xs),
-                        child: Text(noteBody, style: t.typo.body.copyWith(color: t.text3)),
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(children: [
+                          TextSpan(text: e.title, style: t.typo.body.copyWith(color: t.text)),
+                          TextSpan(text: ' · $detail', style: t.typo.small.copyWith(color: t.muted)),
+                        ]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    for (final a in item.annotations) _Annotation(payloadText(a)),
-                    if (item.attachments.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(top: t.space.sm),
-                        child: Wrap(
-                          spacing: t.space.sm,
-                          runSpacing: t.space.sm,
-                          children: [for (final a in item.attachments) _Thumb(a)],
-                        ),
-                      ),
+                    ),
+                    ...badges,
+                    if (item.link != null) ...[SizedBox(width: t.space.sm), _LinkButton(item.link!)],
                   ],
                 ),
               ),
-              SizedBox(width: t.space.md),
-              Padding(
-                padding: EdgeInsets.only(top: t.space.xs),
-                child: Text(hhmm(e.occurredStart), style: t.typo.mono.copyWith(color: t.muted)),
-              ),
-              SizedBox(width: t.space.xs),
-              AnimatedOpacity(
-                duration: t.motion.fast,
-                opacity: hovered || highlighted ? 1 : 0,
-                child: _Actions(item: item, projects: projects),
-              ),
+              if (item.sourceName.isNotEmpty) ...[SizedBox(width: t.space.md), AntChip(label: item.sourceName)],
             ],
           ),
-        );
-        return e.hidden && !hovered ? Opacity(opacity: t.stroke.disabledOpacity, child: row) : row;
-      },
+          if (extras.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(left: indent),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: extras),
+            ),
+        ],
+      );
+    } else {
+      final meta = [if (item.sourceName.isNotEmpty) item.sourceName, kindLabel(item.kind)].join(' · ');
+      content = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          KindIcon(item.kind),
+          SizedBox(width: t.space.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        e.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.typo.bodyStrong.copyWith(color: t.text),
+                      ),
+                    ),
+                    ...badges,
+                  ],
+                ),
+                SizedBox(height: t.space.xxs),
+                Row(
+                  children: [
+                    Flexible(child: Muted(meta, maxLines: 1)),
+                    if (item.link != null) ...[
+                      SizedBox(width: t.space.sm),
+                      _LinkButton(item.link!),
+                    ],
+                  ],
+                ),
+                ...extras,
+              ],
+            ),
+          ),
+          SizedBox(width: t.space.md),
+          Padding(padding: EdgeInsets.only(top: t.space.xs), child: time),
+        ],
+      );
+    }
+
+    final row = AnimatedContainer(
+      duration: t.motion.fast,
+      padding: EdgeInsets.all(t.space.md),
+      decoration: BoxDecoration(
+        color: widget.highlighted ? t.accentSoft : (_hovered ? t.hover : t.hover.withValues(alpha: 0)),
+        borderRadius: t.radii.brLg,
+        border: Border.all(
+          color: widget.highlighted ? antToneBorder(t, AntTone.warn) : t.border.withValues(alpha: 0),
+          width: t.stroke.hairline,
+        ),
+      ),
+      child: content,
+    );
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      // Tracks focus inside the actions so keyboard users see what they tabbed into.
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onFocusChange: (v) => setState(() => _focusWithin = v),
+        child: Stack(
+          children: [
+            e.hidden && !showActions ? Opacity(opacity: t.stroke.disabledOpacity, child: row) : row,
+            // Compact rows: level with the first line; two-line rows: by the title.
+            Positioned(
+              top: widget.compact ? t.space.xxs : t.space.sm,
+              right: t.space.sm,
+              child: IgnorePointer(
+                ignoring: !showActions,
+                child: AnimatedOpacity(
+                  duration: t.motion.fast,
+                  opacity: showActions ? 1 : 0,
+                  child: _Actions(item: item, projects: projects),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -164,6 +240,7 @@ class _LinkButton extends StatelessWidget {
     return AntInteractive(
       onTap: uri == null ? null : () => launchUrl(uri),
       semanticLabel: 'Open link',
+      focusRadius: t.radii.brSm,
       builder: (context, s) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -239,7 +316,16 @@ class _Actions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final e = item.e;
-    return Row(
+    final t = context.tokens;
+    return Container(
+      padding: EdgeInsets.all(t.space.xxs),
+      decoration: BoxDecoration(
+        color: t.raised,
+        borderRadius: t.radii.brMd,
+        border: Border.all(color: t.borderSubtle, width: t.stroke.hairline),
+        boxShadow: t.shadow,
+      ),
+      child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         AntIconButton(
@@ -283,6 +369,7 @@ class _Actions extends ConsumerWidget {
           ),
         ),
       ],
+      ),
     );
   }
 

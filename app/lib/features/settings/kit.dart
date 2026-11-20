@@ -233,7 +233,12 @@ class PanelRow extends StatelessWidget {
           ),
         );
     if (onTap == null) return content(false);
-    return AntInteractive(onTap: onTap, builder: (context, s) => content(s.hovered));
+    return AntInteractive(
+      onTap: onTap,
+      focusRadius: BorderRadius.zero,
+      focusInset: true,
+      builder: (context, s) => content(s.hovered),
+    );
   }
 }
 
@@ -398,6 +403,7 @@ class _DisclosureState extends State<Disclosure> {
         AntInteractive(
           onTap: () => setState(() => _open = !_open),
           semanticLabel: widget.title,
+          focusRadius: t.radii.brMd,
           builder: (context, s) => Padding(
             padding: EdgeInsets.symmetric(vertical: t.space.sm),
             child: Row(
@@ -423,7 +429,7 @@ class _DisclosureState extends State<Disclosure> {
   }
 }
 
-/// A wide modal panel for multi-step flows (provider setup, git setup, restore preview).
+/// A wide [AntDialog] for multi-step flows (provider setup, git setup, restore preview).
 class WideDialog extends StatelessWidget {
   const WideDialog({super.key, required this.title, this.subtitle, required this.body, this.actions = const [], this.leadingActions = const []});
   final String title;
@@ -433,64 +439,14 @@ class WideDialog extends StatelessWidget {
   final List<Widget> leadingActions;
 
   @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final size = MediaQuery.sizeOf(context);
-    return Center(
-      child: Material(
-        type: MaterialType.transparency,
-        child: Container(
-          width: t.density.dialogWidth * 1.45,
-          constraints: BoxConstraints(maxHeight: size.height - t.space.giant * 2),
-          decoration: BoxDecoration(
-            color: t.raised,
-            borderRadius: t.radii.brXl,
-            border: Border.all(color: t.borderSubtle, width: t.stroke.hairline),
-            boxShadow: t.shadow,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(t.space.xxl, t.space.xxl, t.space.xxl, t.space.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: t.typo.title.copyWith(color: t.text)),
-                    if (subtitle != null) ...[
-                      SizedBox(height: t.space.xs),
-                      Text(subtitle!, style: t.typo.small.copyWith(color: t.muted)),
-                    ],
-                  ],
-                ),
-              ),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: t.space.xxl, vertical: t.space.md),
-                  child: DefaultTextStyle(style: t.typo.body.copyWith(color: t.textSoft), child: body),
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.all(t.space.xl),
-                decoration: BoxDecoration(border: Border(top: BorderSide(color: t.divider, width: t.stroke.hairline))),
-                child: Row(
-                  children: [
-                    for (final a in leadingActions) ...[a, SizedBox(width: t.space.md)],
-                    const Spacer(),
-                    for (var i = 0; i < actions.length; i++) ...[
-                      if (i > 0) SizedBox(width: t.space.md),
-                      actions[i],
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AntDialog(
+        title: title,
+        subtitle: subtitle,
+        body: body,
+        actions: actions,
+        leadingActions: leadingActions,
+        width: context.tokens.density.dialogWidth * 1.45,
+      );
 }
 
 /// Lays children out in equal columns at least [minWidth] wide (CSS `auto-fill, minmax`).

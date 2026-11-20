@@ -111,6 +111,7 @@ class _TimelinePageState extends ConsumerState<TimelinePage> {
                           for (final MapEntry(key: day, value: rows) in days.entries) ...[
                             AntInteractive(
                               semanticLabel: 'Open $day in Today',
+                              focusRadius: t.radii.brMd,
                               onTap: () => openEvidenceInToday(ref, day, const {}),
                               builder: (context, s) => Padding(
                                 padding: EdgeInsets.fromLTRB(t.space.md, t.space.xl, t.space.md, t.space.sm),
@@ -124,7 +125,7 @@ class _TimelinePageState extends ConsumerState<TimelinePage> {
                                 ]),
                               ),
                             ),
-                            for (final e in rows) EvidenceRow(key: ValueKey(e.e.id), item: e, showDay: true),
+                            for (final e in rows) EvidenceRow(key: ValueKey(e.e.id), item: e, compact: true),
                           ],
                           if (list.length >= _limit)
                             Padding(

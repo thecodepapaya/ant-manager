@@ -332,6 +332,7 @@ class _TranscriptPanel extends ConsumerWidget {
     return AntInteractive(
       onTap: () => _import(context, ref),
       semanticLabel: 'Import a meeting transcript',
+      focusRadius: t.radii.brXl,
       builder: (context, s) => Container(
         padding: EdgeInsets.all(t.space.xl + t.space.xxs),
         decoration: BoxDecoration(

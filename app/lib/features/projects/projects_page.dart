@@ -159,6 +159,7 @@ class _ProjectCard extends ConsumerWidget {
                 for (final c in projectPalette(t))
                   AntInteractive(
                     semanticLabel: 'Set colour',
+                    focusRadius: t.radii.brPill,
                     selected: hexOf(c) == p.colour.toUpperCase(),
                     onTap: () => runCmd(context, ref, updateProjectCmd(p.id, colour: hexOf(c))),
                     builder: (context, st) => Container(

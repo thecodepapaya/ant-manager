@@ -79,6 +79,24 @@ class AiModelsTab extends ConsumerWidget {
     return PageBody(
       maxWidth: t.widePage,
       children: [
+        if (models.isEmpty)
+          // Fresh profile: one obvious next step, like the other empty states.
+          AntCard(
+            child: AntEmptyState(
+              icon: Icons.auto_awesome_outlined,
+              title: 'No AI model yet',
+              message: 'Reports, facts and wins need a model. OpenRouter is one key for Claude, GPT, Gemini and '
+                  'open models, or pick a provider below.',
+              action: AntButton.primary(
+                label: providers.isEmpty ? 'Connect OpenRouter' : 'Add a model',
+                icon: Icons.add,
+                onPressed: () => providers.isEmpty
+                    ? showProviderDialog(context, preset: ProviderPreset.openrouter)
+                    : showProviderDialog(context, existing: providers.first),
+              ),
+            ),
+          )
+        else
         AntCard(
           padding: EdgeInsets.all(t.space.xxl),
           child: Column(

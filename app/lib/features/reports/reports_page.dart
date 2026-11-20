@@ -129,6 +129,7 @@ class _ReportListItem extends StatelessWidget {
       onTap: onTap,
       selected: selected,
       semanticLabel: periodLabel(item.period),
+      focusRadius: t.radii.brMd,
       builder: (context, st) => AnimatedContainer(
         duration: t.motion.fast,
         margin: EdgeInsets.only(bottom: t.space.xxs),

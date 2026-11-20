@@ -252,22 +252,25 @@ class TopBar extends StatelessWidget {
               padding: EdgeInsets.only(right: t.space.lg),
               child: Text(title!, style: t.typo.title.copyWith(color: t.text)),
             ),
-          // Bounded rather than flexible, so [middle] alone takes the free width and actions stay right.
-          if (subtitle != null)
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: t.density.columnMinWidth * 1.5),
-              child: Padding(
-                padding: EdgeInsets.only(right: t.space.lg),
-                child: Text(subtitle!,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: t.typo.small.copyWith(color: t.muted)),
-              ),
-            ),
+          // The subtitle shares the flexible middle: bounded on wide bars, and it shrinks (ellipsized) on
+          // narrow ones instead of pushing the actions out; [middle] wraps below it when there's no room.
           Expanded(
             child: Wrap(
               spacing: t.space.md,
               runSpacing: t.space.sm,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: middle,
+              children: [
+                if (subtitle != null)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: t.density.columnMinWidth * 1.5),
+                    child: Padding(
+                      padding: EdgeInsets.only(right: t.space.xs),
+                      child: Text(subtitle!,
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: t.typo.small.copyWith(color: t.muted)),
+                    ),
+                  ),
+                ...middle,
+              ],
             ),
           ),
           if (actions.isNotEmpty)

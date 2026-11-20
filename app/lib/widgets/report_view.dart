@@ -254,6 +254,7 @@ class ReportProse extends ConsumerWidget {
               AntInteractive(
                 onTap: () => open(f.n),
                 semanticLabel: 'Fact ${f.n}',
+                focusRadius: t.radii.brSm,
                 builder: (context, s) => Padding(
                   padding: EdgeInsets.symmetric(vertical: t.space.xxs),
                   child: Row(

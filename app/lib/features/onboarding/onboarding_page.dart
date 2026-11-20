@@ -411,6 +411,7 @@ class _Rail extends StatelessWidget {
                 onTap: reached.contains(s) ? () => onPick(s) : null,
                 semanticLabel: s.label,
                 selected: s == step,
+                focusRadius: t.radii.brMd,
                 builder: (context, st) {
                   final on = s == step;
                   final done = s.index < step.index;
