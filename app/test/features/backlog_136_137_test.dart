@@ -18,6 +18,7 @@ import 'package:ant_manager/features/sources/identities_tab.dart';
 import 'package:ant_manager/features/sources/sources_page.dart';
 import 'package:ant_manager/state/providers.dart';
 import 'package:core/core.dart' hide Provider;
+import 'package:core/core.dart' as core show Provider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,13 +39,23 @@ AntCheckbox _box(WidgetTester tester, String title) =>
     tester.widget<AntCheckbox>(find.descendant(of: _rowOf(title), matching: find.byType(AntCheckbox)));
 
 /// Every runtime() call stays pending until the test answers it, in call order.
+/// The commands are kept too, so a test can replay one against a real engine.
 class _PendingHandle implements EngineHandle {
   final calls = <Completer<Object?>>[];
+  final cmds = <Object>[];
   @override
   Future<T> runtime<T>(EngineCommand<T> cmd) {
     final c = Completer<Object?>();
     calls.add(c);
+    cmds.add(cmd);
     return c.future.then((v) => v as T);
+  }
+
+  /// Answers every still-pending call with null.
+  void completeAll() {
+    for (final c in calls) {
+      if (!c.isCompleted) c.complete(null);
+    }
   }
 
   @override
@@ -76,6 +87,16 @@ List<RepoScan> _scans(int n, {bool bot = true}) => [
           if (bot) _bot: ('dependabot[bot]', 1),
         }),
     ];
+
+/// Secret store whose delete throws while [failDelete] is set.
+class _FlakySecrets extends FakeSecrets {
+  bool failDelete = false;
+  @override
+  Future<void> delete(String key) async {
+    if (failDelete) throw StateError('keychain locked');
+    return super.delete(key);
+  }
+}
 
 /// A host that owns a [RepoScanController] with scripted state and shows a [RepoPicker].
 class _PickerHost extends ConsumerStatefulWidget {
@@ -238,6 +259,60 @@ void main() {
       await tester.tap(_button('Continue'));
       await _flush(tester);
       expect(h.calls, hasLength(4), reason: 'one addIdentityCmd for the hidden, ticked person');
+
+      // Replay that command on a real engine: it adds exactly the hidden person's email.
+      final dir = tempDir();
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final real = (await tester.runAsync(() => startEngine(dir)))!;
+      await cmd(tester, real, h.cmds[3] as EngineCommand<Object?>);
+      final ids = await read(tester, () => real.db.select(real.db.identities).get());
+      expect([for (final i in ids) (i.kind, i.value)], [('email', _email(11))]);
+      h.completeAll();
+      await _flush(tester);
+      await killEngine(tester, real);
+    });
+
+    testWidgets('repo ticks: pre-ticked from identities on the first visit, kept after Back + Continue (#139)',
+        (tester) async {
+      // r0, r1: by "me" (p00); r2: by someone else.
+      final repos = [
+        RepoScan(path: '/tmp/repos/r0', lastCommitAt: null, myCommits: 0, authors: {_email(0): (_person(0), 1)}),
+        RepoScan(path: '/tmp/repos/r1', lastCommitAt: null, myCommits: 0, authors: {_email(0): (_person(0), 1)}),
+        RepoScan(path: '/tmp/repos/r2', lastCommitAt: null, myCommits: 0, authors: {_email(1): (_person(1), 1)}),
+      ];
+      await toIdentities(tester, repos, me: _email(0));
+      expect(_box(tester, _person(0)).value, isTrue, reason: 'my git email is pre-ticked');
+
+      Future<void> continueFromIdentities() async {
+        await tester.tap(_button('Continue'));
+        await _flush(tester);
+        h.completeAll(); // addIdentityCmd
+        await _flush(tester);
+        expect(find.text('Pick the repos to watch'), findsOneWidget);
+      }
+
+      await continueFromIdentities();
+      expect([_box(tester, 'r0').value, _box(tester, 'r1').value, _box(tester, 'r2').value], [true, true, false],
+          reason: 'first visit: repos with my commits are pre-ticked');
+
+      await tester.tap(_rowText('r1'));
+      await tester.tap(_rowText('r2'));
+      await _flush(tester);
+      expect([_box(tester, 'r0').value, _box(tester, 'r1').value, _box(tester, 'r2').value], [true, false, true]);
+
+      await tester.tap(_button('Back'));
+      await _flush(tester);
+      expect(find.text('Which of these are you?'), findsOneWidget);
+      await continueFromIdentities();
+      expect([_box(tester, 'r0').value, _box(tester, 'r1').value, _box(tester, 'r2').value], [true, false, true],
+          reason: 'manual ticks survive Back + Continue');
+
+      // Skip from Identities after coming back does not reset them either.
+      await tester.tap(_button('Back'));
+      await _flush(tester);
+      await tester.tap(_button('Skip'));
+      await _flush(tester);
+      expect([_box(tester, 'r0').value, _box(tester, 'r1').value, _box(tester, 'r2').value], [true, false, true]);
     });
   });
 
@@ -394,6 +469,26 @@ void main() {
         expect(find.text('proj-0'), findsNothing);
         await killEngine(tester, h);
       });
+
+      testWidgets('a connector card matches on its host / login subtitle', (tester) async {
+        final h = await bootWith(tester, const SourcesPage(), (h) async {
+          await addRepos(tester, h, 9);
+          await cmd(tester, h, addSourceCmd(SourceKind.github, 'Work GitHub', {'login': 'octocat'}));
+        });
+        await settle(tester, until: () => find.text('Work GitHub').evaluate().isNotEmpty);
+        expect(find.text('github.com · @octocat'), findsOneWidget);
+
+        await tester.enterText(_search('sources-search'), '@OCTOCAT');
+        await tester.pump();
+        expect(find.text('Work GitHub'), findsOneWidget);
+        expect(find.text('proj-0'), findsNothing);
+
+        await tester.enterText(_search('sources-search'), 'github.com');
+        await tester.pump();
+        expect(find.text('Work GitHub'), findsOneWidget);
+        expect(find.text('proj-0'), findsNothing);
+        await killEngine(tester, h);
+      });
     });
 
     group('onboarding (#137)', () {
@@ -420,14 +515,21 @@ void main() {
 
       testWidgets('Welcome: four stages, one principles line, no "How it works"', (tester) async {
         final h = await boot(tester);
+        // The step body (the rail also says "Sources"): it is the page's only scroll view.
+        Finder inBody(Finder f) => find.descendant(of: find.byType(SingleChildScrollView), matching: f);
         for (final s in const ['Sources', 'Evidence', 'Narrative', 'Reports and wins']) {
-          expect(find.text(s), findsWidgets, reason: s);
+          expect(inBody(find.text(s)), findsOneWidget, reason: s);
         }
+        expect(inBody(find.text('A record of the work you do, turned into honest reports.')), findsOneWidget);
         expect(
-          find.text('Stays on this computer unless you pick a cloud model. Every line cites the work behind it.'),
+          inBody(find.text('Stays on this computer unless you pick a cloud model. Every line cites the work behind it.')),
           findsOneWidget,
         );
-        expect(find.textContaining('How it works'), findsNothing);
+        expect(find.textContaining('How it works', findRichText: true), findsNothing);
+        expect(find.textContaining('HOW IT WORKS', findRichText: true), findsNothing);
+        for (final old in const ['Local first', 'Always cited', 'Yours to correct']) {
+          expect(find.textContaining(old, findRichText: true), findsNothing, reason: old);
+        }
         await killEngine(tester, h);
       });
 
@@ -490,6 +592,91 @@ void main() {
         expect(rows.where((r) => r.id == pid), isEmpty);
         await killEngine(tester, h);
       });
+
+      testWidgets('two providers: each row\'s Manage opens that provider\'s dialog', (tester) async {
+        final h = await boot(tester, prepare: (h) async {
+          await cmd(
+              tester,
+              h,
+              saveProviderCmd(
+                kind: ProviderKind.openrouter,
+                name: 'My OpenRouter',
+                baseUrl: 'https://openrouter.ai/api/v1',
+                protocol: ProviderProtocol.openai,
+                apiKey: 'sk-or',
+              ));
+          await cmd(
+              tester,
+              h,
+              saveProviderCmd(
+                kind: ProviderKind.openai,
+                name: 'My OpenAI',
+                baseUrl: 'https://api.openai.com/v1',
+                protocol: ProviderProtocol.openai,
+                apiKey: 'sk-oa',
+              ));
+        });
+        await toModel(tester);
+        await settle(tester, until: () => _button('Manage').evaluate().length == 2);
+        expect(_button('Manage'), findsNWidgets(2));
+
+        for (final (name, other) in const [('My OpenRouter', 'My OpenAI'), ('My OpenAI', 'My OpenRouter')]) {
+          await tester.tap(find.descendant(of: _rowOf(name), matching: _button('Manage')));
+          await settle(tester, until: () => find.byType(ProviderDialog).evaluate().isNotEmpty);
+          final dialog = find.byType(ProviderDialog);
+          expect(tester.widget<ProviderDialog>(dialog).existing?.name, name);
+          expect(find.descendant(of: dialog, matching: find.text(name)), findsWidgets, reason: 'dialog title');
+          expect(find.descendant(of: dialog, matching: find.text(other)), findsNothing);
+          await tester.tap(find.descendant(of: dialog, matching: _button('Done')));
+          await settle(tester, until: () => find.byType(ProviderDialog).evaluate().isEmpty);
+        }
+        await killEngine(tester, h);
+      });
+    });
+
+    group('provider dialog Remove (#139)', () {
+      testWidgets('stays open with an error when Remove fails; closes when it succeeds', (tester) async {
+        final secrets = _FlakySecrets()..failDelete = true;
+        late core.Provider provider;
+        final h = await bootWith(
+          tester,
+          Consumer(
+            builder: (context, ref, _) => TextButton(
+              onPressed: () => showProviderDialog(context, existing: provider),
+              child: const Text('open'),
+            ),
+          ),
+          (h) async {
+            await cmd(
+                tester,
+                h,
+                saveProviderCmd(
+                  kind: ProviderKind.openai,
+                  name: 'Doomed',
+                  baseUrl: 'https://api.openai.com/v1',
+                  protocol: ProviderProtocol.openai,
+                  apiKey: 'sk-doomed',
+                ));
+            provider = (await read(tester, () => h.appDb.select(h.appDb.providers).get())).single;
+          },
+          secrets: secrets,
+        );
+        await tester.tap(find.text('open'));
+        await settle(tester, until: () => _button('Remove provider').evaluate().isNotEmpty);
+
+        await tester.tap(_button('Remove provider'));
+        await settle(tester, until: () => find.textContaining('keychain locked').evaluate().isNotEmpty);
+        expect(find.textContaining('keychain locked'), findsOneWidget, reason: 'the error is shown');
+        expect(find.byType(ProviderDialog), findsOneWidget, reason: 'a failed Remove keeps the dialog open');
+
+        secrets.failDelete = false;
+        await tester.tap(_button('Remove provider'));
+        await settle(tester, until: () => find.byType(ProviderDialog).evaluate().isEmpty);
+        expect(find.byType(ProviderDialog), findsNothing);
+        expect(await read(tester, () => h.appDb.select(h.appDb.providers).get()), isEmpty);
+        await tester.pump(const Duration(seconds: 10)); // let the toast expire
+        await killEngine(tester, h);
+      });
     });
   });
 
@@ -529,6 +716,58 @@ void main() {
       expect(secrets.values.values.toSet(), {'sk-b', 'team-b'});
       final rows = await h.appDb.select(h.appDb.providers).get();
       expect(rows.map((r) => r.name), ['B']);
+    });
+
+    Future<String> customProvider(FakeLlm llm, String name, String key) async =>
+        (await h.runtime(saveProviderCmd(
+          kind: ProviderKind.custom,
+          name: name,
+          baseUrl: llm.baseUrl,
+          protocol: ProviderProtocol.openai,
+          apiKey: key,
+        )))
+            .$1;
+
+    Future<Map<LlmRoute, String?>> routes() async =>
+        {for (final r in await h.db.select(h.db.taskRoutes).get()) r.route: r.modelId};
+
+    test('clears routes to the removed provider\'s models only; the other provider\'s models stay', () async {
+      final llm = await FakeLlm.start();
+      addTearDown(llm.close);
+      final a = await customProvider(llm, 'A', 'sk-a');
+      final b = await customProvider(llm, 'B', 'sk-b');
+      final ma = await h.runtime(addModelCmd(a, 'm-text')); // first model: becomes Default
+      final mb1 = await h.runtime(addModelCmd(b, 'm-text'));
+      final mb2 = await h.runtime(addModelCmd(b, 'm-vision'));
+      await h.runtime(setRouteCmd(LlmRoute.reports, ma));
+      await h.runtime(setRouteCmd(LlmRoute.vision, mb2));
+      expect((await routes())[LlmRoute.defaultRoute], ma);
+
+      expect(await h.runtime(removeProviderCmd(a)), isTrue);
+      final r = await routes();
+      expect(r[LlmRoute.defaultRoute], isNull);
+      expect(r[LlmRoute.reports], isNull);
+      expect(r[LlmRoute.vision], mb2, reason: 'a route to the other provider is untouched');
+      final models = await h.appDb.select(h.appDb.models).get();
+      expect(models.map((m) => m.id).toSet(), {mb1, mb2});
+      expect(secrets.values.values.toList(), ['sk-b']);
+    });
+
+    test('an unknown id: returns false and changes nothing', () async {
+      final (a, _) = await h.runtime(saveProviderCmd(
+        kind: ProviderKind.openai,
+        name: 'A',
+        baseUrl: 'https://api.openai.com/v1',
+        protocol: ProviderProtocol.openai,
+        apiKey: 'sk-a',
+      ));
+      expect(await h.runtime(removeProviderCmd('no-such-provider')), isFalse);
+      expect((await h.appDb.select(h.appDb.providers).get()).map((p) => p.id), [a]);
+      expect(secrets.values.values.toList(), ['sk-a']);
+      // Removing twice: true, then false.
+      expect(await h.runtime(removeProviderCmd(a)), isTrue);
+      expect(await h.runtime(removeProviderCmd(a)), isFalse);
+      expect(secrets.values, isEmpty);
     });
   });
 }
