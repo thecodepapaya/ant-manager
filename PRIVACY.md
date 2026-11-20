@@ -54,7 +54,7 @@ Only these, and only once you set them up:
    - Any other address (LAN included) shows a one-time consent notice before the first request, per base URL;
      changing the URL asks again (#74, #105). Plain `http://` to a non-local host shows a warning.
    - Consent is checked on every request: if you decline after changing a provider's URL, the new URL is saved but
-     nothing is sent to it until you agree (#NEXT).
+     nothing is sent to it until you agree (#118).
 2. **The source APIs you connect** (GitHub / GitHub Enterprise, GitLab, Linear, Jira Cloud, Google Calendar, ICS
    URLs). The app sends your token and fetches your activity; it never writes to them.
    Google sign-in uses the system browser with PKCE and a loopback redirect.
@@ -76,7 +76,7 @@ Links you open (evidence links, the git download page) open in your browser.
 - An `.antbackup` is a zip of the profile database snapshot, its attachments and a manifest. **It is not encrypted**
   (#36); Settings says so.
 - **Secrets are never included.** Providers live in `app.sqlite` and are not backed up either. A restored profile's
-  sources have no credentials and start disabled: sign in to each again (#NEXT).
+  sources have no credentials and start disabled: sign in to each again (#118).
 - The optional readable export (`<profile>-export/`, Markdown + JSON of facts, reports, wins, notes and evidence
   metadata) is rewritten on each backup. It has no source configs or credential references (#108).
 
