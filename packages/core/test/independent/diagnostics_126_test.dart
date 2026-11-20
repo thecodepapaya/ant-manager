@@ -12,7 +12,6 @@ import 'package:test/test.dart';
 
 import 'sync/harness.dart';
 
-const bugSkip = !bool.fromEnvironment('RUN_BUGS');
 
 class ListSink implements LogSink {
   final lines = <String>[];
@@ -169,7 +168,7 @@ void main() {
       expect(r, isNot(contains('api.example.com')));
       expect(r, isNot(contains('body')));
       expect(r, contains('LlmFailure(500)'));
-    }, skip: bugSkip);
+    });
   });
 
   group('errorSummary', () {
@@ -309,7 +308,7 @@ void main() {
 
     test('an error whose toString throws never breaks the caller', () {
       expect(() => Log.error('t.badtostring.${uniq()}', _BadToString()), returnsNormally);
-    }, skip: bugSkip);
+    });
 
     test('a throwing sink never breaks the caller', () {
       Log.sink = ThrowingSink();

@@ -20,11 +20,17 @@ abstract final class Log {
   static void warn(String event, [Map<String, Object?> fields = const {}]) => _write(LogLevel.warn, event, fields);
 
   /// Logs [error] as its redacted summary plus the top stack frames.
-  static void error(String event, Object error, [StackTrace? stack, Map<String, Object?> fields = const {}]) => _write(
-    LogLevel.error,
-    event,
-    {...fields, 'error': errorSummary(error), if (stack != null) 'stack': stackSummary(stack)},
-  );
+  static void error(String event, Object error, [StackTrace? stack, Map<String, Object?> fields = const {}]) {
+    String summary;
+    String? frames;
+    try {
+      summary = errorSummary(error);
+      frames = stack == null ? null : stackSummary(stack);
+    } catch (_) {
+      summary = error.runtimeType.toString(); // toString() itself threw; logging never breaks the app
+    }
+    _write(LogLevel.error, event, {...fields, 'error': summary, 'stack': ?frames});
+  }
 
   /// A warning or error repeated with the same event and fields (ignoring `ms` and `stack`) is written
   /// at most once per [repeatWindow]; the next one written carries `repeated=<n suppressed>`. Keeps a
@@ -127,7 +133,7 @@ final _quoted = RegExp(r'''"[^"]*"|“[^”]*”|‘[^’]*’|(?<!\w)'[^'\n]*'(
 String redact(String text, {int max = 240}) {
   // A stored or forwarded `LlmFailure(…): text` keeps only its prefix (see [errorSummary]).
   final llm = RegExp(r'LlmFailure(\([^)]*\))?').firstMatch(text);
-  if (llm != null) return text.substring(0, llm.end);
+  if (llm != null) return redact(text.substring(0, llm.start), max: max) + llm[0]!;
   var s = text.replaceAll(RegExp(r'\s+'), ' ');
   final brace = s.indexOf('{');
   if (brace >= 0) s = '${s.substring(0, brace)}{…}';

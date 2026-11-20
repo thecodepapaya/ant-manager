@@ -17,7 +17,6 @@ import 'package:path/path.dart' as p;
 
 import '../support/fakes.dart';
 
-const bugSkip = !bool.fromEnvironment('RUN_BUGS');
 
 String ts(int sec, [int ms = 0]) => DateTime.utc(2026, 11, 20, 10, 0, sec, ms).toIso8601String();
 
@@ -310,7 +309,7 @@ void main() {
       expect(out, contains('LlmFailure(429)'));
       expect(out, isNot(contains('bob@acme.com')));
       expect(out, isNot(contains('api.acme.internal')));
-    }, skip: bugSkip);
+    });
 
     test('reports the pause flag', () async {
       await h.runtime(_pauseCmd());
