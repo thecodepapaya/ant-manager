@@ -14,7 +14,7 @@ import '../../widgets/note_composer.dart';
 import '../../widgets/report_view.dart';
 
 /// Home (SPEC §7): a journal-style day view. Evidence grouped by project on the left; the day's
-/// read-only daily report and its facts on the right. ←/→ or [/] move between days.
+/// read-only daily report and its facts on the right. ←/→ or [/] move between days (not while typing).
 class TodayPage extends ConsumerWidget {
   const TodayPage({super.key});
 
@@ -28,7 +28,7 @@ class TodayPage extends ConsumerWidget {
     void go(int d) => ctl.setDay(shiftDayBy(day, d));
     final isToday = day == todayDay();
 
-    return CallbackShortcuts(
+    return _DayKeys(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () => go(-1),
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => go(1),
@@ -109,6 +109,33 @@ class TodayPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Like CallbackShortcuts, but leaves keys alone while a text field (the note composer) has focus,
+/// so arrows move the caret and brackets type.
+class _DayKeys extends StatelessWidget {
+  const _DayKeys({required this.bindings, required this.child});
+  final Map<SingleActivator, VoidCallback> bindings;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: (node, event) {
+          final editing =
+              FocusManager.instance.primaryFocus?.context?.findAncestorStateOfType<EditableTextState>() != null;
+          if (editing) return KeyEventResult.ignored;
+          for (final MapEntry(:key, :value) in bindings.entries) {
+            if (key.accepts(event, HardwareKeyboard.instance)) {
+              value();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: child,
+      );
 }
 
 class _EvidenceColumn extends ConsumerStatefulWidget {

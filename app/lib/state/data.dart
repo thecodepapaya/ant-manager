@@ -14,7 +14,7 @@ import 'providers.dart';
 // Evidence
 // ---------------------------------------------------------------------------
 
-/// One evidence item with its payloads (oldest first) and their sources.
+/// One evidence item with its payloads (in insertion order) and their sources.
 class EvidenceItem {
   EvidenceItem(this.e, this.payloads, this.sources);
   final Evidence e;
@@ -101,7 +101,7 @@ final evidenceProvider = StreamProvider.family<List<EvidenceItem>, EvidenceQuery
     ..where(db.evidences.id.isInQuery(ids))
     ..orderBy([
       OrderingTerm(expression: db.evidences.occurredStart, mode: q.day == null ? OrderingMode.desc : OrderingMode.asc),
-      OrderingTerm.asc(db.payloads.id),
+      OrderingTerm.asc(db.payloads.rowId), // insertion order: a note's body precedes its annotations (ids share a ms)
     ]);
   yield* query.watch().map((rows) {
     final out = <String, EvidenceItem>{};

@@ -139,7 +139,7 @@ maintained from it, and every output reads from that Narrative.
 ```
 
 - **Home = Today page.** A journal-style day view: the day's evidence grouped by project, next to the day's facts
-  and its (read-only) daily report. Notes are added inline. `←/→` (or `[`/`]`) moves between days, and a date picker jumps anywhere.
+  and its (read-only) daily report. Notes are added inline. `←/→` (or `[`/`]`) moves between days (except while typing in a text field), and a date picker jumps anywhere. Left open past midnight, Today (and its sidebar badge) rolls over to the new day.
 - **Navigation (sidebar):** profile switcher at the top · Today · Timeline · Narrative · Reports · Wins · Projects ·
   then Sources and Settings at the bottom (tentative, revisited in the UI step of the LLD; "Reviews" are Reports). Notes have no separate tab; they live in Today and Timeline.
 - **Notes & context (generic):** notes are evidence (a note payload). A note is either standalone evidence on any day

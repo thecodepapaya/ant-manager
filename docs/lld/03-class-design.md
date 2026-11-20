@@ -235,6 +235,8 @@ Not designed up front; built under #67 and recorded as decisions. Layout: [app/R
   channels `ant/calendar` (EventKit) and `ant/clipboard` (rich copy, image paste, #107).
 - **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105; Welcome step #114). New
   `AntEngine` commands cover projects/workstreams and starring via `WinService` (#107).
+  `todayProvider` re-checks the profile-zone day every minute; Today's focus and the Today count follow it.
+  Evidence payloads are listed in insertion (`rowid`) order, so a note's body precedes its annotations (#130).
 - **ui tokens:** density/type tokens for sidebar, top bar, chips and prose (#107); `packages/ui/tool/check_tokens.dart`
   enforces no literals. Visual-fidelity pass against the mockup, both themes, 1280–1920 wide (#113).
   Round 2 (#120): `AntDialog` gains `subtitle`/`leadingActions`/`width` and a divided footer (`WideDialog` wraps it);

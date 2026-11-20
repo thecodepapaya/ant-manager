@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:core/core.dart' hide Provider;
+import 'package:core/core.dart' hide Provider, Notifier;
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -70,6 +70,22 @@ final pausedProvider = StreamProvider<bool>((ref) async* {
       .map((s) => s?.value == 'true');
 });
 
+/// Today's YYYY-MM-DD in the profile zone, re-checked every minute so a long-running app rolls
+/// over at midnight.
+final todayProvider = NotifierProvider<TodayNotifier, String>(TodayNotifier.new);
+
+class TodayNotifier extends Notifier<String> {
+  @override
+  String build() {
+    final timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final d = profileToday();
+      if (d != state) state = d;
+    });
+    ref.onDispose(timer.cancel);
+    return profileToday();
+  }
+}
+
 /// Live counts for the placeholder pages (proves the isolate + watch wiring).
 enum Counter {
   evidence('SELECT COUNT(*) AS c FROM evidences'),
@@ -90,7 +106,7 @@ final countProvider = StreamProvider.family<int, Counter>((ref, c) async* {
   final h = await ref.watch(engineProvider.future);
   final db = h.db;
   final vars = c == Counter.evidenceToday
-      ? [Variable.withString(profileToday())]
+      ? [Variable.withString(ref.watch(todayProvider))]
       : const <Variable<Object>>[];
   yield* db
       .customSelect(c.sql, variables: vars, readsFrom: {

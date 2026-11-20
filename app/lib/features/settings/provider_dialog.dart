@@ -207,7 +207,7 @@ class _ProviderDialogState extends ConsumerState<ProviderDialog> {
       for (final m in _available ?? const <ModelInfo>[])
         if (q.isEmpty || m.name.toLowerCase().contains(q)) m,
     ];
-    final plainHttp = url.startsWith('http://') && requiresConsent(url);
+    final plainHttp = Uri.tryParse(url)?.scheme == 'http' && requiresConsent(url); // Uri lowercases the scheme
 
     return WideDialog(
       title: widget.existing?.name ?? (_custom ? 'Add a custom endpoint' : 'Connect ${widget.preset.name}'),
