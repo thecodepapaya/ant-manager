@@ -164,7 +164,7 @@ class AntEngine {
                 ..where((f) =>
                     f.type.equalsValue(FactType.outcome) &
                     f.retired.equals(false) &
-                    f.winStatus.equalsValue(WinStatus.accepted).not() &
+                    (f.winStatus.equalsValue(WinStatus.accepted).not() | f.importance.equals(1.0).not()) &
                     f.id.isInQuery(db.selectOnly(db.citations).join([
                       innerJoin(db.payloads, db.payloads.id.equalsExp(db.citations.payloadId), useColumns: false),
                     ])
@@ -175,6 +175,7 @@ class AntEngine {
             await _writeFact(f,
                 origin: f.origin.isUserTouched ? f.origin : FactOrigin.confirmed,
                 winStatus: WinStatus.accepted,
+                importance: 1.0, // same as the other star paths (#131)
                 by: 'user');
           }
         }
@@ -332,6 +333,7 @@ class AntEngine {
       Map<String, Object?>? details,
       bool? retired,
       WinStatus? winStatus,
+      double? importance,
       required String by}) async {
     final rev = f.revision + 1;
     final now = ports.clock.now();
@@ -343,6 +345,7 @@ class AntEngine {
       origin: Value(origin),
       retired: Value(retired ?? f.retired),
       winStatus: Value(winStatus ?? f.winStatus),
+      importance: importance == null ? const Value.absent() : Value(importance),
       revision: Value(rev),
       updatedAt: Value(now),
       // A user write supersedes any pending model proposal.

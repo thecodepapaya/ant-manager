@@ -17,7 +17,6 @@ import 'package:test/test.dart';
 import 'fakes.dart' show Seed;
 import 'narrative/harness.dart';
 
-const bugSkip = !bool.fromEnvironment('RUN_BUGS');
 
 AntEngine engineFor(H h) {
   final u = Unused();
@@ -451,14 +450,14 @@ void main() {
       await engine.setStarred(e1, true);
       final f = await h.fact('o');
       expect((f.winStatus, f.importance), (WinStatus.accepted, 1.0));
-    }, skip: bugSkip);
+    });
 
     test('AntEngine.setStarred(true) raises an accepted Outcome with a lower importance to 1', () async {
       await h.insertFact('o', [p1], win: WinStatus.accepted);
       await setImportance('o', 0.6);
       await engine.setStarred(e1, true);
       expect((await h.fact('o')).importance, 1.0);
-    }, skip: bugSkip);
+    });
   });
 }
 
