@@ -1,4 +1,4 @@
-/// Settings → General: profiles, time zone, launch at login, pause collection, crash reports, diagnostics.
+/// Settings → General: profiles, time zone, launch at login, pause collection, crash reports, diagnostics, about.
 library;
 
 import 'dart:io';
@@ -18,6 +18,7 @@ import '../../platform/launch_at_login.dart';
 import '../../platform/rotating_log.dart';
 import '../../state/providers.dart';
 import 'kit.dart';
+import 'project_links.dart';
 import 'setup_providers.dart';
 
 class GeneralTab extends ConsumerStatefulWidget {
@@ -82,9 +83,17 @@ class _GeneralTabState extends ConsumerState<GeneralTab> {
     }
   }
 
+  /// Opens a project page in the browser (About, #NEXT).
+  Future<void> _open(Uri uri) async {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+      toast(context, 'Couldn’t open the browser', tone: AntTone.err);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final version = ref.watch(engineConfigProvider).appVersion;
     final profiles = ref.watch(profilesProvider).value ?? const <Profile>[];
     final active = ref.watch(activeProfileProvider);
     final paused = ref.watch(pausedProvider).value ?? false;
@@ -185,6 +194,35 @@ class _GeneralTabState extends ConsumerState<GeneralTab> {
             title: 'Logs',
             hint: 'Kept on this computer only, about 3 MB per process; oldest lines are dropped first',
             trailing: [AntButton.ghost(label: 'Open folder', size: AntSize.sm, onPressed: _openLogs)],
+          ),
+        ]),
+        Gap(t.space.xxxl),
+        const Label('About'),
+        Gap(t.space.md),
+        ListPanel(children: [
+          PanelRow(
+            title: 'Ant Manager $version',
+            hint: 'Open source · Apache 2.0',
+            trailing: [
+              AntButton.ghost(
+                label: 'GitHub',
+                icon: Icons.open_in_new,
+                size: AntSize.sm,
+                onPressed: () => _open(ProjectLinks.repo),
+              ),
+            ],
+          ),
+          PanelRow(
+            title: 'Feedback',
+            hint: 'Bugs and ideas go to GitHub issues. For a bug, copy diagnostics above and paste them into the form.',
+            trailing: [
+              AntButton(label: 'Report a bug', size: AntSize.sm, onPressed: () => _open(ProjectLinks.bugReport)),
+              AntButton(
+                label: 'Request a feature',
+                size: AntSize.sm,
+                onPressed: () => _open(ProjectLinks.featureRequest),
+              ),
+            ],
           ),
         ]),
       ],
