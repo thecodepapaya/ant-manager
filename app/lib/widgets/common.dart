@@ -4,6 +4,7 @@ library;
 import 'package:core/core.dart' hide Provider, Notifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ui/ui.dart';
 
 import '../engine/engine_handle.dart';
@@ -377,7 +378,7 @@ class BrandMark extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: t.radii.brMd,
-        child: Image.asset('assets/brand/logo.png', fit: BoxFit.cover),
+        child: SvgPicture.asset('assets/brand/logo.svg', fit: BoxFit.cover),
       ),
     );
   }

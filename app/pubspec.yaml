@@ -31,6 +31,7 @@ dependencies:
   desktop_drop: ^0.8.4
   dio: ^5.11.1
   package_info_plus: ^9.0.1
+  flutter_svg: ^2.5.0
 
 dev_dependencies:
   archive: ^4.7.1
