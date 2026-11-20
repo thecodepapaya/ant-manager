@@ -154,7 +154,9 @@ class FakeLlmServer {
           ],
         };
       case 'win':
+        // Reuses the first existing fact listed for the evidence (the note's invisible-work fact), if any.
         return {
+          'fact_id': RegExp(r'^- fact_id=(\S+)', multiLine: true).firstMatch(c.user)?.group(1),
           'statement': 'Unblocked a teammate on the refund flow.',
           'citations': [for (final m in RegExp(r'payload_id=(\S+)').allMatches(c.user)) m.group(1)],
         };
@@ -172,8 +174,9 @@ class FakeLlmServer {
     final commits = [for (final p in payloads) if (p.kind == 'commit') p.id];
     final notes = [for (final p in payloads) if (p.kind == 'note' || p.kind == 'image') p.id];
     final existing = [
-      for (final m in RegExp(r'^- fact_id=(\S+) type=(\S+) (model|user-owned)', multiLine: true).allMatches(user))
-        (id: m.group(1)!, type: m.group(2)!, model: m.group(3) == 'model'),
+      for (final m in RegExp(r'^- fact_id=(\S+) type=(\S+) (model|user-owned) cites=\[([^\]]*)\]', multiLine: true)
+          .allMatches(user))
+        (id: m.group(1)!, type: m.group(2)!, model: m.group(3) == 'model', cites: m.group(4)!.split(', ')),
     ];
     Map<String, Object?> op(String op, {String? id, String? type, String? statement, List<String> cites = const []}) =>
         {
@@ -188,7 +191,7 @@ class FakeLlmServer {
           'reason': op == 'create' ? null : 'evidence changed',
         };
     final ops = <Map<String, Object?>>[];
-    final outcome = existing.where((f) => f.type == 'outcome').firstOrNull;
+    final outcome = existing.where((f) => f.type == 'outcome' && !f.cites.any(notes.contains)).firstOrNull;
     if (commits.isNotEmpty) {
       final statement = 'Shipped checkout payment changes across ${commits.length} commits.';
       if (outcome == null) {
@@ -197,7 +200,8 @@ class FakeLlmServer {
         ops.add(op('update', id: outcome.id, statement: statement, cites: commits)); // user-owned: leave alone
       }
     }
-    if (notes.isNotEmpty && !existing.any((f) => f.type == 'invisible_work')) {
+    // A fact already covering the notes (e.g. one a star turned into a win) is left alone.
+    if (notes.isNotEmpty && !existing.any((f) => f.type == 'invisible_work' || f.cites.any(notes.contains))) {
       ops.add(op('create', type: 'invisible_work', statement: 'Paired with a teammate on refund edge cases.', cites: notes));
     }
     return ops;

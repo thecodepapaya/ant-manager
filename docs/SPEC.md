@@ -182,6 +182,7 @@ maintained from it, and every output reads from that Narrative.
 - Every claim in a report links to the **facts and evidence** behind it (Markdown footnotes `[^fN]: <statement> (fact:<id>)`, #108).
 - **Wins = a view** over Outcome facts + starred evidence, plus model-suggested wins you accept or reject. Filterable
   by period and project. Starred evidence counts as having a win only once an accepted Outcome fact cites it (#115).
+  Starring evidence already captured by a model fact turns that fact into the win rather than adding a second one (#119).
 - **Review / brag doc** = a quarterly or custom report with a review template.
 - **Templates:** built-in templates (Standup, Manager update, Weekly review, Monthly recap, Wins summary, Brag doc) that
   can be duplicated and edited (editing a built-in duplicates it; copies keep their origin for reset, #108), with

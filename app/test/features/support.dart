@@ -89,7 +89,7 @@ class FakeLlm {
         final user = ((body['messages'] as List).last as Map)['content'];
         final text = switch (name) {
           'probe' => probeFails ? 'sorry, plain text only' : jsonEncode({'ok': true}),
-          'win' => jsonEncode({'statement': winStatement, 'citations': <String>[]}),
+          'win' => jsonEncode({'fact_id': null, 'statement': winStatement, 'citations': <String>[]}),
           'report' => jsonEncode(_report('$user')),
           _ => '{}',
         };
