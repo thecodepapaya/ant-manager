@@ -20,6 +20,8 @@ class GitRepoSource implements WatchableSource {
   // Each record: NUL, then sha, author name/email, committer name/email, author/committer ISO dates and raw
   // body, each NUL-terminated, then the numstat lines. No field can contain NUL, so splitting on NUL gives
   // exactly 1 + 9 × records tokens whatever the message contains. NUL can't be passed in argv, hence `%x00`.
+  // The repo's own config / .gitattributes must not make our reads run its commands (textconv, external diff, #NEXT).
+  static const _noRepoCommands = ['--no-textconv', '--no-ext-diff'];
   static const _format = '%x00%H%x00%an%x00%ae%x00%cn%x00%ce%x00%aI%x00%cI%x00%B%x00';
 
   /// Records of the last [sync] that could not be parsed (and were skipped).
@@ -73,6 +75,7 @@ class GitRepoSource implements WatchableSource {
       '--format=$_format',
       '--numstat',
       '--no-color',
+      ..._noRepoCommands,
     ]);
 
     DateTime? latest;
@@ -83,7 +86,7 @@ class GitRepoSource implements WatchableSource {
       if (!mine.contains(c.authorEmail.toLowerCase()) && !mine.contains(c.committerEmail.toLowerCase())) {
         continue;
       }
-      final patch = await ctx.git.run(repo, ['show', '--format=', '--no-color', '--diff-merges=first-parent', c.sha]);
+      final patch = await ctx.git.run(repo, ['show', '--format=', '--no-color', ..._noRepoCommands, '--diff-merges=first-parent', c.sha]);
       yield c.toObservation(utf8.encode(patch).length <= maxPatchBytes ? patch : null);
     }
     if (latest != null) {

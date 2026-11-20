@@ -53,8 +53,8 @@ Only these, and only once you set them up:
    - A provider on `localhost` / loopback keeps everything on this machine.
    - Any other address (LAN included) shows a one-time consent notice before the first request, per base URL;
      changing the URL asks again (#74, #105). Plain `http://` to a non-local host shows a warning.
-   - Known gap: declining the notice after changing an existing provider's URL does not revert it, so models already
-     added on that provider keep using the new URL ([THREAT_MODEL.md](./THREAT_MODEL.md) §3).
+   - Consent is checked on every request: if you decline after changing a provider's URL, the new URL is saved but
+     nothing is sent to it until you agree (#NEXT).
 2. **The source APIs you connect** (GitHub / GitHub Enterprise, GitLab, Linear, Jira Cloud, Google Calendar, ICS
    URLs). The app sends your token and fetches your activity; it never writes to them.
    Google sign-in uses the system browser with PKCE and a loopback redirect.
@@ -75,7 +75,8 @@ Links you open (evidence links, the git download page) open in your browser.
   OneDrive folder, that service gets a copy.
 - An `.antbackup` is a zip of the profile database snapshot, its attachments and a manifest. **It is not encrypted**
   (#36); Settings says so.
-- **Secrets are never included.** Providers live in `app.sqlite` and are not backed up either.
+- **Secrets are never included.** Providers live in `app.sqlite` and are not backed up either. A restored profile's
+  sources have no credentials: sign in to each again (#NEXT).
 - The optional readable export (`<profile>-export/`, Markdown + JSON of facts, reports, wins, notes and evidence
   metadata) is rewritten on each backup. It has no source configs or credential references (#108).
 

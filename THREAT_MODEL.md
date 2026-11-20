@@ -53,9 +53,11 @@ defence is citations plus your review, not detection. A cloud provider also sees
 The app runs the system `git` (`git log`, `git show`) in repos you add, with `GIT_TERMINAL_PROMPT=0` and
 `GIT_PAGER=cat`. Arguments are passed as a list (no shell).
 
-Gap: git still honours the repo's own `.git/config`, so a repo whose `.git` directory came from an untrusted
-source (an archive, not a clone) could configure a `textconv` driver that `git show` runs (unverified exploit path;
-no `--no-textconv` or config overrides are passed). Only add repos you would run `git log -p` in yourself.
+Fixed (#NEXT): `git log` and `git show` pass `--no-textconv --no-ext-diff`, and every call passes
+`-c log.showSignature=false`, so a repo whose `.git` came from an untrusted source can't make our reads run a
+`textconv` driver, external diff or `gpg.program`. Hooks and fsmonitor don't run on these read-only commands.
+Residual: other repo config reachable by `log` / `show` / `rev-parse` was not audited; only add repos you would run
+`git log -p` in yourself.
 
 ### 3. Compromised or malicious AI provider endpoint
 
@@ -69,11 +71,11 @@ As built:
   (#108). These options exist **for providers only**, not sources.
 - Provider API keys and header values are per provider in the secret store, sent only to that provider.
 
+- Consent is enforced at request time (#NEXT): every client is built by `createClient`, which refuses a
+  non-loopback base URL without consent. Declining the notice after changing a provider's URL leaves the URL saved
+  but sends nothing to it.
+
 Gaps:
-- Consent is enforced by the provider dialog, not when a request is made. The provider is saved before the notice is
-  shown, so declining the notice after changing an existing provider's URL leaves the new URL saved, and models
-  already added on it keep sending evidence there (from reading `provider_dialog.dart` / `router.dart`; unverified
-  in a running app).
 - With TLS verification disabled, anyone on the path can read and alter traffic, including the API key.
 
 ### 4. Source API endpoints
@@ -106,16 +108,14 @@ As built:
   profile's attachments folder, otherwise the restore fails ("Unsafe path in backup"). Other entries are ignored.
   The blob store also refuses paths outside its root when reading or deleting.
 - Backups from a newer schema are refused; older ones are migrated on open.
+- Restore clears every source's **credential reference** (#NEXT), so restored sources need signing in again even on
+  the same machine, and an edited backup can't point an existing token at another URL.
 
 Gaps:
 - Backups are **plaintext** (#36). Anyone who can read the folder can read your evidence.
-- Restored sources keep their **credential reference**. On the same machine that reference still resolves to the
-  original source's token in the secret store, so a backup edited to change a source's URL (e.g. a GitHub Enterprise
-  or Jira site URL) could send that token to an attacker's server on the next sync. SPEC §9's "after a restore you
-  sign in again" holds only on a different machine (from reading `backup.dart` and `sync_service.dart`;
-  unverified in a running app). Only restore backups you made and stored somewhere you trust.
 - A tampered database can carry arbitrary rows (and SQLite triggers) into the new profile; there is no schema
-  validation beyond drift's migrations (unverified impact).
+  validation beyond drift's migrations (unverified impact). A planted trigger could, for example, write a credential
+  reference back into `sources` later. Only restore backups you made and stored somewhere you trust.
 
 ### 7. Local attacker or other software on the machine
 
