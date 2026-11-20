@@ -260,6 +260,28 @@ No undo. A confirmation dialog states exactly what will be removed.
   `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no
   content), `notes.md`. Source configs and credential refs are left out.
 
+## 4.14 Diagnostics (#NEXT)
+
+- **Log (core, pure Dart):** `Log.info/warn/error(event, fields)` formats one line
+  `<ISO UTC ms> <LEVEL> <isolate> <event> key=value…` and hands it to `Log.sink` (a `LogSink` port, set per
+  isolate; null in tests drops lines). String values go through `redact()`; errors become `errorSummary()` (type +
+  redacted message) and `stackSummary()` (top 6 frames). `redact()` cuts at the first `{`, then replaces URLs,
+  emails, `Bearer`/`Basic` credentials, `key=`/`token:`-style pairs, known token prefixes, 32+ char alphanumeric
+  runs, absolute/relative paths and quoted strings, and caps at 240 chars. A warn/error with the same event and
+  fields (ignoring `ms`, `stack`) is written at most once per 10 min, the next one carrying `repeated=<n>`.
+- **Events:** `app.start` (version, build, OS, OS version, Dart), `engine.start|ready|stop|restart|exit|failed|
+  uncaught`, `engine.loop|scheduler|watchers` errors, `command.fail`, `job.start|finish|fail` (kind, lane, attempt,
+  ms, retry/gave_up), `sync.ok|fail` (source id, kind, ms, created/updated/tombstoned/unchanged),
+  `llm.ok|fail` (route, provider kind, host, model, ms, in/out tokens, HTTP status), `flutter.error`, `uncaught`.
+  The engine isolate's uncaught errors are logged UI-side from the `Isolate.spawn` error port.
+- **Files (app adapter `RotatingFileLog`):** `<dataDir>/logs/{ui,engine}.log` (one writer per file, so no locking),
+  synchronous appends; past 1 MB the file shifts to `.1.log`, `.2.log` and the oldest is deleted (3 files each).
+- **Copy diagnostics:** `diagnosticsCmd()` (engine) reports profile count, schema versions, pause flag, each
+  source's kind/enabled/last sync status (redacted error), providers by kind/protocol/loopback with model counts,
+  routes set, job counts by state and by kind/state (not done), and the latest redacted job error. The UI adds
+  app/OS/Flutter/Dart versions and the last 200 lines of all log files merged by timestamp (`tailLogs`), copies it to
+  the clipboard and toasts. "Open folder" launches `logs/` with `url_launcher`.
+
 ## Review outcome
 
 | # | Open point | Answer |

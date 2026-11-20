@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 
 import '../data/profile_db.dart';
+import '../diagnostics/log.dart';
 import '../domain/enums.dart';
 import '../engine/engine.dart';
 import '../ports/ports.dart';
@@ -49,6 +50,7 @@ class SyncService {
   Future<IngestResult> syncSource(String sourceId) async {
     final row = await _row(sourceId);
     final total = IngestResult();
+    final watch = Stopwatch()..start();
     try {
       final source = e.sources.create(row.kind);
       final ctx = await _context(row);
@@ -73,8 +75,18 @@ class SyncService {
       }
       await flush(); // the rest, plus cursors set after the last observation
       await _status(sourceId, lastSuccessAt: _clock.now(), lastError: null);
+      Log.info('sync.ok', {
+        'source': sourceId,
+        'kind': row.kind,
+        'ms': watch.elapsedMilliseconds,
+        'created': total.created,
+        'updated': total.updated,
+        'tombstoned': total.tombstoned,
+        'unchanged': total.unchanged,
+      });
       return total;
-    } catch (err) {
+    } catch (err, st) {
+      Log.error('sync.fail', err, st, {'source': sourceId, 'kind': row.kind, 'ms': watch.elapsedMilliseconds});
       await _status(sourceId, lastError: err.toString());
       rethrow;
     }

@@ -19,6 +19,7 @@ export 'src/capture/sources/transcript.dart' show transcriptObservation;
 export 'src/capture/sources/google_oauth.dart' show GoogleOAuth, GoogleTokens;
 export 'src/backup/backup.dart' show BackupService, BackupManifest, BackupException;
 export 'src/data/app_db.dart';
+export 'src/diagnostics/log.dart';
 export 'src/data/profile_db.dart';
 export 'src/domain/enums.dart';
 export 'src/engine/engine.dart';

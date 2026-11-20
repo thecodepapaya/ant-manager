@@ -228,6 +228,9 @@ Not designed up front; built under #67 and recorded as decisions. Layout: [app/R
 - **Engine isolate:** `EngineHandle` spawns the engine; UI commands are closures run in the engine (`commands.dart`,
   `setup_commands.dart`); plugin-backed ports (keychain, notifications, EventKit) are proxied back to the UI isolate.
   Switching profile restarts the engine isolate (#101).
+- **Diagnostics (#NEXT):** `LogSink` port + static `Log` in core (`diagnostics/log.dart`); `RotatingFileLog` adapter
+  in `app/platform` used by both isolates (separate files); `diagnosticsCmd` + `diagnosticsReport` in
+  `app/engine/diagnostics.dart`; buttons in Settings → General (LLD 04 §4.14).
 - **macOS:** App Sandbox off, login keychain until signing, quick capture reuses the main window (#101); native
   channels `ant/calendar` (EventKit) and `ant/clipboard` (rich copy, image paste, #107).
 - **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105; Welcome step #114). New

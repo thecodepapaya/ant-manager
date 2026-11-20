@@ -47,3 +47,8 @@ abstract interface class GitExecutable {
 abstract interface class FileWatcher {
   Stream<void> watch(List<String> paths);
 }
+
+/// Where `Log` lines go (adapter in app: size-capped rotating files under `<dataDir>/logs`).
+abstract interface class LogSink {
+  void write(String line);
+}

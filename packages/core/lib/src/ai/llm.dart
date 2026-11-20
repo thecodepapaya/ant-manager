@@ -88,10 +88,20 @@ const structuredOutputProbeSchema = <String, Object?>{
 };
 
 class ResolvedModel {
-  const ResolvedModel({required this.client, required this.modelName, required this.info});
+  const ResolvedModel({
+    required this.client,
+    required this.modelName,
+    required this.info,
+    this.providerKind,
+    this.host,
+  });
   final LlmClient client;
   final String modelName;
   final ModelInfo info;
+
+  /// For the diagnostic log only (no URL path, query or key).
+  final ProviderKind? providerKind;
+  final String? host;
 }
 
 /// Route → model, falling back to the default route (#75).

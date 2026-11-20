@@ -32,6 +32,13 @@ All on your machine, under the OS application-support folder (`…/ant_manager/`
 - `profiles/<id>.sqlite`: one SQLite database per profile (evidence, facts, reports, settings).
 - `blobs/<id>/`: attachments (screenshots, images) per profile.
 - `app.sqlite`: profile list, AI providers and models (base URLs, custom CA, header names; no secret values).
+- `logs/`: local diagnostic logs (#NEXT), `ui.log` and `engine.log`, each rotated at 1 MB keeping 3 files (about
+  3 MB each, oldest lines dropped). Lines are structural: timestamps, event names, job and source kinds, random
+  ids, counts, durations, AI route, provider kind, provider **host name**, model name, token counts, HTTP status, and
+  error type with a redacted message and the top stack frames. They never contain secrets or tokens, evidence
+  content, prompts or model output, fact statements, note text, source or profile names, URLs, file paths or email
+  addresses: error text is redacted before it is written (URLs, emails, paths, quoted text, JSON bodies and
+  key-like strings removed), so some error detail is lost on purpose.
 - **Secrets** (source tokens, Google OAuth tokens, provider API keys, custom header values) are kept in the OS secret
   store, never in the databases:
   - macOS: the login keychain (the data-protection keychain needs a signed build, DECISIONS #101).
@@ -61,7 +68,11 @@ Only these, and only once you set them up:
 3. **Crash reports: opt-in, off by default** (#8, #105). Intended to send stack traces only, no content, to Sentry.
    **Not wired yet:** v1 only stores the preference and sends nothing.
 
-Nothing else: no analytics, no usage telemetry, no background uploads.
+Nothing else: no analytics, no usage telemetry, no background uploads. Logs never leave the machine on their own:
+**Settings → General → Copy diagnostics** puts a plain-text report on your clipboard for a bug report (app, OS,
+Flutter and Dart versions; profile count; per source its kind, enabled flag and last sync status; providers by
+kind and loopback or remote with model counts; database schema versions; job counts; the last 200 log lines). It has
+no names, URLs or credentials; read it before you paste it anywhere.
 
 **Auto-update is not wired yet** (docs/lld/README.md "Known gaps"): the app does not check for updates. When it is,
 it will fetch an appcast feed (Sparkle / WinSparkle). Download new versions from GitHub Releases meanwhile.

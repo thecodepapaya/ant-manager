@@ -1,14 +1,21 @@
-/// Settings → General: profiles, time zone, launch at login, pause collection, crash reports.
+/// Settings → General: profiles, time zone, launch at login, pause collection, crash reports, diagnostics.
 library;
+
+import 'dart:io';
 
 import 'package:core/core.dart' hide Provider;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ui/ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../engine/commands.dart';
+import '../../engine/diagnostics.dart';
 import '../../engine/setup_commands.dart';
 import '../../platform/launch_at_login.dart';
+import '../../platform/rotating_log.dart';
 import '../../state/providers.dart';
 import 'kit.dart';
 import 'setup_providers.dart';
@@ -41,6 +48,38 @@ class _GeneralTabState extends ConsumerState<GeneralTab> {
     final name = await showAntDialog<String>(context, builder: (_) => _NameDialog(initial: p.name));
     if (name == null || name.isEmpty || !mounted) return;
     await runCmd(context, ref, renameProfileCmd(p.id, name));
+  }
+
+  /// Builds the diagnostics report (SPEC §10) and puts it on the clipboard.
+  Future<void> _copyDiagnostics() async {
+    final dataDir = ref.read(engineConfigProvider).dataDir;
+    final info = await PackageInfo.fromPlatform();
+    String engine;
+    try {
+      engine = await (await ref.read(engineProvider.future)).runtime(diagnosticsCmd());
+    } catch (e) {
+      engine = 'Engine: unavailable (${errorSummary(e)})\n';
+    }
+    final report = diagnosticsReport(
+      app: {
+        'App': '${info.version} (build ${info.buildNumber})',
+        'OS': '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+        'Flutter': '${FlutterVersion.version ?? 'unknown'} (${FlutterVersion.channel ?? 'unknown'})',
+        'Dart': Platform.version.split(' ').first,
+        'Data folder': const String.fromEnvironment('ANT_DATA_DIR').isEmpty ? 'default' : 'custom (ANT_DATA_DIR)',
+      },
+      engine: engine,
+      logs: tailLogs(logsDir(dataDir)),
+    );
+    await Clipboard.setData(ClipboardData(text: report));
+    if (mounted) toast(context, 'Diagnostics copied · paste them into your bug report', tone: AntTone.ok);
+  }
+
+  Future<void> _openLogs() async {
+    final dir = Directory(logsDir(ref.read(engineConfigProvider).dataDir))..createSync(recursive: true);
+    if (!await launchUrl(Uri.directory(dir.path)) && mounted) {
+      toast(context, 'Couldn’t open the logs folder', tone: AntTone.err);
+    }
   }
 
   @override
@@ -131,6 +170,21 @@ class _GeneralTabState extends ConsumerState<GeneralTab> {
                 onChanged: (v) => runCmd(context, ref, setSettingCmd(crashReportsSettingKey, '$v')),
               ),
             ],
+          ),
+        ]),
+        Gap(t.space.xxxl),
+        const Label('Diagnostics'),
+        Gap(t.space.md),
+        ListPanel(children: [
+          PanelRow(
+            title: 'Copy diagnostics',
+            hint: 'Versions, setup summary and recent log lines for a bug report. No content, names, URLs or keys.',
+            trailing: [AntButton(label: 'Copy', size: AntSize.sm, onPressed: _copyDiagnostics)],
+          ),
+          PanelRow(
+            title: 'Logs',
+            hint: 'Kept on this computer only, about 3 MB per process; oldest lines are dropped first',
+            trailing: [AntButton.ghost(label: 'Open folder', size: AntSize.sm, onPressed: _openLogs)],
           ),
         ]),
       ],

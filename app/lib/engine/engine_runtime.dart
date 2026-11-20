@@ -15,6 +15,7 @@ import 'package:path/path.dart' as p;
 
 import '../platform/file_blob_store.dart';
 import '../platform/io_file_watcher.dart';
+import '../platform/rotating_log.dart';
 import 'messages.dart';
 import 'port_bridge.dart';
 
@@ -32,6 +33,10 @@ const nudgeJobKind = 'nudge';
 
 /// Isolate entry point. Spawned by `EngineHandle.start`.
 Future<void> engineMain(EngineBoot boot) async {
+  if (!boot.config.inMemory) Log.sink = RotatingFileLog(logsDir(boot.config.dataDir), 'engine');
+  Log.isolate = 'engine';
+  final started = Stopwatch()..start();
+  Log.info('engine.start');
   final rx = ReceivePort('ant-engine');
   final bridge = UiBridge(boot.ui, rx.sendPort);
   EngineRuntime? rt;
@@ -47,12 +52,14 @@ Future<void> engineMain(EngineBoot boot) async {
           final value = await msg.body(rt!);
           boot.ui.send(CommandResult(msg.id, value: value));
         } catch (e, st) {
+          Log.error('command.fail', e, st);
           boot.ui.send(
             CommandResult(msg.id, error: e.toString(), stack: st.toString()),
           );
         }
         rt?.kick();
       case ShutdownEngine():
+        Log.info('engine.stop');
         await rt?.stop();
         bridge.close();
         await sub.cancel();
@@ -72,8 +79,10 @@ Future<void> engineMain(EngineBoot boot) async {
         timeZone: rt.profile.timeZone,
       ),
     );
+    Log.info('engine.ready', {'profile': rt.profile.id, 'ms': started.elapsedMilliseconds});
     if (boot.config.startLoops) rt.startLoops();
   } catch (e, st) {
+    Log.error('engine.failed', e, st);
     boot.ui.send(EngineFailed(e.toString(), st.toString()));
     await sub.cancel();
     rx.close();
@@ -357,7 +366,7 @@ class EngineRuntime {
       ..add(_schedulerLoop());
     unawaited(
       sync.startWatching(onEnqueue: kick).catchError((Object e, StackTrace st) {
-        stderr.writeln('engine watchers: $e\n$st');
+        Log.error('engine.watchers', e, st);
       }),
     );
   }
@@ -371,7 +380,7 @@ class EngineRuntime {
             .tick(); // per-source polls when due (LLD 04 §4.3)
         if (reports.isNotEmpty || syncs.isNotEmpty) kick();
       } catch (e, st) {
-        stderr.writeln('engine scheduler: $e\n$st');
+        Log.error('engine.scheduler', e, st);
       }
       final wait = Completer<void>();
       _stopWaiters.add(wait);
@@ -395,7 +404,7 @@ class EngineRuntime {
         // Recompute shares the IO loop; handlers are registered by core's narrative layer.
         if (lane == JobLane.io) worked = await engine.recompute.drain() > 0 || worked;
       } catch (e, st) {
-        stderr.writeln('engine ${lane.name} loop: $e\n$st');
+        Log.error('engine.loop', e, st, {'lane': lane});
       }
       if (!worked && !_stopped) {
         await (_wake ??= Completer<void>()).future.timeout(

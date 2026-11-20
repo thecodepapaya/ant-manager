@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:ui';
+
+import 'package:core/core.dart' show Log;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -10,6 +14,7 @@ import 'engine/ui_port_host.dart';
 import 'platform/launch_at_login.dart';
 import 'platform/local_notifier_adapter.dart';
 import 'platform/mac_calendar_bridge.dart';
+import 'platform/rotating_log.dart';
 import 'platform/secure_secret_store.dart';
 import 'platform/time_zone.dart';
 import 'shell/desktop_shell.dart';
@@ -32,11 +37,13 @@ Future<void> main() async {
     notifier: LocalNotifierAdapter(onAction: (_) => container.read(desktopShellProvider)?.showMain()),
     calendar: MacCalendarBridge.supported ? MacCalendarBridge() : null,
   );
+  // `--dart-define=ANT_DATA_DIR=…` points a dev run at a scratch data folder.
+  final dataDir = const String.fromEnvironment('ANT_DATA_DIR').isNotEmpty
+      ? const String.fromEnvironment('ANT_DATA_DIR')
+      : p.join(support.path, 'ant_manager');
+  _setUpLogging(dataDir, info);
   final config = EngineConfig(
-    // `--dart-define=ANT_DATA_DIR=…` points a dev run at a scratch data folder.
-    dataDir: const String.fromEnvironment('ANT_DATA_DIR').isNotEmpty
-        ? const String.fromEnvironment('ANT_DATA_DIR')
-        : p.join(support.path, 'ant_manager'),
+    dataDir: dataDir,
     timeZone: systemTimeZoneName(),
     calendarAvailable: MacCalendarBridge.supported,
     appVersion: info.version,
@@ -54,4 +61,28 @@ Future<void> main() async {
   container.read(engineProvider);
 
   runApp(UncontrolledProviderScope(container: container, child: const AntApp()));
+}
+
+/// UI-isolate log (#NEXT): `<dataDir>/logs/ui.log`, plus uncaught Flutter and platform errors. Chains the
+/// previous handlers so the default reporting (and test bindings) still see every error.
+void _setUpLogging(String dataDir, PackageInfo info) {
+  Log.sink = RotatingFileLog(logsDir(dataDir), 'ui');
+  Log.isolate = 'ui';
+  Log.info('app.start', {
+    'version': info.version,
+    'build': info.buildNumber,
+    'os': Platform.operatingSystem,
+    'os_version': Platform.operatingSystemVersion,
+    'dart': Platform.version.split(' ').first,
+  });
+  final flutterPrevious = FlutterError.onError;
+  FlutterError.onError = (details) {
+    Log.error('flutter.error', details.exception, details.stack);
+    flutterPrevious?.call(details);
+  };
+  final platformPrevious = PlatformDispatcher.instance.onError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    Log.error('uncaught', error, stack);
+    return platformPrevious?.call(error, stack) ?? false;
+  };
 }

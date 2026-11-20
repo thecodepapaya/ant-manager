@@ -48,6 +48,7 @@ class EngineHandle {
         case EngineReady():
           ready.complete(msg);
         case EngineFailed():
+          Log.warn('engine.start_failed');
           if (!ready.isCompleted) ready.completeError(EngineCommandException(msg.error, msg.stack));
         case CommandResult():
           handle?._onResult(msg);
@@ -60,11 +61,13 @@ class EngineHandle {
           }
         case [final Object? error, final Object? stack]:
           // Uncaught error in the engine isolate (Isolate.addErrorListener format).
+          Log.error('engine.uncaught', '$error', stack == null ? null : StackTrace.fromString('$stack'));
           final e = EngineCommandException('$error', '$stack');
           if (!ready.isCompleted) ready.completeError(e);
           handle?._failAll(e);
         case null:
           // onExit.
+          Log.info('engine.exit');
           final e = EngineCommandException('engine isolate exited');
           if (!ready.isCompleted) ready.completeError(e);
           handle?._failAll(e);
