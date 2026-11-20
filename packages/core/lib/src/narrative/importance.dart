@@ -175,7 +175,10 @@ Judge only from the content given. Give a short reason (under 15 words). Return 
         (hidden == null || e.hidden == hidden)) {
       return;
     }
-    await (db.update(db.evidences)..where((x) => x.id.equals(e.id))).write(
+    // [e] may be stale: never overwrite a user override committed since it was read (#NEXT).
+    await (db.update(db.evidences)
+          ..where((x) => x.id.equals(e.id) & x.importanceSetBy.isNotValue(ImportanceSetBy.user.name)))
+        .write(
       EvidencesCompanion(
         importance: Value(importance),
         importanceReason: Value(reason),
