@@ -24,7 +24,7 @@ class StubModel {
     s._server.listen((req) async {
       final body = jsonDecode(await utf8.decoder.bind(req).join()) as Map<String, Object?>;
       s.bodies.add(body);
-      final content = jsonEncode({'statement': 'Shipped the retry queue.', 'citations': <String>[]});
+      final content = jsonEncode({'fact_id': null, 'statement': 'Shipped the retry queue.', 'citations': <String>[]});
       final chunk = {
         'choices': [
           {

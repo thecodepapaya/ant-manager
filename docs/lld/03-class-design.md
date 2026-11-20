@@ -131,6 +131,7 @@ abstract interface class LlmClient {
 //           OllamaClient, AnthropicClient, GeminiClient.
 
 class ModelRouter { ResolvedModel resolve(LlmTask task); } // TaskRoute → falls back to the `default` route
+// createClient(provider) refuses a non-loopback base URL without consent (#118): every request path goes through it.
 
 /// Typed JSON output. EVERY configured model must support native structured output (JSON schema):
 /// OpenAI/OpenRouter response_format, Anthropic structured outputs, Gemini responseSchema, Ollama `format`,

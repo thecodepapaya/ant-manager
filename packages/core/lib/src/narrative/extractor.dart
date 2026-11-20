@@ -43,25 +43,25 @@ class LlmFactExtractor implements FactExtractor {
             'fact_id': {
               'type': ['string', 'null'],
             },
-            'type': {
-              'type': ['string', 'null'],
-              'enum': ['outcome', 'problem_solved', 'invisible_work', 'hiccup', 'decision', null],
-            },
-            'statement': {
-              'type': ['string', 'null'],
-            },
             'citations': {
               'type': 'array',
               'items': {'type': 'string'},
             },
-            'project_id': {
+            'statement': {
               'type': ['string', 'null'],
+            },
+            'type': {
+              'type': ['string', 'null'],
+              'enum': ['outcome', 'problem_solved', 'invisible_work', 'hiccup', 'decision', null],
             },
             'importance': {
               'type': ['number', 'null'],
             },
             'suggest_win': {
               'type': ['boolean', 'null'],
+            },
+            'project_id': {
+              'type': ['string', 'null'],
             },
             'reason': {
               'type': ['string', 'null'],
@@ -70,12 +70,12 @@ class LlmFactExtractor implements FactExtractor {
           'required': [
             'op',
             'fact_id',
-            'type',
-            'statement',
             'citations',
-            'project_id',
+            'statement',
+            'type',
             'importance',
             'suggest_win',
+            'project_id',
             'reason',
           ],
           'additionalProperties': false,
@@ -91,24 +91,43 @@ You maintain the "narrative" of one engineer's work: typed, factual statements, 
 You get one day's evidence (payload ids, raw excerpts, summaries) and the facts already recorded for that day.
 Return the minimal set of operations that makes the day's facts correct and complete.
 
-Fact types:
-- outcome: something shipped, delivered, merged, launched or achieved (results, not activity).
-- problem_solved: a bug, incident or technical problem that was diagnosed or fixed; say what the problem was.
-- invisible_work: reviews, mentoring, unblocking others, interviews, incident support, meetings that moved work forward.
-- hiccup: something that went wrong or slowed the work (blocked, reverted, failed deploy, rework).
-- decision: a technical or product decision that was made, and its rationale if stated.
-Do NOT produce time-allocation facts; time is computed separately.
+Fact types (pick by what the claim is, not by its verb):
+- outcome: a finished result others can see or use: a feature or change shipped/merged/released, a deliverable
+  handed over, a measurable improvement. Fold the work toward it (its tests, docs, follow-up commits, CI passing)
+  into this one fact. e.g. "Shipped CSV export for the billing dashboard, with tests."
+  NOT an outcome on its own: writing tests or docs for your own change, CI going green, work in progress, meetings.
+- problem_solved: a specific bug, incident, flaky test or technical problem that was diagnosed or fixed; name the
+  problem (and the cause or fix if stated). e.g. "Fixed the session-cache race that logged users out."
+- invisible_work: work for others or the team that leaves no shipped artifact of your own: code reviews, pairing,
+  mentoring, unblocking someone, interviews, incident support, onboarding, docs or runbooks for other people.
+  e.g. "Reviewed Sam's schema migration and paired with him on the rollback plan."
+- hiccup: something that went wrong or cost time: blocked, reverted, failed deploy, broken build, rework.
+  e.g. "Reverted the cache rollout after a latency regression."
+- decision: an explicit technical or product choice, with its rationale if stated.
+  e.g. "Chose advisory locks over Redis for job leasing to avoid a new dependency."
+When unsure whether something is an outcome, it is not. Do NOT produce time-allocation facts; time is computed
+separately.
+
+Importance (0..1, how much the fact would matter in a performance review). Use the whole range; facts of one day
+should rarely all get the same score:
+- 0.1-0.2 routine: small chores and minor fixes that still deserve a fact.
+- 0.3-0.4 normal progress: everyday work that moves a task forward.
+- 0.5-0.6 notable: a complete feature, fix or piece of help a manager would mention in a weekly update.
+- 0.7-0.8 significant: a user-facing launch, a resolved incident, cross-team impact, unblocking others on key work.
+- 0.9-1.0 exceptional: a major launch or result that leadership would hear about.
+Evidence importance and "starred by user" are hints; a fact merging several items is usually worth more than each.
 
 Rules:
 - Every create/update must cite at least one payload id from the evidence below, and only ids that support the statement.
 - One statement = one claim, one sentence, past tense, specific (name the system/feature/PR), no filler or praise.
   Write for the engineer's own record ("Shipped…", "Fixed…", "Reviewed…"), not "the user".
-- Merge related evidence into one fact rather than one fact per commit. Routine or trivial items need no fact.
+- Merge related evidence into one fact rather than one fact per commit: a feature with its tests, docs and CI run
+  is one outcome; a bug fix with its test is one problem_solved. Routine or trivial items (meetings, check-ins, chores) need no fact of their own.
 - Use "update" for an existing fact whose wording or citations should change given the evidence; "retire" when its
   evidence no longer supports it. Leave correct facts alone (no op). Never re-create a fact listed as rejected.
 - Facts marked user-owned were set by the user; propose an update/retire only if the evidence clearly contradicts them.
-- project_id: one of the listed project ids, or null. importance: 0..1 for how much the fact matters in a review.
-- suggest_win: true only for an outcome that would be worth highlighting in a performance review.
+- project_id: one of the listed project ids, or null. importance: per the rubric above.
+- suggest_win: true only for an outcome of importance 0.7 or more that would be worth highlighting in a review.
 - For update/retire, set fact_id and give a short reason; for create, fact_id is null.''';
 
   @override

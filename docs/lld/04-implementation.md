@@ -109,6 +109,8 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
   `''`-scope SyncCursor row. Removing a source only disables it (evidence, cursors, secret kept); editing its config
   keeps its cursors. The git picker treats only enabled repos as "Added"; ticking a removed repo re-enables its
   existing source (and syncs it) rather than adding a second one for the same path (#115).
+- **git hardening (#118):** every call runs `git -C <repo> -c log.showSignature=false …`; capture's `log` and `show` add
+  `--no-textconv --no-ext-diff`, so a repo's config / `.gitattributes` can't make our reads run its commands.
 
 ## 4.4 Importance scoring
 
@@ -146,6 +148,11 @@ left is listed as one line per item):
   { "op": "update", "fact_id": "…", "statement": "…", "citations": ["…"] },
   { "op": "retire", "fact_id": "…", "reason": "evidence removed" } ] }
 ```
+
+**Prompt (#119):** each fact type has a definition, an example and a "not this" line (tests/docs/CI of a change fold
+into its outcome; when unsure, not an outcome); importance follows a rubric (0.1-0.2 routine, 0.3-0.4 normal,
+0.5-0.6 notable, 0.7-0.8 significant, 0.9-1.0 exceptional); `suggest_win` only for outcomes at >= 0.7. Op fields are
+ordered citations → statement → type → importance.
 
 **FactReconciler rules (enforce invariants, one transaction per day):**
 1. Drop any op whose citations reference payloads not in the input (logged as an extraction error, counted for evals).
@@ -213,6 +220,9 @@ blank summary takes the first later non-blank one (#116). A workstream with no l
 - **Star an evidence item:** if an Outcome fact already cites one of its payloads → set that fact `accepted`. Otherwise,
   enqueue a one-off extraction for that evidence that must produce an Outcome fact, created as `accepted` with
   origin `user-created`.
+  That call (`win` schema: `fact_id|null`, `statement`, `citations`) also lists the live model-owned facts citing the
+  evidence; if the model returns one's `fact_id`, that fact becomes the win (only an outcome, problem-solved or invisible-work fact; type Outcome, the new statement, importance 1, citations + the call's, origin
+  `confirmed`, `accepted`) instead of a new fact (#119).
 - The Wins view = `type = Outcome AND win_status = accepted`, filterable by period and project.
 
 ## 4.11 Jobs & scheduler
@@ -243,7 +253,8 @@ No undo. A confirmation dialog states exactly what will be removed.
 
 - `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
   `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row, its
-  `.sqlite` file and its `blobs/<id>/` folder are deleted (#115).
+  `.sqlite` file and its `blobs/<id>/` folder are deleted (#115). Restore sets `credential_ref = NULL, enabled = 0` on every
+  source that had a credential in the restored database; saving it with a new secret re-enables it (#118).
 - **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
   `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
   `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no

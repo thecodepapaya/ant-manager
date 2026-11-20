@@ -58,7 +58,7 @@ class FakeRouter implements ModelRouter {
       'image_description' => {'description': 'a screenshot'},
       'fact_ops' => {'ops': <Object?>[]},
       'workstreams' => {'assignments': <Object?>[]},
-      'win' => {'statement': 'Shipped the thing.', 'citations': <Object?>[]},
+      'win' => {'fact_id': null, 'statement': 'Shipped the thing.', 'citations': <Object?>[]},
       _ => throw StateError('unexpected schema ${c.schema}'),
     };
   }
