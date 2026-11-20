@@ -45,7 +45,7 @@
   </div>
 </header>
 
-<main id="main">
+<main id="main" tabindex="-1">
   <div class="hero wrap">
     <h1>Your work, quietly remembered.</h1>
     <p class="lede">Ant Manager keeps a record of the work you do and turns it into honest daily, weekly and
@@ -178,7 +178,7 @@
           <h3>Set up in a few minutes</h3>
           <p>A short setup names your profile, finds which commit authors are you, picks the repos to watch,
             connects other sources and a model, then imports the last 30 days. Every step can be skipped.</p>
-          <p>After that it runs quietly from the menu bar, with an optional nudge at the end of the day to review
+          <p>After that it runs quietly from the menu bar or system tray, with an optional nudge at the end of the day to review
             what was drafted.</p>
         </div>
         <figure class="window">
@@ -196,23 +196,23 @@
       <div class="section-head">
         <span class="eyebrow">Sources</span>
         <h2 id="sources-title">Where the evidence comes from</h2>
-        <p>Only the sources you add, and only activity by the identities you list. Ant Manager reads; it never
-          writes to these services.</p>
+        <p>Only the sources you add, and only your own activity on them. Ant Manager reads; it never writes to
+          these services.</p>
       </div>
       <div class="table-wrap">
-        <table aria-label="Supported sources">
-          <thead><tr><th scope="col">Source</th><th scope="col">What it captures</th><th scope="col">How it connects</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Local git</th><td>Your commits on every branch, with diffs</td><td>Your installed git. Point it at a folder like <code>~/Projects</code> and tick repos</td></tr>
-            <tr><th scope="row">GitHub</th><td>Pull requests opened, merged and reviewed, review comments, issues</td><td>Personal access token. GitHub Enterprise Server too</td></tr>
-            <tr><th scope="row">GitLab</th><td>Merge requests, approvals, comments, issues</td><td>Personal access token. Self-managed too</td></tr>
-            <tr><th scope="row">Linear</th><td>Issues created, completed and commented on</td><td>API key</td></tr>
-            <tr><th scope="row">Jira Cloud</th><td>Issues transitioned, commented on and assigned</td><td>Email and API token</td></tr>
-            <tr><th scope="row">Google Calendar</th><td>Events you attended</td><td>Google sign-in <span class="chip">Pending Google’s review</span></td></tr>
-            <tr><th scope="row">Apple Calendar</th><td>Everything synced into Calendar.app</td><td>macOS permission prompt</td></tr>
-            <tr><th scope="row">Outlook and other calendars</th><td>Events, with repeats expanded</td><td>An ICS link or file</td></tr>
-            <tr><th scope="row">Meeting transcripts</th><td><code>.vtt</code>, <code>.srt</code> or <code>.txt</code>, suggested for the meeting it belongs to</td><td>Drag and drop</td></tr>
-            <tr><th scope="row">Notes and recognition</th><td>Notes, links, screenshots and kudos you add</td><td>Quick capture or drag and drop</td></tr>
+        <table role="table" aria-label="Supported sources">
+          <thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Source</th><th role="columnheader" scope="col">What it captures</th><th role="columnheader" scope="col">How it connects</th></tr></thead>
+          <tbody role="rowgroup">
+            <tr role="row"><th role="rowheader" scope="row">Local git</th><td role="cell">Your commits on every branch, with diffs</td><td role="cell">Your installed git. Point it at a folder like <code>~/Projects</code> and tick repos</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">GitHub</th><td role="cell">Pull requests opened, merged and reviewed, review comments, issues</td><td role="cell">Personal access token. GitHub Enterprise Server too</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">GitLab</th><td role="cell">Merge requests, approvals, comments, issues</td><td role="cell">Personal access token. Self-managed too</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Linear</th><td role="cell">Issues created, completed and commented on</td><td role="cell">API key</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Jira Cloud</th><td role="cell">Issues transitioned, commented on and assigned</td><td role="cell">Email and API token</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Google Calendar</th><td role="cell">Events you attended</td><td role="cell">Google sign-in <span class="chip">Not available yet</span></td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Apple Calendar</th><td role="cell">Everything synced into Calendar.app</td><td role="cell">macOS permission prompt</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Outlook and other calendars</th><td role="cell">Events, with repeats expanded</td><td role="cell">An ICS link or file</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Meeting transcripts</th><td role="cell"><code>.vtt</code>, <code>.srt</code> or <code>.txt</code>, suggested for the meeting it belongs to</td><td role="cell">Drag and drop</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Notes and recognition</th><td role="cell">Notes, links, screenshots and kudos you add</td><td role="cell">Quick capture or drag and drop</td></tr>
           </tbody>
         </table>
       </div>
@@ -258,7 +258,7 @@
         <div class="card">
           <h3>Kept on your computer</h3>
           <p>Evidence, facts and reports live in a local database per profile. API keys and tokens go in your
-            system keychain, never in the database or backups.</p>
+            system’s secret store, never in the database or backups.</p>
           <p>The database isn’t encrypted; it relies on your account and disk encryption.</p>
         </div>
         <div class="card">
