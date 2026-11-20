@@ -86,6 +86,12 @@ class GitRepoSource implements WatchableSource {
       if (!mine.contains(c.authorEmail.toLowerCase()) && !mine.contains(c.committerEmail.toLowerCase())) {
         continue;
       }
+      // Each changed line is at least 2 patch bytes ("+\n"), so skip `git show` when numstat already proves
+      // the patch is over the cap (#NEXT); a few very long lines can still load before the byte check.
+      if (c.changedLines * 2 > maxPatchBytes) {
+        yield c.toObservation(null);
+        continue;
+      }
       final patch = await ctx.git.run(repo, ['show', '--format=', '--no-color', ..._noRepoCommands, '--diff-merges=first-parent', c.sha]);
       yield c.toObservation(utf8.encode(patch).length <= maxPatchBytes ? patch : null);
     }
@@ -114,6 +120,9 @@ class GitCommit {
   final String sha, authorName, authorEmail, committerName, committerEmail, message;
   final DateTime authoredAt, committedAt;
   final List<({String path, int? added, int? deleted})> files; // null counts = binary
+
+  /// Added + deleted lines (binary files count 0).
+  int get changedLines => files.fold(0, (n, f) => n + (f.added ?? 0) + (f.deleted ?? 0));
 
   PayloadObservation toObservation(String? patch) {
     var added = 0, deleted = 0;

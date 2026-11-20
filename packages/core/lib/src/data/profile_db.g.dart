@@ -2211,6 +2211,29 @@ class $PayloadsTable extends Payloads with TableInfo<$PayloadsTable, Payload> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _occurredStartMeta = const VerificationMeta(
+    'occurredStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurredStart =
+      GeneratedColumn<DateTime>(
+        'occurred_start',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _occurredEndMeta = const VerificationMeta(
+    'occurredEnd',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurredEnd = GeneratedColumn<DateTime>(
+    'occurred_end',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _contentMeta = const VerificationMeta(
     'content',
   );
@@ -2275,6 +2298,8 @@ class $PayloadsTable extends Payloads with TableInfo<$PayloadsTable, Payload> {
     kind,
     externalId,
     title,
+    occurredStart,
+    occurredEnd,
     content,
     contentHash,
     groupKey,
@@ -2326,6 +2351,24 @@ class $PayloadsTable extends Payloads with TableInfo<$PayloadsTable, Payload> {
       context.handle(
         _titleMeta,
         title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('occurred_start')) {
+      context.handle(
+        _occurredStartMeta,
+        occurredStart.isAcceptableOrUnknown(
+          data['occurred_start']!,
+          _occurredStartMeta,
+        ),
+      );
+    }
+    if (data.containsKey('occurred_end')) {
+      context.handle(
+        _occurredEndMeta,
+        occurredEnd.isAcceptableOrUnknown(
+          data['occurred_end']!,
+          _occurredEndMeta,
+        ),
       );
     }
     if (data.containsKey('content')) {
@@ -2407,6 +2450,14 @@ class $PayloadsTable extends Payloads with TableInfo<$PayloadsTable, Payload> {
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       ),
+      occurredStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurred_start'],
+      ),
+      occurredEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurred_end'],
+      ),
       content: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}content'],
@@ -2446,6 +2497,8 @@ class Payload extends DataClass implements Insertable<Payload> {
   final PayloadKind kind;
   final String externalId;
   final String? title;
+  final DateTime? occurredStart;
+  final DateTime? occurredEnd;
   final String content;
   final String contentHash;
 
@@ -2460,6 +2513,8 @@ class Payload extends DataClass implements Insertable<Payload> {
     required this.kind,
     required this.externalId,
     this.title,
+    this.occurredStart,
+    this.occurredEnd,
     required this.content,
     required this.contentHash,
     this.groupKey,
@@ -2478,6 +2533,12 @@ class Payload extends DataClass implements Insertable<Payload> {
     map['external_id'] = Variable<String>(externalId);
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || occurredStart != null) {
+      map['occurred_start'] = Variable<DateTime>(occurredStart);
+    }
+    if (!nullToAbsent || occurredEnd != null) {
+      map['occurred_end'] = Variable<DateTime>(occurredEnd);
     }
     map['content'] = Variable<String>(content);
     map['content_hash'] = Variable<String>(contentHash);
@@ -2501,6 +2562,12 @@ class Payload extends DataClass implements Insertable<Payload> {
       title: title == null && nullToAbsent
           ? const Value.absent()
           : Value(title),
+      occurredStart: occurredStart == null && nullToAbsent
+          ? const Value.absent()
+          : Value(occurredStart),
+      occurredEnd: occurredEnd == null && nullToAbsent
+          ? const Value.absent()
+          : Value(occurredEnd),
       content: Value(content),
       contentHash: Value(contentHash),
       groupKey: groupKey == null && nullToAbsent
@@ -2527,6 +2594,8 @@ class Payload extends DataClass implements Insertable<Payload> {
       ),
       externalId: serializer.fromJson<String>(json['externalId']),
       title: serializer.fromJson<String?>(json['title']),
+      occurredStart: serializer.fromJson<DateTime?>(json['occurredStart']),
+      occurredEnd: serializer.fromJson<DateTime?>(json['occurredEnd']),
       content: serializer.fromJson<String>(json['content']),
       contentHash: serializer.fromJson<String>(json['contentHash']),
       groupKey: serializer.fromJson<String?>(json['groupKey']),
@@ -2546,6 +2615,8 @@ class Payload extends DataClass implements Insertable<Payload> {
       ),
       'externalId': serializer.toJson<String>(externalId),
       'title': serializer.toJson<String?>(title),
+      'occurredStart': serializer.toJson<DateTime?>(occurredStart),
+      'occurredEnd': serializer.toJson<DateTime?>(occurredEnd),
       'content': serializer.toJson<String>(content),
       'contentHash': serializer.toJson<String>(contentHash),
       'groupKey': serializer.toJson<String?>(groupKey),
@@ -2561,6 +2632,8 @@ class Payload extends DataClass implements Insertable<Payload> {
     PayloadKind? kind,
     String? externalId,
     Value<String?> title = const Value.absent(),
+    Value<DateTime?> occurredStart = const Value.absent(),
+    Value<DateTime?> occurredEnd = const Value.absent(),
     String? content,
     String? contentHash,
     Value<String?> groupKey = const Value.absent(),
@@ -2573,6 +2646,10 @@ class Payload extends DataClass implements Insertable<Payload> {
     kind: kind ?? this.kind,
     externalId: externalId ?? this.externalId,
     title: title.present ? title.value : this.title,
+    occurredStart: occurredStart.present
+        ? occurredStart.value
+        : this.occurredStart,
+    occurredEnd: occurredEnd.present ? occurredEnd.value : this.occurredEnd,
     content: content ?? this.content,
     contentHash: contentHash ?? this.contentHash,
     groupKey: groupKey.present ? groupKey.value : this.groupKey,
@@ -2591,6 +2668,12 @@ class Payload extends DataClass implements Insertable<Payload> {
           ? data.externalId.value
           : this.externalId,
       title: data.title.present ? data.title.value : this.title,
+      occurredStart: data.occurredStart.present
+          ? data.occurredStart.value
+          : this.occurredStart,
+      occurredEnd: data.occurredEnd.present
+          ? data.occurredEnd.value
+          : this.occurredEnd,
       content: data.content.present ? data.content.value : this.content,
       contentHash: data.contentHash.present
           ? data.contentHash.value
@@ -2612,6 +2695,8 @@ class Payload extends DataClass implements Insertable<Payload> {
           ..write('kind: $kind, ')
           ..write('externalId: $externalId, ')
           ..write('title: $title, ')
+          ..write('occurredStart: $occurredStart, ')
+          ..write('occurredEnd: $occurredEnd, ')
           ..write('content: $content, ')
           ..write('contentHash: $contentHash, ')
           ..write('groupKey: $groupKey, ')
@@ -2629,6 +2714,8 @@ class Payload extends DataClass implements Insertable<Payload> {
     kind,
     externalId,
     title,
+    occurredStart,
+    occurredEnd,
     content,
     contentHash,
     groupKey,
@@ -2645,6 +2732,8 @@ class Payload extends DataClass implements Insertable<Payload> {
           other.kind == this.kind &&
           other.externalId == this.externalId &&
           other.title == this.title &&
+          other.occurredStart == this.occurredStart &&
+          other.occurredEnd == this.occurredEnd &&
           other.content == this.content &&
           other.contentHash == this.contentHash &&
           other.groupKey == this.groupKey &&
@@ -2659,6 +2748,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
   final Value<PayloadKind> kind;
   final Value<String> externalId;
   final Value<String?> title;
+  final Value<DateTime?> occurredStart;
+  final Value<DateTime?> occurredEnd;
   final Value<String> content;
   final Value<String> contentHash;
   final Value<String?> groupKey;
@@ -2672,6 +2763,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
     this.kind = const Value.absent(),
     this.externalId = const Value.absent(),
     this.title = const Value.absent(),
+    this.occurredStart = const Value.absent(),
+    this.occurredEnd = const Value.absent(),
     this.content = const Value.absent(),
     this.contentHash = const Value.absent(),
     this.groupKey = const Value.absent(),
@@ -2686,6 +2779,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
     required PayloadKind kind,
     required String externalId,
     this.title = const Value.absent(),
+    this.occurredStart = const Value.absent(),
+    this.occurredEnd = const Value.absent(),
     required String content,
     required String contentHash,
     this.groupKey = const Value.absent(),
@@ -2706,6 +2801,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
     Expression<String>? kind,
     Expression<String>? externalId,
     Expression<String>? title,
+    Expression<DateTime>? occurredStart,
+    Expression<DateTime>? occurredEnd,
     Expression<String>? content,
     Expression<String>? contentHash,
     Expression<String>? groupKey,
@@ -2720,6 +2817,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
       if (kind != null) 'kind': kind,
       if (externalId != null) 'external_id': externalId,
       if (title != null) 'title': title,
+      if (occurredStart != null) 'occurred_start': occurredStart,
+      if (occurredEnd != null) 'occurred_end': occurredEnd,
       if (content != null) 'content': content,
       if (contentHash != null) 'content_hash': contentHash,
       if (groupKey != null) 'group_key': groupKey,
@@ -2736,6 +2835,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
     Value<PayloadKind>? kind,
     Value<String>? externalId,
     Value<String?>? title,
+    Value<DateTime?>? occurredStart,
+    Value<DateTime?>? occurredEnd,
     Value<String>? content,
     Value<String>? contentHash,
     Value<String?>? groupKey,
@@ -2750,6 +2851,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
       kind: kind ?? this.kind,
       externalId: externalId ?? this.externalId,
       title: title ?? this.title,
+      occurredStart: occurredStart ?? this.occurredStart,
+      occurredEnd: occurredEnd ?? this.occurredEnd,
       content: content ?? this.content,
       contentHash: contentHash ?? this.contentHash,
       groupKey: groupKey ?? this.groupKey,
@@ -2782,6 +2885,12 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (occurredStart.present) {
+      map['occurred_start'] = Variable<DateTime>(occurredStart.value);
+    }
+    if (occurredEnd.present) {
+      map['occurred_end'] = Variable<DateTime>(occurredEnd.value);
+    }
     if (content.present) {
       map['content'] = Variable<String>(content.value);
     }
@@ -2812,6 +2921,8 @@ class PayloadsCompanion extends UpdateCompanion<Payload> {
           ..write('kind: $kind, ')
           ..write('externalId: $externalId, ')
           ..write('title: $title, ')
+          ..write('occurredStart: $occurredStart, ')
+          ..write('occurredEnd: $occurredEnd, ')
           ..write('content: $content, ')
           ..write('contentHash: $contentHash, ')
           ..write('groupKey: $groupKey, ')
@@ -12476,6 +12587,8 @@ typedef $$PayloadsTableCreateCompanionBuilder = PayloadsCompanion Function({
   required PayloadKind kind,
   required String externalId,
   Value<String?> title,
+  Value<DateTime?> occurredStart,
+  Value<DateTime?> occurredEnd,
   required String content,
   required String contentHash,
   Value<String?> groupKey,
@@ -12490,6 +12603,8 @@ typedef $$PayloadsTableUpdateCompanionBuilder = PayloadsCompanion Function({
   Value<PayloadKind> kind,
   Value<String> externalId,
   Value<String?> title,
+  Value<DateTime?> occurredStart,
+  Value<DateTime?> occurredEnd,
   Value<String> content,
   Value<String> contentHash,
   Value<String?> groupKey,
@@ -12620,6 +12735,16 @@ class $$PayloadsTableFilterComposer
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get occurredStart => $composableBuilder(
+    column: $table.occurredStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get occurredEnd => $composableBuilder(
+    column: $table.occurredEnd,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12799,6 +12924,16 @@ class $$PayloadsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get occurredStart => $composableBuilder(
+    column: $table.occurredStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get occurredEnd => $composableBuilder(
+    column: $table.occurredEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get content => $composableBuilder(
     column: $table.content,
     builder: (column) => ColumnOrderings(column),
@@ -12893,6 +13028,16 @@ class $$PayloadsTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get occurredStart => $composableBuilder(
+    column: $table.occurredStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get occurredEnd => $composableBuilder(
+    column: $table.occurredEnd,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
@@ -13075,6 +13220,8 @@ class $$PayloadsTableTableManager
                 Value<PayloadKind> kind = const Value.absent(),
                 Value<String> externalId = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<DateTime?> occurredStart = const Value.absent(),
+                Value<DateTime?> occurredEnd = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<String> contentHash = const Value.absent(),
                 Value<String?> groupKey = const Value.absent(),
@@ -13088,6 +13235,8 @@ class $$PayloadsTableTableManager
                 kind: kind,
                 externalId: externalId,
                 title: title,
+                occurredStart: occurredStart,
+                occurredEnd: occurredEnd,
                 content: content,
                 contentHash: contentHash,
                 groupKey: groupKey,
@@ -13103,6 +13252,8 @@ class $$PayloadsTableTableManager
                 required PayloadKind kind,
                 required String externalId,
                 Value<String?> title = const Value.absent(),
+                Value<DateTime?> occurredStart = const Value.absent(),
+                Value<DateTime?> occurredEnd = const Value.absent(),
                 required String content,
                 required String contentHash,
                 Value<String?> groupKey = const Value.absent(),
@@ -13116,6 +13267,8 @@ class $$PayloadsTableTableManager
                 kind: kind,
                 externalId: externalId,
                 title: title,
+                occurredStart: occurredStart,
+                occurredEnd: occurredEnd,
                 content: content,
                 contentHash: contentHash,
                 groupKey: groupKey,

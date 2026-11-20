@@ -8,10 +8,11 @@ import '../source.dart';
 /// Token from `ctx.secret()`.
 ///
 /// Sync: search PRs that involve you or that you reviewed (`involves:` omits reviewers), updated since the
-/// cursor (ascending), then each PR's details, commits, and your reviews + review comments (all pages).
+/// cursor (ascending), then each PR's details, commits, your reviews + review comments, and your conversation
+/// comments (`/issues/{n}/comments`, when the PR has any) (all pages).
 /// Emits one `pullRequest` payload per PR you authored / were assigned / reviewed / commented on, and one
 /// `review` payload per review you submitted. Your review comments outside any review are kept on the PR
-/// payload (`comments`).
+/// payload (`comments`), your conversation comments in `conversationComments`.
 ///
 /// Commits are recorded by SHA in `content.commits` only; no `groupKey` is set. Grouping is exact identity
 /// per payload (#57), so a PR never groups with its commits: the PR<->commit link is made downstream by facts
@@ -86,7 +87,7 @@ class GitHubSource implements Source {
         final number = item['number'] as int;
         final prBase = '$base/repos/$repo/pulls/$number';
         final Map pr;
-        final List<Map> commits, reviews, comments;
+        final List<Map> commits, reviews, comments, conversation;
         try {
           pr = await _get(ctx, token, prBase) as Map;
           commits = await _getAll(ctx, token, '$prBase/commits');
@@ -96,6 +97,14 @@ class GitHubSource implements Source {
             '$prBase/reviews',
           )).where((rv) => _isMe(rv['user'], me) && rv['submitted_at'] != null).toList();
           comments = (await _getAll(ctx, token, '$prBase/comments')).where((c) => _isMe(c['user'], me)).toList();
+          // Conversation (non-inline) comments live on the PR's issue; `comments` counts them.
+          conversation = (pr['comments'] as int? ?? 0) == 0
+              ? const []
+              : (await _getAll(
+                  ctx,
+                  token,
+                  '$base/repos/$repo/issues/$number/comments',
+                )).where((c) => _isMe(c['user'], me)).toList();
         } on GitHubGone {
           ctx.setCursor(_cursorScope, item['updated_at'] as String);
           continue;
@@ -106,7 +115,7 @@ class GitHubSource implements Source {
           if (_isMe(pr['user'], me)) 'author',
           if ((pr['assignees'] as List? ?? const []).any((a) => _isMe(a, me))) 'assignee',
           if (reviews.isNotEmpty) 'reviewer',
-          if (comments.isNotEmpty) 'commenter',
+          if (comments.isNotEmpty || conversation.isNotEmpty) 'commenter',
         ];
         final prRef = {'repo': repo, 'number': number, 'title': pr['title'], 'url': pr['html_url']};
 
@@ -138,6 +147,8 @@ class GitHubSource implements Source {
                 for (final c in comments)
                   if (!reviewIds.contains(c['pull_request_review_id'])) _comment(c),
               ],
+              // Your conversation comments on the PR (`/issues/{n}/comments`).
+              'conversationComments': [for (final c in conversation) _issueComment(c)],
             },
           );
         }
@@ -233,9 +244,7 @@ class GitHubSource implements Source {
             'closedAt': issue['closed_at'],
             'closedBy': (issue['closed_by'] as Map?)?['login'],
             'roles': roles,
-            'comments': [
-              for (final c in comments) {'body': c['body'], 'createdAt': c['created_at'], 'url': c['html_url']},
-            ],
+            'comments': [for (final c in comments) _issueComment(c)],
           },
         );
       }
@@ -273,6 +282,8 @@ class GitHubSource implements Source {
     'url': c['html_url'],
     'inReplyTo': c['in_reply_to_id'],
   };
+
+  static Map<String, Object?> _issueComment(Map c) => {'body': c['body'], 'createdAt': c['created_at'], 'url': c['html_url']};
 
   static bool _isMe(Object? user, String me) => user is Map && (user['login'] as String?)?.toLowerCase() == me;
 

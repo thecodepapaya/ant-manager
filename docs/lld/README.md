@@ -22,7 +22,8 @@ Accepted for now under #67, verified against the code (2026-11-19):
   "update available" notice either.
 - Google OAuth client id/secret are placeholders (`google_oauth.dart`, OWNER_TODO).
 - GitHub device flow later: PAT only (#106).
-- Existing profile DBs keep old triggers: no migration (schema v1, pre-release).
+- Existing profile DBs keep old triggers: no trigger migration (pre-release). Schema v2 only adds payload
+  occurred-time columns (#NEXT).
 - GitHub issues you closed without being subscribed are missed (#106).
 - Custom CA / insecure TLS options exist for AI providers only, not for self-hosted sources (SPEC §5).
 - Stale reports aren't regenerated when opened (shown "Out of date"; regenerate on demand). No nudge snooze.

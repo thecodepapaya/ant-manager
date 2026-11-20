@@ -69,7 +69,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 | Source | Auth | Self-hosted | Captures |
 |---|---|---|---|
 | Local git | — (system `git`) | n/a | Commits on all branches by your identities, diffs, stats |
-| GitHub | PAT (device flow later, #106) | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed, review comments, issues opened / closed / commented (#106) |
+| GitHub | PAT (device flow later, #106) | GitHub Enterprise Server (custom API URL) | PRs opened / merged / reviewed / commented (review and conversation comments), issues opened / closed / commented (#106) |
 | GitLab | PAT | Self-managed (custom URL) | MRs, approvals, comments, issues opened / closed / commented (#106) |
 | Google Calendar | OAuth (built-in client only, #76) | — | Events you attended |
 | Apple Calendar | EventKit (macOS only) | — | Everything synced into Calendar.app |
@@ -100,7 +100,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   - **Protocol per endpoint:** OpenAI-compatible (`/v1/models`, `/v1/chat/completions`) or Ollama native (`/api/tags`, `/api/chat`).
   - **Optional auth:** API key (Bearer) and/or custom headers, stored in the keychain.
   - **Networking:** plain HTTP allowed (warning shown for any non-localhost host); a per-endpoint custom CA
-    or "Disable TLS verification" toggle (`allowSelfSigned`, with a warning, #108); configurable timeout (local models can be slow to load).
+    or "Disable TLS verification" toggle (`allowSelfSigned`, with a warning, #108); configurable timeout (local models can be slow to load); redirects are not followed, so auth headers never reach another host.
   - **Test connection** lists the endpoint's models and detects capabilities (vision, context length where reported);
     model names can also be typed by hand when `/models` isn't supported.
   - **Structured output is required** (#70): adding any model (local, network or cloud) runs a probe call; models without
