@@ -218,6 +218,7 @@ class _ProfileSwitcher extends ConsumerWidget {
       builder: (context, c) => AntInteractive(
         onTap: () => c.isOpen ? c.close() : c.open(),
         semanticLabel: 'Switch profile',
+        focusRadius: t.radii.brMd,
         excludeChildSemantics: true,
         builder: (context, s) => AnimatedContainer(
           duration: t.motion.fast,

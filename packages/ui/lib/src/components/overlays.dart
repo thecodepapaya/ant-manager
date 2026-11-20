@@ -138,7 +138,12 @@ class AntMenu extends StatelessWidget {
               : transparent,
         ),
       ),
-      child: Text(e.label),
+      // Long labels (e.g. project names) ellipsize instead of widening the
+      // menu off-screen.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: t.density.menuMinWidth * 2),
+        child: Text(e.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 }
@@ -260,24 +265,37 @@ class _AntPopoverState extends State<AntPopover> {
 // Dialog
 // ---------------------------------------------------------------------------
 
-/// Modal dialog body. Show it with [showAntDialog].
+/// Modal dialog: header (title, optional subtitle), a body that scrolls when
+/// tall, and a footer behind a hairline divider. Show it with [showAntDialog].
 class AntDialog extends StatelessWidget {
   const AntDialog({
     super.key,
     required this.title,
+    this.subtitle,
     this.body,
     this.actions = const [],
+    this.leadingActions = const [],
+    this.width,
   });
 
   final String title;
+  final String? subtitle;
   final Widget? body;
 
   /// Right-aligned, usually `[AntButton.ghost(Cancel), AntButton.primary(OK)]`.
   final List<Widget> actions;
 
+  /// Left-aligned footer actions (e.g. "Back").
+  final List<Widget> leadingActions;
+
+  /// Defaults to `density.dialogWidth`; multi-step flows pass a wider one.
+  final double? width;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final screen = MediaQuery.maybeSizeOf(context);
+    final footer = actions.isNotEmpty || leadingActions.isNotEmpty;
     return Center(
       child: Semantics(
         scopesRoute: true,
@@ -287,8 +305,12 @@ class AntDialog extends StatelessWidget {
         child: Material(
           type: MaterialType.transparency,
           child: Container(
-            width: t.density.dialogWidth,
-            padding: EdgeInsets.all(t.space.xxl),
+            width: width ?? t.density.dialogWidth,
+            constraints: BoxConstraints(
+              maxHeight: screen == null
+                  ? double.infinity
+                  : screen.height - t.space.giant * 2,
+            ),
             decoration: BoxDecoration(
               color: t.raised,
               borderRadius: t.radii.brXl,
@@ -302,32 +324,76 @@ class AntDialog extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    title,
-                    style: t.typo.title.copyWith(color: t.text),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    t.space.xxl,
+                    t.space.xxl,
+                    t.space.xxl,
+                    body == null ? t.space.xxl : 0,
                   ),
-                ),
-                if (body != null) ...[
-                  SizedBox(height: t.space.md),
-                  DefaultTextStyle(
-                    style: t.typo.body.copyWith(color: t.textSoft),
-                    child: body!,
-                  ),
-                ],
-                if (actions.isNotEmpty) ...[
-                  SizedBox(height: t.space.xxl),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (var i = 0; i < actions.length; i++) ...[
-                        if (i > 0) SizedBox(width: t.space.md),
-                        actions[i],
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          title,
+                          style: t.typo.title.copyWith(color: t.text),
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        SizedBox(height: t.space.xs),
+                        Text(
+                          subtitle!,
+                          style: t.typo.small.copyWith(color: t.muted),
+                        ),
                       ],
                     ],
                   ),
-                ],
+                ),
+                if (body != null)
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        t.space.xxl,
+                        subtitle == null ? t.space.md : t.space.lg,
+                        t.space.xxl,
+                        t.space.xxl,
+                      ),
+                      child: DefaultTextStyle(
+                        style: t.typo.body.copyWith(color: t.textSoft),
+                        child: body!,
+                      ),
+                    ),
+                  ),
+                if (footer)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.space.xxl,
+                      vertical: t.space.lg,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: t.divider,
+                          width: t.stroke.hairline,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        for (final a in leadingActions) ...[
+                          a,
+                          SizedBox(width: t.space.md),
+                        ],
+                        const Spacer(),
+                        for (var i = 0; i < actions.length; i++) ...[
+                          if (i > 0) SizedBox(width: t.space.md),
+                          actions[i],
+                        ],
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),

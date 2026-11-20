@@ -66,6 +66,9 @@ class AiModelsTab extends ConsumerWidget {
     final providers = ref.watch(llmProvidersProvider).value ?? const <core.Provider>[];
     final models = ref.watch(llmModelsProvider).value ?? const <Model>[];
     final local = ref.watch(localServersProvider).value ?? const <LocalServer>[];
+    // Keep routes loaded even while the empty state hides the default picker, so the per-task
+    // overrides show the inherited model as soon as they open.
+    ref.watch(taskRoutesProvider);
     final kinds = {for (final p in providers) p.kind};
     final urls = {for (final p in providers) p.baseUrl};
 
@@ -79,6 +82,24 @@ class AiModelsTab extends ConsumerWidget {
     return PageBody(
       maxWidth: t.widePage,
       children: [
+        if (models.isEmpty && ref.watch(llmModelsProvider).hasValue)
+          // Fresh profile: one obvious next step, like the other empty states.
+          AntCard(
+            child: AntEmptyState(
+              icon: Icons.auto_awesome_outlined,
+              title: 'No AI model yet',
+              message: 'Reports, facts and wins need a model. OpenRouter is one key for Claude, GPT, Gemini and '
+                  'open models, or pick a provider below.',
+              action: AntButton.primary(
+                label: providers.isEmpty ? 'Connect OpenRouter' : 'Add a model',
+                icon: Icons.add,
+                onPressed: () => providers.isEmpty
+                    ? showProviderDialog(context, preset: ProviderPreset.openrouter)
+                    : showProviderDialog(context, existing: providers.first),
+              ),
+            ),
+          )
+        else
         AntCard(
           padding: EdgeInsets.all(t.space.xxl),
           child: Column(

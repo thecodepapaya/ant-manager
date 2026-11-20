@@ -47,6 +47,7 @@ class TodayPage extends ConsumerWidget {
               ],
               titleWidget: AntInteractive(
                 semanticLabel: 'Pick a date',
+                focusRadius: t.radii.brMd,
                 onTap: () async {
                   final d = await pickDay(context, day);
                   if (d != null) ctl.setDay(d);

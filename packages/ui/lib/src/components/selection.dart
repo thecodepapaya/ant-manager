@@ -133,10 +133,14 @@ class AntSelect<T> extends StatelessWidget {
                   current!.leading!,
                   SizedBox(width: t.space.sm),
                 ],
-                Text(
-                  current?.label ?? placeholder,
-                  style: t.typo.label.copyWith(
-                    color: current == null ? t.placeholder : t.text2,
+                Flexible(
+                  child: Text(
+                    current?.label ?? placeholder,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.typo.label.copyWith(
+                      color: current == null ? t.placeholder : t.text2,
+                    ),
                   ),
                 ),
                 SizedBox(width: t.space.sm),

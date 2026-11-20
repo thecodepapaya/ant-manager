@@ -389,6 +389,8 @@ class _WorkstreamRow extends ConsumerWidget {
     return AntInteractive(
       onTap: onToggle,
       semanticLabel: w.title,
+      focusRadius: BorderRadius.zero,
+      focusInset: true,
       builder: (context, s) => Container(
         padding: EdgeInsets.symmetric(horizontal: t.space.xl, vertical: t.space.md),
         decoration: BoxDecoration(
