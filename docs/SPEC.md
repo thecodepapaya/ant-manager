@@ -257,7 +257,8 @@ maintained from it, and every output reads from that Narrative.
   identities and no sources, until finished or skipped (#105).
 - Diagnostics (#NEXT): local rotating logs in `<data>/logs/` (`ui.log`, `engine.log`; 1 MB × 3 each) with
   structural lines only (events, kinds, ids, counts, durations, LLM route/provider kind/host/model/latency/tokens,
-  redacted errors; never secrets, content, prompts, outputs, names, URLs, paths or emails); Settings → General →
+  redacted errors, AI errors as type + status only; built to exclude secrets, content, prompts, outputs, names,
+  URLs, paths and emails, by pattern redaction); Settings → General →
   "Copy diagnostics" copies versions, setup shape (kinds, flags, counts), schema versions, job counts and the last
   200 log lines; "Open folder" opens `logs/`.
 - **English only** in v1 (#87); no localization framework.

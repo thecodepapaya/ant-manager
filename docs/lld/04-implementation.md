@@ -265,7 +265,8 @@ No undo. A confirmation dialog states exactly what will be removed.
 - **Log (core, pure Dart):** `Log.info/warn/error(event, fields)` formats one line
   `<ISO UTC ms> <LEVEL> <isolate> <event> key=value…` and hands it to `Log.sink` (a `LogSink` port, set per
   isolate; null in tests drops lines). String values go through `redact()`; errors become `errorSummary()` (type +
-  redacted message) and `stackSummary()` (top 6 frames). `redact()` cuts at the first `{`, then replaces URLs,
+  redacted message; an `LlmFailure`, or text containing one, is reduced to `LlmFailure(<status>)` because its message
+  can quote provider names, raw bodies or model output) and `stackSummary()` (top 6 frames). `redact()` cuts at the first `{`, then replaces URLs,
   emails, `Bearer`/`Basic` credentials, `key=`/`token:`-style pairs, known token prefixes, 32+ char alphanumeric
   runs, absolute/relative paths and quoted strings, and caps at 240 chars. A warn/error with the same event and
   fields (ignoring `ms`, `stack`) is written at most once per 10 min, the next one carrying `repeated=<n>`.

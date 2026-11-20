@@ -35,10 +35,12 @@ All on your machine, under the OS application-support folder (`…/ant_manager/`
 - `logs/`: local diagnostic logs (#NEXT), `ui.log` and `engine.log`, each rotated at 1 MB keeping 3 files (about
   3 MB each, oldest lines dropped). Lines are structural: timestamps, event names, job and source kinds, random
   ids, counts, durations, AI route, provider kind, provider **host name**, model name, token counts, HTTP status, and
-  error type with a redacted message and the top stack frames. They never contain secrets or tokens, evidence
-  content, prompts or model output, fact statements, note text, source or profile names, URLs, file paths or email
-  addresses: error text is redacted before it is written (URLs, emails, paths, quoted text, JSON bodies and
-  key-like strings removed), so some error detail is lost on purpose.
+  error type with a redacted message and the top stack frames. They are built to leave out secrets and tokens,
+  evidence content, prompts and model output, fact statements, note text, source, provider and profile names, URLs,
+  file paths and email addresses: AI errors are logged as type and HTTP status only, and other error text is
+  redacted before it is written (URLs, emails, paths, quoted text, JSON bodies and key-like strings removed), so some
+  detail is lost on purpose. Redaction is pattern-based, so an unusual fragment in an error message could slip
+  through (THREAT_MODEL.md §7).
 - **Secrets** (source tokens, Google OAuth tokens, provider API keys, custom header values) are kept in the OS secret
   store, never in the databases:
   - macOS: the login keychain (the data-protection keychain needs a signed build, DECISIONS #101).

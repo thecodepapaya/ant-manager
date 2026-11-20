@@ -13,9 +13,13 @@ String logsDir(String dataDir) => p.join(dataDir, 'logs');
 
 class RotatingFileLog implements LogSink {
   RotatingFileLog(this.dir, this.name, {this.maxBytes = 1024 * 1024, this.keep = 3}) {
-    Directory(dir).createSync(recursive: true);
-    final f = File(_path(0));
-    _size = f.existsSync() ? f.lengthSync() : 0;
+    try {
+      Directory(dir).createSync(recursive: true);
+      final f = File(_path(0));
+      _size = f.existsSync() ? f.lengthSync() : 0;
+    } catch (_) {
+      _size = 0; // An unwritable data folder must not stop the app starting; write() then fails quietly.
+    }
   }
 
   final String dir;
@@ -24,7 +28,7 @@ class RotatingFileLog implements LogSink {
 
   /// Files kept in total, the current one included.
   final int keep;
-  late int _size;
+  var _size = 0;
 
   String _path(int i) => p.join(dir, i == 0 ? '$name.log' : '$name.$i.log');
 

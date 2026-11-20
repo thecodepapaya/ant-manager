@@ -3,6 +3,7 @@
 /// summaries only: never secrets, content, prompts, model output, names, paths or emails.
 library;
 
+import '../ai/llm.dart';
 import '../ports/ports.dart';
 
 enum LogLevel { info, warn, error }
@@ -75,12 +76,14 @@ String _value(Object v) {
   if (v is num || v is bool) return '$v';
   if (v is Duration) return '${v.inMilliseconds}';
   if (v is Enum) return v.name;
-  final s = redact('$v');
+  final s = redact('$v', max: 600); // errorSummary already caps errors at 240
   return s.contains(' ') || s.isEmpty ? '"${s.replaceAll('"', "'")}"' : s;
 }
 
-/// Short, redacted description of an error: its type plus a cut-down message.
+/// Short, redacted description of an error: its type plus a cut-down message. An [LlmFailure] is only its
+/// type and HTTP status: its text can quote provider names, raw provider bodies or model output.
 String errorSummary(Object error) {
+  if (error is LlmFailure) return 'LlmFailure(${error.statusCode ?? '-'})';
   final type = error.runtimeType.toString();
   var message = '$error';
   // Drop the `Type: ` / `Type(…): ` prefix toString() usually repeats.
@@ -122,6 +125,9 @@ final _quoted = RegExp(r'''"[^"]*"|“[^”]*”|‘[^’]*’|(?<!\w)'[^'\n]*'(
 /// URLs, emails, auth headers and key-like tokens, file paths, quoted strings and anything from the first
 /// `{` (JSON bodies). Collapses whitespace and caps the length at [max].
 String redact(String text, {int max = 240}) {
+  // A stored or forwarded `LlmFailure(…): text` keeps only its prefix (see [errorSummary]).
+  final llm = RegExp(r'LlmFailure(\([^)]*\))?').firstMatch(text);
+  if (llm != null) return text.substring(0, llm.end);
   var s = text.replaceAll(RegExp(r'\s+'), ' ');
   final brace = s.indexOf('{');
   if (brace >= 0) s = '${s.substring(0, brace)}{…}';
