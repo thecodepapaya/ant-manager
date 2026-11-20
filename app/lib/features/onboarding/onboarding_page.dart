@@ -116,12 +116,15 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             for (final (k, v) in _manual) {
               await h.runtime(addIdentityCmd(k, v));
             }
-            _scan.autoSelect({..._picked, for (final (k, v) in _manual) if (k == 'email') v.toLowerCase()});
+            // Pre-tick repos only on the first visit, so coming Back keeps the user's repo ticks (#139).
+            if (!_maxReached.contains(_Step.repos)) {
+              _scan.autoSelect({..._picked, for (final (k, v) in _manual) if (k == 'email') v.toLowerCase()});
+            }
           case _Step.repos:
             await _scan.addSelected(ref.read(sourcesProvider).value ?? const []);
           default:
         }
-      } else if (_step == _Step.identities) {
+      } else if (_step == _Step.identities && !_maxReached.contains(_Step.repos)) {
         _scan.autoSelect(const {});
       }
       await _go(_Step.values[_step.index + 1]);

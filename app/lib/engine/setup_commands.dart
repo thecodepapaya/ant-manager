@@ -307,14 +307,12 @@ EngineCommand<void> removeModelCmd(String modelId) => (rt) async {
       await (rt.appDb.delete(rt.appDb.models)..where((m) => m.id.equals(modelId))).go();
     };
 
-EngineCommand<void> removeProviderCmd(String providerId) => (rt) async {
+/// Returns false if the provider is already gone. Rows go first, then the stored secrets, so a failed
+/// delete never leaves a provider without its key (#139).
+EngineCommand<bool> removeProviderCmd(String providerId) => (rt) async {
       final db = rt.appDb;
-      final row = await (db.select(db.providers)..where((x) => x.id.equals(providerId))).getSingle();
-      final secrets = rt.engine.ports.secrets;
-      if (row.credentialRef != null) await secrets.delete(row.credentialRef!);
-      for (final ref in (jsonDecode(row.headers) as Map).cast<String, String>().values) {
-        await secrets.delete(ref);
-      }
+      final row = await (db.select(db.providers)..where((x) => x.id.equals(providerId))).getSingleOrNull();
+      if (row == null) return false;
       final models = await (db.select(db.models)..where((m) => m.providerId.equals(providerId))).get();
       for (final m in models) {
         await (rt.db.update(rt.db.taskRoutes)..where((r) => r.modelId.equals(m.id)))
@@ -324,6 +322,12 @@ EngineCommand<void> removeProviderCmd(String providerId) => (rt) async {
         await (db.delete(db.models)..where((m) => m.providerId.equals(providerId))).go();
         await (db.delete(db.providers)..where((x) => x.id.equals(providerId))).go();
       });
+      final secrets = rt.engine.ports.secrets;
+      if (row.credentialRef != null) await secrets.delete(row.credentialRef!);
+      for (final ref in (jsonDecode(row.headers) as Map).cast<String, String>().values) {
+        await secrets.delete(ref);
+      }
+      return true;
     };
 
 /// Sets a route's model; null = inherit Default (#75).
