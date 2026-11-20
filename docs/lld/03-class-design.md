@@ -235,7 +235,7 @@ Not designed up front; built under #67 and recorded as decisions. Layout: [app/R
   channels `ant/calendar` (EventKit) and `ant/clipboard` (rich copy, image paste, #107).
 - **Screens:** Today, Timeline, Narrative, Reports, Wins, Projects (#107); Sources, Settings, Onboarding (#105; Welcome step #114).
   Long lists (> `listSearchThreshold` = 8: onboarding people, Suggested identities, `RepoPicker`, Sources grid) show a
-  `ListSearchField` filtered with `matchesQuery` (case-insensitive substring), all in `settings/kit.dart` (#NEXT). New
+  `ListSearchField` filtered with `matchesQuery` (case-insensitive substring), all in `settings/kit.dart` (#136). New
   `AntEngine` commands cover projects/workstreams and starring via `WinService` (#107).
   `todayProvider` re-checks the profile-zone day every minute; Today's focus and the Today count follow it.
   Evidence payloads are listed in insertion (`rowid`) order, so a note's body precedes its annotations (#130).

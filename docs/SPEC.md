@@ -61,7 +61,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   catch up when you switch to them.
 - Each profile holds several **identities** (emails, GitHub/GitLab usernames, Jira/Linear accounts).
   These are suggested automatically from scanned repos and connected accounts and decide which evidence is "mine".
-  Long suggestion lists (> 8) get a search field matching name or email (#NEXT).
+  Long suggestion lists (> 8) get a search field matching name or email (#136).
 - Each profile has **one time zone** (defaults to the system's) that defines day boundaries for evidence, facts and
   reports (#87), resolved with a bundled IANA tz database (#109).
 
@@ -84,7 +84,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 
 - **Git setup:** scan watched root folders (e.g. `~/Projects`), list repos showing recent activity by your identities,
   tick to include. New repos under watched roots are suggested automatically. Manual add also works. With more than
-  8 repos the picker (and the Sources grid) gets a search field matching repo name or path; ticks survive filtering (#NEXT).
+  8 repos the picker (and the Sources grid) gets a search field matching repo name or path; ticks survive filtering (#136).
 - **Git detection:** PATH, Homebrew, Xcode CLT, Git for Windows default paths. Detects the macOS `/usr/bin/git` stub
   without triggering it. If git is missing, show a friendly install screen. Reads never run the repo's configured
   commands (`--no-textconv --no-ext-diff`, `log.showSignature=false`, #118).
