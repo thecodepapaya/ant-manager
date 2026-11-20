@@ -20,7 +20,7 @@ class EvidenceDeleter {
   static Future<Set<String>> referencedBlobPaths(ProfileDb db) async => {
     ...(await db.select(db.attachments).get()).map((a) => a.path),
     for (final p in await db.select(db.payloads).get())
-      ...((contentOf(p)['attachments'] as List?) ?? const []).whereType<String>(),
+      if (contentOf(p)['attachments'] case final List a) ...a.whereType<String>(),
   };
 
   Future<List<String>> permanentDelete(String evidenceId) => db.transaction(() async {

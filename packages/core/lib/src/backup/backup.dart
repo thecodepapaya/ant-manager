@@ -139,8 +139,8 @@ class BackupService {
           final Uint8List bytes;
           try {
             bytes = await blobs!.get(path);
-          } catch (_) {
-            Log.warn('backup.blob_missing'); // deleted after the snapshot
+          } on PathNotFoundException {
+            Log.warn('backup.blob_missing'); // deleted after the snapshot; other read errors fail the backup
             continue;
           }
           archive.addFile(ArchiveFile.bytes('attachments/$path', bytes));
@@ -163,8 +163,13 @@ class BackupService {
         ..addFile(ArchiveFile.bytes('db.sqlite', dbBytes));
       final out = File(p.join(folder, '$_prefix-${_stamp(now)}$extension'));
       final partial = File('${out.path}.tmp');
-      await partial.writeAsBytes(ZipEncoder().encodeBytes(archive), flush: true);
-      await partial.rename(out.path);
+      try {
+        await partial.writeAsBytes(ZipEncoder().encodeBytes(archive), flush: true);
+        await partial.rename(out.path);
+      } catch (_) {
+        if (await partial.exists()) await partial.delete();
+        rethrow;
+      }
       await _prune(folder);
       if (readableExport) await ReadableExporter(db).export(p.join(folder, '$_prefix-export'));
       return out;

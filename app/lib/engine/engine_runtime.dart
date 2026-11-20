@@ -139,7 +139,10 @@ class EngineRuntime {
     final blobs = FileBlobStore(p.join(config.dataDir, 'blobs', profile.id));
     // Before any command can write a blob: removes files no row references, left by a crash between
     // a delete's commit and its blob deletes, or between writing a blob and its row (#NEXT).
-    await blobs.sweep(await EvidenceDeleter.referencedBlobPaths(db));
+    // Skipped when the DB has no payloads: a missing or replaced DB file must not wipe the attachments.
+    if ((await (db.select(db.payloads)..limit(1)).get()).isNotEmpty) {
+      await blobs.sweep(await EvidenceDeleter.referencedBlobPaths(db));
+    }
     final ports = EnginePorts(
       secrets: secrets,
       blobs: blobs,
