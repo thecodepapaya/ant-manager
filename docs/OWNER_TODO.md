@@ -30,6 +30,7 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] Check the `bug` and `enhancement` labels exist (GitHub defaults), so issue forms can apply them.
 
 ## Crash reporting
+- [ ] **Firebase** (`ant-manager-papaya`, DECISIONS #138): decide what it's for (it's configured but unused), and restrict its API keys in Google Cloud → Credentials to the macOS bundle ID / Windows app.
 - [ ] Create a **Sentry project** (free tier is fine) and give me the DSN. Reports stay opt-in in the app.
 
 ## Testing infrastructure
