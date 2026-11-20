@@ -26,18 +26,13 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Ant Manager reads your calendar events to record meetings as evidence of your work. Nothing leaves your Mac unless you choose an AI provider.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Ant Manager reads your calendar events to record meetings as evidence of your work. Nothing leaves your Mac unless you choose an AI provider.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Ant Manager connects to AI models and git servers on your local network when you configure them.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.407231777528-6t43v5qk663ss5s5fsdvjism6vee08b8</string>
-			</array>
-		</dict>
-	</array>
 </dict>
 </plist>

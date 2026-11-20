@@ -1,7 +1,21 @@
-data/
+/data/
 core/__pycache__/
 core/**/*.pyc
 core/.venv/
 .DS_Store
 
 
+
+# Secrets (never commit)
+.open_router_key
+*.key
+.env
+
+# Claude Code agent worktrees
+.claude/worktrees/
+
+.open_router_key
+.claude/settings.local.json
+.dart_tool/
+build/
+dist/

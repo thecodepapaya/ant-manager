@@ -8,7 +8,7 @@
 PRODUCT_NAME = Ant Manager
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = dev.thecodepapaya.antmanager.app
+PRODUCT_BUNDLE_IDENTIFIER = dev.antmanager.antManager
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 dev.thecodepapaya.ant_manager. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 dev.antmanager. All rights reserved.

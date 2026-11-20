@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ant Manager
+Comment=Your work narrative, built from the tools you already use
+Exec=ant_manager
+Icon=ant-manager
+Terminal=false
+Categories=Office;Utility;

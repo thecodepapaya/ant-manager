@@ -1,86 +1,18 @@
-# AntManager (V0)
+# app — Ant Manager Flutter shell
 
-AntManager is a **local-first** macOS desktop app that helps you keep an evidence-backed timeline of work and generate daily/weekly narratives from:
+Composition root, platform adapters and desktop shell. Design: `docs/lld/03-class-design.md` §3.1, §3.3.
 
-- Git commits (automatic)
-- Manual notes (fast, lightweight)
-- LLM summaries via Ollama, Gemini, or OpenAI (optional; falls back to deterministic output if the provider is not reachable)
-
-## Quick start (dev)
-
-### Prereqs
-
-- Flutter (desktop enabled)
-- Python 3.10+
-- Git
-- Optional: Ollama
-
-### 1) Set up Python core
-
-From repo root:
-
-```bash
-cd app
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r core/requirements.txt
-python3 core/main.py init-db
-```
-
-### 2) Optional: set up Ollama (local LLM)
-
-Install Ollama (macOS):
-
-```bash
-brew install ollama
-```
-
-Start the daemon (if not auto-started):
-
-```bash
-ollama serve
-```
-
-Pull a model used by default:
-
-```bash
-ollama pull llama3.1:8b
-```
-
-### 3) Run the Flutter app
-
-```bash
-cd app
-flutter pub get
-flutter run -d macos
-```
-
-## How it works (V0)
-
-- **Flutter UI** calls the **Python core** via CLI (no server, no ports).
-- Python stores all data in a local SQLite DB.
-- If Ollama is running, Python uses it to produce a neutral summary; otherwise it produces a safe fallback output.
-
-## Configure Git repositories
-
-In the app:
-
-- Go to **Settings → Git repositories → Add**
-
-Or via CLI:
-
-```bash
-cd app
-python3 core/main.py config-add-repo /path/to/repo
-python3 core/main.py config-get
-```
-
-## Data locations
-
-- **App data (DB, transcripts folder)**: stored under macOS Application Support (set via `ANT_MANAGER_DATA_DIR` when launched from Flutter)
-- **Config**: `~/.ant_manager/config.json`
-
-## Notes / safety
-
-- This is intended as a personal, local tool.
-- V0 does not record meetings. You can capture context via manual notes.
+- `lib/engine/`: engine isolate (#68). `EngineHandle.start` spawns `engineMain`, which opens
+  `ant_manager/app.sqlite` + `ant_manager/profiles/<id>.sqlite` (active profile only, #77), builds `AntEngine`
+  and runs the IO / LLM job lanes, the recompute drain and the scheduler tick. The UI connects to both DBs through
+  drift's `serializableConnection()` for `watch()` reads, and writes only via `EngineHandle.run` / `runtime`
+  (closures copied to the engine isolate; build them in `commands.dart`). Plugin-backed ports (keychain,
+  notifications, EventKit) are proxied back to the UI isolate (`port_bridge.dart` ⇄ `ui_port_host.dart`).
+- `lib/platform/`: port adapters (secure storage, blob store, file watcher, notifier, EventKit bridge, screen
+  capture, launch at login, system time zone, rotating log files).
+- `lib/shell/`: tray menu, global hotkey (⌥⌘N / Ctrl+Alt+N), close-to-tray, quick capture.
+- `lib/features/`: screens per sidebar section; `lib/state/` Riverpod providers; `lib/widgets/` shared widgets.
+- `macos/Runner/MainFlutterWindow.swift`: EventKit channels `ant/calendar` + `ant/calendar/changes`, and the
+  `launch_at_startup` channel via `SMAppService` (macOS 13+).
+- Dev: `flutter run --dart-define=ANT_DATA_DIR=<dir>` uses a separate data folder; `packages/core/tool/seed_demo.dart`
+  fills it with demo data (#107).

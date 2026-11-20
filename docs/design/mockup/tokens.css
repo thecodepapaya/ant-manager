@@ -1,0 +1,107 @@
+/* =====================================================================
+   Ant Manager design tokens — the single source of truth.
+   Every artboard links this file; components use ONLY these names.
+   Change a value here and it changes everywhere.
+   Mirrors lib/ui/tokens/ (AntTokens ThemeExtension) in the Flutter app.
+   ===================================================================== */
+
+.ant {
+  /* ---- Brand knobs (the two values most people will change) ---- */
+  --accent: #E8A54B;            /* single brand accent */
+  --radius: 6px;                /* base corner radius; the scale derives from it */
+
+  /* ---- Radius scale (derived) ---- */
+  --r-xs: calc(var(--radius) * 0.67);   /* kbd, citations        */
+  --r-sm: calc(var(--radius) * 0.83);   /* chips                 */
+  --r-md: var(--radius);                /* buttons, inputs, nav  */
+  --r-lg: calc(var(--radius) * 1.33);   /* rows, menus, tabs     */
+  --r-xl: calc(var(--radius) * 1.67);   /* panels, cards         */
+
+  /* ---- Type ---- */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ---- Colour: dark (default) ---- */
+  --bg: #121110;
+  --bg-sidebar: #171615;
+  --surface: #181716;
+  --surface-sunken: #1A1917;
+  --surface-2: #1F1D1B;
+  --raised: #1E1D1B;
+  --input-bg: #141312;
+  --hover: #1C1B19;
+  --active: #262421;
+  --chip-bg: #23211F;
+  --divider: #24221F;
+  --border: #2A2826;
+  --border-subtle: #2F2C29;
+  --border-strong: #34312D;
+  --border-stronger: #3A3733;
+  --raw: #4A4640;
+
+  --text: #EDE9E3;
+  --text-2: #DAD5CD;
+  --text-3: #C9C4BB;
+  --text-soft: #B7B2A9;
+  --muted: #9A958C;
+  --placeholder: #8F8A81;
+
+  --success: #6CC28C;
+  --success-text: #8FD3A6;
+  --info: #7FA8E8;
+  --purple: #B3A3F0;
+  --danger: #E8796B;
+  --danger-text: #F2A094;
+
+  /* accent-derived: follow --accent automatically */
+  --on-accent: #1A1205;
+  --accent-hover: color-mix(in srgb, var(--accent) 85%, white);
+  --accent-text: color-mix(in srgb, var(--accent) 72%, white);
+  --accent-text-hover: color-mix(in srgb, var(--accent) 50%, white);
+
+  --shadow: 0 12px 32px rgba(0, 0, 0, .45);
+
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---- Colour: light ---- */
+.ant[data-theme="light"] {
+  --bg: #FBFAF7;
+  --bg-sidebar: #F4F2EE;
+  --surface: #FFFFFF;
+  --surface-sunken: #F4F2EE;
+  --surface-2: #F6F4F0;
+  --raised: #FFFFFF;
+  --input-bg: #FFFFFF;
+  --hover: #F1EEE9;
+  --active: #E9E5DE;
+  --chip-bg: #F1EEE9;
+  --divider: #ECE9E3;
+  --border: #E3DFD8;
+  --border-subtle: #E0DCD4;
+  --border-strong: #D3CEC5;
+  --border-stronger: #C9C3B9;
+  --raw: #CFC9BF;
+
+  --text: #1A1917;
+  --text-2: #2E2C29;
+  --text-3: #3D3A36;
+  --text-soft: #55514B;
+  --muted: #6B665E;
+  --placeholder: #77726A;
+
+  --success: #3F9E64;
+  --success-text: #2B6E45;
+  --info: #4C7FD0;
+  --purple: #7A62D6;
+  --danger: #D0573F;
+  --danger-text: #A8402B;
+
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, black);
+  --accent-text: color-mix(in srgb, var(--accent) 55%, black);
+  --accent-text-hover: color-mix(in srgb, var(--accent) 40%, black);
+
+  --shadow: 0 12px 32px rgba(40, 30, 10, .14);
+}

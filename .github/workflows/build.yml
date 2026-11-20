@@ -1,0 +1,150 @@
+# Builds UNSIGNED release installers for macOS / Windows / Linux.
+# Runs only on tags v* (and then publishes a PUBLIC GitHub Release with the three files) or by hand;
+# commits only run CI tests (ci.yml).
+# See docs/RELEASE.md.
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  FLUTTER_VERSION: 3.50.1
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-22.04
+            platform: linux
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version
+        id: version
+        run: echo "version=$(scripts/version.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux desktop deps
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev \
+            libsecret-1-dev libnotify-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Pub get (workspace)
+        run: flutter pub get
+
+      # macOS: Flutter release builds are universal (arm64 + x86_64); make_dmg.sh verifies it with lipo.
+      - name: Build macOS app
+        if: matrix.platform == 'macos'
+        working-directory: app
+        run: flutter build macos --release
+
+      - name: Package .dmg (ad-hoc signed)
+        if: matrix.platform == 'macos'
+        run: packaging/macos/make_dmg.sh "${{ steps.version.outputs.version }}"
+
+      - name: Build Windows app
+        if: matrix.platform == 'windows'
+        working-directory: app
+        run: flutter build windows --release
+
+      - name: Package installer (Inno Setup)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          # Ship the MSVC runtime next to the exe so a fresh Windows install doesn't need the VC++ redistributable.
+          $release = "app\build\windows\x64\runner\Release"
+          foreach ($dll in "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
+            Copy-Item "$env:WINDIR\System32\$dll" $release
+          }
+          $iscc = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe not found" }
+          & $iscc.FullName "/DAppVersion=${{ steps.version.outputs.version }}" packaging\windows\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Linux app
+        if: matrix.platform == 'linux'
+        working-directory: app
+        run: flutter build linux --release
+
+      - name: Package AppImage
+        if: matrix.platform == 'linux'
+        run: packaging/linux/make_appimage.sh "${{ steps.version.outputs.version }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AntManager-${{ steps.version.outputs.version }}-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          name: Ant Manager ${{ github.ref_name }}
+          body_path: packaging/release-notes.md
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/AntManager-*-macos.dmg
+            dist/AntManager-*-windows-setup.exe
+            dist/AntManager-*-x86_64.AppImage
+
+  # TODO(updates): appcast generation (DECISIONS #6). Not built yet: it needs the Sparkle EdDSA key pair
+  # (docs/OWNER_TODO.md) and should run only once the installers are signed. Sketch:
+  #
+  # appcast:
+  #   if: startsWith(github.ref, 'refs/tags/v')
+  #   needs: release
+  #   runs-on: macos-latest
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - download the release's .dmg and setup .exe
+  #     - Sparkle `sign_update` each file with secrets.SPARKLE_ED_PRIVATE_KEY (WinSparkle reads the same
+  #       EdDSA signature format)
+  #     - write appcast-macos.xml / appcast-windows.xml (version, URL, length, edSignature, release notes)
+  #     - publish the feeds (release asset or the web/ site; owner decides the URL)

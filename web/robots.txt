@@ -1,12 +1,2 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
-
-# Disallow crawling of asset files to keep search results clean
-Disallow: /assets/
-Disallow: /_headers
-Disallow: /wrangler.json
-
-# Point to sitemap if you create one later
-# Sitemap: https://ant-manager.thecodepapaya.dev/sitemap.xml
-

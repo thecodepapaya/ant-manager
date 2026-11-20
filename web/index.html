@@ -1,371 +1,356 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ant Manager | Private, AI-Powered Productivity for Developers</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ant Manager: your work, quietly remembered</title>
+  <meta name="description" content="A free, open-source desktop app that keeps a record of your work from git, code review, tickets, calendars and notes, and turns it into cited daily, weekly and review-ready reports. Local first.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#FBFAF7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121110" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://ant-manager.thecodepapaya.dev/">
 
-    <!-- SEO Meta Tags -->
-    <meta name="description"
-        content="Ant Manager: The private, local-first work log for developers. Automatically sync git activity, calendars, and track daily wins with AI-powered summaries—100% offline.">
-    <meta name="keywords"
-        content="Ant Manager, developer productivity, git work log, calendar sync, private developer journal, local-first apps, local LLM productivity, software engineer activity tracker, daily wins for developers, offline progress tracker, git commit history summary, developer PKM, private coding diary">
-    <meta name="author" content="Ant Manager">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ant-manager.thecodepapaya.dev/">
+  <meta property="og:title" content="Ant Manager: your work, quietly remembered">
+  <meta property="og:description" content="Evidence of your work in, cited reports and a wins log out. Local first, always cited, yours to correct.">
+  <meta property="og:image" content="https://ant-manager.thecodepapaya.dev/assets/og.jpg">
+  <meta name="twitter:card" content="summary_large_image">
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://ant-manager.thecodepapaya.dev/">
-    <meta property="og:title" content="Ant Manager | Privacy-First Productivity">
-    <meta property="og:description"
-        content="Focus on what matters. Your git activity, notes, and wins in a unified private timeline.">
-    <meta property="og:image" content="https://ant-manager.thecodepapaya.dev/assets/logo.webp">
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://ant-manager.thecodepapaya.dev/">
-    <meta property="twitter:title" content="Ant Manager | Privacy-First Productivity">
-    <meta property="twitter:description"
-        content="Focus on what matters. Your git activity, notes, and wins in a unified private timeline.">
-    <meta property="twitter:image" content="https://ant-manager.thecodepapaya.dev/assets/logo.webp">
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon-96x96.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-    <link rel="manifest" href="assets/site.webmanifest">
-
-    <!-- Structured Data for SEO -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Ant Manager",
-      "operatingSystem": "macOS",
-      "applicationCategory": "ProductivityApplication",
-      "description": "A private, local-first work log for developers to track git activity, notes, and daily wins.",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "author": {
-        "@type": "Organization",
-        "name": "Ant Manager"
-      }
-    }
-    </script>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet">
-    <style>
-        :root {
-            --primary: #4B5563;
-            /* Matches your theme seed color */
-            --primary-light: #9CA3AF;
-            --primary-dark: #1F2937;
-            --accent: #6366F1;
-            --bg: #FFFFFF;
-            --surface: #F8FAFC;
-            --text-main: #0F172A;
-            --text-muted: #64748B;
-            --border: #E2E8F0;
-            --radius-lg: 24px;
-            --radius-md: 16px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* Navigation */
-        nav {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            z-index: 100;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .nav-content {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 1rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            color: var(--text-main);
-            font-weight: 800;
-            font-size: 1.25rem;
-            letter-spacing: -0.02em;
-        }
-
-        .brand img {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-        }
-
-        /* Hero Section */
-        .hero {
-            padding: 10rem 1.5rem 6rem;
-            max-width: 1100px;
-            margin: 0 auto;
-            text-align: center;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 999px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--primary);
-            margin-bottom: 2rem;
-        }
-
-        .hero h1 {
-            font-size: clamp(2.5rem, 8vw, 4.5rem);
-            font-weight: 800;
-            line-height: 1.1;
-            letter-spacing: -0.04em;
-            margin-bottom: 1.5rem;
-            color: var(--primary-dark);
-        }
-
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            max-width: 700px;
-            margin: 0 auto 3rem;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            padding: 1rem 2rem;
-            background: var(--primary-dark);
-            color: white;
-            border-radius: var(--radius-md);
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            gap: 0.75rem;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Features Grid */
-        .section {
-            padding: 6rem 1.5rem;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 4rem;
-        }
-
-        .section-header h2 {
-            font-size: 2.5rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            margin-bottom: 1rem;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .card {
-            padding: 2.5rem;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            transition: border-color 0.2s;
-        }
-
-        .card:hover {
-            border-color: var(--primary-light);
-        }
-
-        .card-icon {
-            width: 48px;
-            height: 48px;
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 1.5rem;
-            font-size: 1.5rem;
-        }
-
-        .card h3 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-
-        .card p {
-            color: var(--text-muted);
-            font-size: 1rem;
-        }
-
-        /* Privacy Banner */
-        .privacy-box {
-            background: #F1F5F9;
-            border-radius: var(--radius-lg);
-            padding: 4rem;
-            text-align: center;
-            margin-top: 4rem;
-        }
-
-        .privacy-box h2 {
-            color: var(--accent);
-            margin-bottom: 1rem;
-        }
-
-        .privacy-box p {
-            max-width: 600px;
-            margin: 0 auto;
-            color: var(--text-muted);
-        }
-
-        /* Footer */
-        footer {
-            padding: 4rem 1.5rem;
-            border-top: 1px solid var(--border);
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 0.875rem;
-        }
-
-        @media (max-width: 640px) {
-            .hero {
-                padding-top: 8rem;
-            }
-
-            .privacy-box {
-                padding: 2rem;
-            }
-        }
-    </style>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" type="image/png" sizes="96x96" href="/assets/favicon-96x96.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="/assets/fonts/inter-regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/inter-semibold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
 </head>
-
 <body>
-    <nav>
-        <div class="nav-content">
-            <a href="#" class="brand">
-                <img src="assets/logo.webp" alt="Ant Manager">
-                Ant Manager
-            </a>
-            <a href="https://github.com/thecodepapaya/ant-manager/releases" class="btn"
-                style="padding: 0.6rem 1.2rem; font-size: 0.875rem;">Download</a>
-        </div>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Ant Manager, home">
+      <span class="logo-tile"><img src="/assets/logo.svg" alt="" width="28" height="28"></span>
+      Ant Manager
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a class="opt" href="#how">How it works</a>
+      <a class="opt" href="#sources">Sources</a>
+      <a class="opt" href="#privacy">Privacy</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/thecodepapaya/ant-manager">GitHub</a>
     </nav>
+  </div>
+</header>
 
-    <header class="hero">
-        <span class="badge">100% Local-First Productivity</span>
-        <h1>Focus on what<br>actually matters.</h1>
-        <p>Ant Manager unifies your git activity, calendar events, and manual notes into an automated, private timeline.
-            No cloud, no tracking—just your progress summarized by AI.</p>
-        <div class="hero-actions">
-            <a href="https://github.com/thecodepapaya/ant-manager/releases" class="btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 5v14M19 12l-7 7-7-7" />
-                </svg>
-                Download for macOS
-            </a>
+<main id="main" tabindex="-1">
+  <div class="hero wrap">
+    <h1>Your work, quietly remembered.</h1>
+    <p class="lede">Ant Manager keeps a record of the work you do and turns it into honest daily, weekly and
+      review-ready reports, so you never have to rebuild what you did from memory.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Download</a>
+      <a class="btn" href="https://github.com/thecodepapaya/ant-manager">Source on GitHub</a>
+    </div>
+    <p class="meta">Free and open source · macOS, Windows and Linux</p>
+    <div class="hero-shot">
+      <figure class="window">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/today_dark.webp 1280w, /assets/shots/today_dark@2x.webp 2560w" sizes="(min-width: 1120px) 1072px, calc(100vw - 32px)">
+    <img src="/assets/shots/today_light.webp" srcset="/assets/shots/today_light.webp 1280w, /assets/shots/today_light@2x.webp 2560w" sizes="(min-width: 1120px) 1072px, calc(100vw - 32px)" width="1280" height="800" loading="eager" fetchpriority="high" decoding="async" alt="The Today page. On the left, the day’s evidence grouped by project: a merged pull request, commits, a Jira ticket, a meeting and a note. On the right, the daily report with numbered citations, and the facts behind it.">
+  </picture>
+</figure>
+    </div>
+  </div>
+
+  <section id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="section-head center">
+        <span class="eyebrow">How it works</span>
+        <h2 id="how-title">From what you did to what you can show</h2>
+        <p>Your tools already know most of what you did. Ant Manager gathers it, makes sense of it, and keeps the
+          receipts.</p>
+      </div>
+      <ol class="panel" role="list">
+        <li><span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></svg></span><div><h3>Sources</h3><p>Git repos, GitHub, GitLab, calendars, tickets and your own notes.</p></div></li>
+        <li><span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></span><div><h3>Evidence</h3><p>Every commit, review, meeting and note lands on your timeline, kept as it was.</p></div></li>
+        <li><span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><div><h3>Narrative</h3><p>A model turns evidence into facts about what you did, each one citing its evidence.</p></div></li>
+        <li><span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h4M7 13h4M7 17h4"/><path d="m14 13 2 2 3.5-4"/></svg></span><div><h3>Reports and wins</h3><p>Daily to quarterly reports and a wins list for reviews, written from those facts.</p></div></li>
+      </ol>
+
+      <div class="principles">
+        <div class="principle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2"/></svg><h3>Local first</h3><p>Your data stays on this computer unless you choose a cloud model.</p></div>
+        <div class="principle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg><h3>Always cited</h3><p>Every line in a report links back to the work behind it.</p></div>
+        <div class="principle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9a2.83 2.83 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg><h3>Yours to correct</h3><p>Edit or reject any fact. The model never overwrites your changes.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tour" aria-labelledby="tour-title">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">A closer look</span>
+        <h2 id="tour-title">Reflection, not surveillance</h2>
+        <p>No screen recording, no keystroke logging, no productivity scores. Just the context you need to describe
+          your work fairly.</p>
+      </div>
+
+      <div class="feature">
+        <div>
+          <h3>Evidence, kept as it was</h3>
+          <p>Commits, reviews, tickets, meetings and notes on one timeline. Star what matters, hide what doesn’t,
+            and add context the tools couldn’t see, like “took 3 days because of flaky CI”.</p>
         </div>
-    </header>
+        <figure class="window">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/timeline_dark.webp 1280w, /assets/shots/timeline_dark@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)">
+    <img src="/assets/shots/timeline_light.webp" srcset="/assets/shots/timeline_light.webp 1280w, /assets/shots/timeline_light@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)" width="1280" height="800" loading="lazy" decoding="async" alt="The Timeline: one line per item with its time, project and source, grouped by day. A commit carries a note saying it took three days because of flaky CI.">
+  </picture>
+</figure>
+      </div>
 
-    <section class="section">
-        <div class="section-header">
-            <h2>Everything stays with you.</h2>
-            <p style="color: var(--text-muted)">Built for developers who value their privacy and their time.</p>
+      <div class="feature">
+        <div>
+          <h3>Facts you can check</h3>
+          <p>The Narrative is a list of typed facts: outcomes, problems solved, invisible work, hiccups, decisions
+            and time spent. Each one says whether the model inferred it or you confirmed it, and cites the evidence
+            it came from.</p>
+          <p>Confirm, edit or reject any fact. When new evidence touches a fact you changed, the model’s update
+            waits for your review.</p>
         </div>
+        <figure class="window">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/narrative_dark.webp 1280w, /assets/shots/narrative_dark@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)">
+    <img src="/assets/shots/narrative_light.webp" srcset="/assets/shots/narrative_light.webp 1280w, /assets/shots/narrative_light@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)" width="1280" height="800" loading="lazy" decoding="async" alt="The Narrative page: facts for the week, each tagged Outcome, Problem solved, Invisible work, Hiccup, Time or Decision, marked Inferred, Confirmed or Edited by you, with the evidence it cites underneath.">
+  </picture>
+</figure>
+      </div>
 
-        <div class="grid">
-            <div class="card">
-                <div class="card-icon">🏗️</div>
-                <h3>Unified Ingestion</h3>
-                <p>Automatically sync your Git commits, Apple Calendar, and Google Calendar. Build an evidence-backed
-                    timeline of your activity with zero effort.</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">🧠</div>
-                <h3>AI-Powered Narratives</h3>
-                <p>Generate daily or weekly summaries and "Wins" lists. Use local LLMs via Ollama for 100% privacy, or
-                    connect to Gemini and OpenAI for high-quality insights.</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">📊</div>
-                <h3>Interactive Timeline</h3>
-                <p>A central feed of your coding milestones, meetings, and notes. See the full story of your work in a
-                    single, searchable interface.</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">⚡</div>
-                <h3>Context Capture</h3>
-                <p>Quickly add manual notes and track blockers throughout the day. Capture the "why" behind the code
-                    with minimal friction.</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">🗄️</div>
-                <h3>SQLite Storage</h3>
-                <p>Your data is stored in a standard SQLite database on your disk. You own it, you control it, and you
-                    can export it anytime.</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">🔒</div>
-                <h3>Local-First & Private</h3>
-                <p>No analytics, no telemetry, no cloud accounts. Ant Manager runs entirely on your machine, keeping
-                    your sensitive work data safe.</p>
-            </div>
+      <div class="feature">
+        <div>
+          <h3>Reports that show their work</h3>
+          <p>Daily, weekly, monthly, quarterly or any range, from templates like Standup, Manager update, Weekly
+            review and Brag doc. Every line is footnoted to the facts behind it.</p>
+          <p>Reports aren’t edited by hand: correct a fact or add a note, then regenerate. Lock a report to keep it
+            as it is; earlier versions are kept. Share it to Slack, email, Markdown or PDF.</p>
         </div>
+        <figure class="window">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/reports_dark.webp 1280w, /assets/shots/reports_dark@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)">
+    <img src="/assets/shots/reports_light.webp" srcset="/assets/shots/reports_light.webp 1280w, /assets/shots/reports_light@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)" width="1280" height="800" loading="lazy" decoding="async" alt="A locked weekly review with Outcomes and Blockers sections. Each bullet ends in numbered citations listed below the report, with the version, generation time and model.">
+  </picture>
+</figure>
+      </div>
 
-        <div class="privacy-box">
-            <h2>Your data, your machine.</h2>
-            <p>We believe productivity tools shouldn't come at the cost of your privacy. Ant Manager is designed from
-                the ground up to be completely offline and private.</p>
+      <div class="feature">
+        <div>
+          <h3>Wins, ready for review season</h3>
+          <p>Star evidence or accept an outcome and it lands in your wins log. The model also suggests wins for you to
+            accept or reject. Filter by period and project, then use them in a report.</p>
         </div>
-    </section>
+        <figure class="window">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/wins_dark.webp 1280w, /assets/shots/wins_dark@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)">
+    <img src="/assets/shots/wins_light.webp" srcset="/assets/shots/wins_light.webp 1280w, /assets/shots/wins_light@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)" width="1280" height="800" loading="lazy" decoding="async" alt="The Wins log for this quarter: a confirmed win about shipping idempotent payment confirmation, with its project, date and three sources.">
+  </picture>
+</figure>
+      </div>
 
-    <footer>
-        <p>&copy; 2025 Ant Manager. Designed for privacy-conscious developers.</p>
-    </footer>
+      <div class="feature">
+        <div>
+          <h3>Notes from anywhere</h3>
+          <p>Press <kbd>⌥⌘N</kbd> on a Mac or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>N</kbd> on Windows and Linux for a
+            small note box over whatever you’re doing. Add a link, a project, or a screenshot of part of the screen:
+            kind words in chat, a hallway decision, work no tool saw.</p>
+        </div>
+        <figure class="window window-small">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/quickcapture_dark.webp 560w, /assets/shots/quickcapture_dark@2x.webp 1120w" sizes="(min-width: 600px) 560px, calc(100vw - 32px)">
+    <img src="/assets/shots/quickcapture_light.webp" srcset="/assets/shots/quickcapture_light.webp 560w, /assets/shots/quickcapture_light@2x.webp 1120w" sizes="(min-width: 600px) 560px, calc(100vw - 32px)" width="560" height="320" loading="lazy" decoding="async" alt="Quick capture: a small window with a note about walking the support team through the new refund flow, a project picker set to Checkout v2, a link field, a screenshot button and Save.">
+  </picture>
+</figure>
+      </div>
+
+      <div class="feature">
+        <div>
+          <h3>Set up in a few minutes</h3>
+          <p>A short setup names your profile, finds which commit authors are you, picks the repos to watch,
+            connects other sources and a model, then imports the last 30 days. Every step can be skipped.</p>
+          <p>After that it runs quietly from the menu bar or system tray, with an optional nudge at the end of the day to review
+            what was drafted.</p>
+        </div>
+        <figure class="window">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/onboarding_dark.webp 1280w, /assets/shots/onboarding_dark@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)">
+    <img src="/assets/shots/onboarding_light.webp" srcset="/assets/shots/onboarding_light.webp 1280w, /assets/shots/onboarding_light@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)" width="1280" height="800" loading="lazy" decoding="async" alt="The welcome step of setup: “Your work, quietly remembered.”, the four stages Sources, Evidence, Narrative, Reports and wins, and the three principles.">
+  </picture>
+</figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="sources" aria-labelledby="sources-title">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Sources</span>
+        <h2 id="sources-title">Where the evidence comes from</h2>
+        <p>Only the sources you add, and only your own activity on them. Ant Manager reads; it never writes to
+          these services.</p>
+      </div>
+      <div class="table-wrap">
+        <table role="table" aria-label="Supported sources">
+          <thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Source</th><th role="columnheader" scope="col">What it captures</th><th role="columnheader" scope="col">How it connects</th></tr></thead>
+          <tbody role="rowgroup">
+            <tr role="row"><th role="rowheader" scope="row">Local git</th><td role="cell">Your commits on every branch, with diffs</td><td role="cell">Your installed git. Point it at a folder like <code>~/Projects</code> and tick repos</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">GitHub</th><td role="cell">Pull requests opened, merged and reviewed, review comments, issues</td><td role="cell">Personal access token. GitHub Enterprise Server too</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">GitLab</th><td role="cell">Merge requests, approvals, comments, issues</td><td role="cell">Personal access token. Self-managed too</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Linear</th><td role="cell">Issues created, completed and commented on</td><td role="cell">API key</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Jira Cloud</th><td role="cell">Issues transitioned, commented on and assigned</td><td role="cell">Email and API token</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Google Calendar</th><td role="cell">Events you attended</td><td role="cell">Google sign-in <span class="chip">Not available yet</span></td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Apple Calendar</th><td role="cell">Everything synced into Calendar.app</td><td role="cell">macOS permission prompt</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Outlook and other calendars</th><td role="cell">Events, with repeats expanded</td><td role="cell">An ICS link or file</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Meeting transcripts</th><td role="cell"><code>.vtt</code>, <code>.srt</code> or <code>.txt</code>, suggested for the meeting it belongs to</td><td role="cell">Drag and drop</td></tr>
+            <tr role="row"><th role="rowheader" scope="row">Notes and recognition</th><td role="cell">Notes, links, screenshots and kudos you add</td><td role="cell">Quick capture or drag and drop</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="feature">
+        <div>
+          <span class="eyebrow">AI models</span>
+          <h2 id="ai-title">Bring your own model</h2>
+          <p>Pick one model for everything. If you want, use a different one for reading screenshots, extracting
+            facts or writing reports.</p>
+          <p>Every model must support structured output. Ant Manager checks this when you add one, so facts and
+            reports always come back in a shape it can verify.</p>
+        </div>
+        <figure class="window">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="/assets/shots/settings_ai_dark.webp 1280w, /assets/shots/settings_ai_dark@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)">
+    <img src="/assets/shots/settings_ai_light.webp" srcset="/assets/shots/settings_ai_light.webp 1280w, /assets/shots/settings_ai_light@2x.webp 2560w" sizes="(min-width: 1120px) 700px, (min-width: 900px) 62vw, calc(100vw - 32px)" width="1280" height="800" loading="lazy" decoding="async" alt="Settings, AI models: “Use anthropic/claude-sonnet-5.5 · OpenRouter for everything”, then providers: a Home GPU box on the local network and OpenRouter connected, OpenAI, Anthropic and Gemini not set, and a custom endpoint.">
+  </picture>
+</figure>
+      </div>
+      <div class="cards">
+        <div class="card"><h3>OpenRouter</h3><p>One key for Claude, GPT, Gemini and open models, with prices shown when you pick one.</p></div>
+        <div class="card"><h3>OpenAI, Anthropic, Gemini</h3><p>Use your own API key with the provider directly.</p></div>
+        <div class="card"><h3>On this computer</h3><p>Ollama and LM Studio are found automatically. Nothing leaves your machine.</p></div>
+        <div class="card"><h3>On your network or a gateway</h3><p>Any OpenAI-compatible or Ollama URL: a GPU box on your LAN, vLLM, llama.cpp, LiteLLM or a company gateway.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy" aria-labelledby="privacy-title">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Privacy</span>
+        <h2 id="privacy-title">Where your data goes, plainly</h2>
+        <p>There are no Ant Manager servers, no accounts, no analytics and no telemetry. Nothing is sent to the
+          project or its authors.</p>
+      </div>
+      <div class="cards three">
+        <div class="card">
+          <h3>Kept on your computer</h3>
+          <p>Evidence, facts and reports live in a local database per profile. API keys and tokens go in your
+            system’s secret store, never in the database or backups.</p>
+          <p>The database isn’t encrypted; it relies on your account and disk encryption.</p>
+        </div>
+        <div class="card">
+          <h3>Sent to the model you choose</h3>
+          <p>A model on this computer keeps everything here. A cloud model, or one on another machine, receives
+            excerpts of your evidence: diffs, PR and issue text, meeting details, transcripts, notes and
+            screenshots. You’re asked once per address before anything is sent.</p>
+        </div>
+        <div class="card">
+          <h3>Fetched from your sources</h3>
+          <p>Connected services see your token and the requests for your activity. Backups go to a folder you pick.
+            They aren’t encrypted, so a synced folder gives that service a copy.</p>
+        </div>
+      </div>
+      <div class="links">
+        <a class="btn" href="https://github.com/thecodepapaya/ant-manager/blob/v1/PRIVACY.md">Read the privacy notes</a>
+        <a class="btn" href="https://github.com/thecodepapaya/ant-manager/blob/v1/THREAT_MODEL.md">Read the threat model</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="download" aria-labelledby="download-title">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Download</span>
+        <h2 id="download-title">Get Ant Manager</h2>
+        <p>Free, Apache 2.0 licensed, and built from the public source by GitHub Actions. Every release is on
+          GitHub. If the Releases page is still empty, the first release isn’t out yet.</p>
+      </div>
+      <div class="cards three">
+        <div class="card">
+          <h3>macOS</h3>
+          <p>macOS 12 or later. Apple silicon and Intel in one <code>.dmg</code>.</p>
+        </div>
+        <div class="card">
+          <h3>Windows</h3>
+          <p>Windows 10 or later, 64-bit. A setup <code>.exe</code>.</p>
+        </div>
+        <div class="card">
+          <h3>Linux</h3>
+          <p>64-bit AppImage for Ubuntu 22.04 or similar. Needs libsecret (GNOME Keyring or KWallet).</p>
+        </div>
+      </div>
+      <div class="links">
+        <a class="btn btn-primary" href="https://github.com/thecodepapaya/ant-manager/releases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Download from GitHub Releases</a>
+      </div>
+      <div class="note" role="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
+        <div>
+          <p><strong>Builds aren’t signed yet</strong>, so your system will warn you the first time. This is expected
+            until code-signing certificates are in place.</p>
+          <p><strong>macOS:</strong> open the app once, then go to System Settings → Privacy &amp; Security and
+            choose Open Anyway. On macOS 14 and earlier, Control-click the app and choose Open.
+            <strong>Windows:</strong> on the SmartScreen prompt, choose More info, then Run anyway.
+            <strong>Linux:</strong> make the AppImage executable (<code>chmod +x</code>) and run it.</p>
+          <p>You also need <a href="https://git-scm.com/downloads">git</a> installed; the app helps if it’s missing.
+            There’s no auto-update yet, so check the Releases page for new versions.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="open-source" aria-labelledby="open-source-title">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Open source</span>
+        <h2 id="open-source-title">Built in the open</h2>
+        <p>Open source, Apache 2.0. Report a bug or request a feature on GitHub. For a bug, paste Settings → General →
+          Diagnostics → Copy into the form; it’s already redacted.</p>
+      </div>
+      <div class="links">
+        <a class="btn" href="https://github.com/thecodepapaya/ant-manager">Source on GitHub</a>
+        <a class="btn" href="https://github.com/thecodepapaya/ant-manager/issues/new?template=bug_report.yml">Report a bug</a>
+        <a class="btn" href="https://github.com/thecodepapaya/ant-manager/issues/new?template=feature_request.yml">Request a feature</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>Ant Manager · Apache 2.0</span>
+    <nav aria-label="Footer">
+      <a href="https://github.com/thecodepapaya/ant-manager">Source</a>
+      <a href="https://github.com/thecodepapaya/ant-manager/releases">Releases</a>
+      <a href="https://github.com/thecodepapaya/ant-manager/issues/new?template=bug_report.yml">Report a bug</a>
+      <a href="https://github.com/thecodepapaya/ant-manager/issues/new?template=feature_request.yml">Request a feature</a>
+      <a href="https://github.com/thecodepapaya/ant-manager/blob/v1/PRIVACY.md">Privacy</a>
+      <a href="https://github.com/thecodepapaya/ant-manager/blob/v1/THREAT_MODEL.md">Threat model</a>
+      <a href="https://github.com/thecodepapaya/ant-manager/blob/v1/PHILOSOPHY.md">Philosophy</a>
+    </nav>
+  </div>
+</footer>
 </body>
-
 </html>

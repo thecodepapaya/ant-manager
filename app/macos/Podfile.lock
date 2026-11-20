@@ -1,164 +1,35 @@
 PODS:
-  - AppAuth (1.7.6):
-    - AppAuth/Core (= 1.7.6)
-    - AppAuth/ExternalUserAgent (= 1.7.6)
-  - AppAuth/Core (1.7.6)
-  - AppAuth/ExternalUserAgent (1.7.6):
-    - AppAuth/Core
-  - AppCheckCore (11.2.0):
-    - GoogleUtilities/Environment (~> 8.0)
-    - GoogleUtilities/UserDefaults (~> 8.0)
-    - PromisesObjC (~> 2.4)
-  - file_picker (0.0.1):
+  - auto_updater_macos (0.0.1):
     - FlutterMacOS
-  - Firebase/Auth (11.15.0):
-    - Firebase/CoreOnly
-    - FirebaseAuth (~> 11.15.0)
-  - Firebase/CoreOnly (11.15.0):
-    - FirebaseCore (~> 11.15.0)
-  - firebase_auth (5.7.0):
-    - Firebase/Auth (~> 11.15.0)
-    - Firebase/CoreOnly (~> 11.15.0)
-    - firebase_core
-    - FlutterMacOS
-  - firebase_core (3.15.2):
-    - Firebase/CoreOnly (~> 11.15.0)
-    - FlutterMacOS
-  - FirebaseAppCheckInterop (11.15.0)
-  - FirebaseAuth (11.15.0):
-    - FirebaseAppCheckInterop (~> 11.0)
-    - FirebaseAuthInterop (~> 11.0)
-    - FirebaseCore (~> 11.15.0)
-    - FirebaseCoreExtension (~> 11.15.0)
-    - GoogleUtilities/AppDelegateSwizzler (~> 8.1)
-    - GoogleUtilities/Environment (~> 8.1)
-    - GTMSessionFetcher/Core (< 5.0, >= 3.4)
-    - RecaptchaInterop (~> 101.0)
-  - FirebaseAuthInterop (11.15.0)
-  - FirebaseCore (11.15.0):
-    - FirebaseCoreInternal (~> 11.15.0)
-    - GoogleUtilities/Environment (~> 8.1)
-    - GoogleUtilities/Logger (~> 8.1)
-  - FirebaseCoreExtension (11.15.0):
-    - FirebaseCore (~> 11.15.0)
-  - FirebaseCoreInternal (11.15.0):
-    - "GoogleUtilities/NSData+zlib (~> 8.1)"
+    - Sparkle
   - FlutterMacOS (1.0.0)
-  - google_sign_in_ios (0.0.1):
-    - AppAuth (>= 1.7.4)
-    - Flutter
+  - local_notifier (0.1.0):
     - FlutterMacOS
-    - GoogleSignIn (~> 8.0)
-    - GTMSessionFetcher (>= 3.4.0)
-  - GoogleSignIn (8.0.0):
-    - AppAuth (< 2.0, >= 1.7.3)
-    - AppCheckCore (~> 11.0)
-    - GTMAppAuth (< 5.0, >= 4.1.1)
-    - GTMSessionFetcher/Core (~> 3.3)
-  - GoogleUtilities/AppDelegateSwizzler (8.1.0):
-    - GoogleUtilities/Environment
-    - GoogleUtilities/Logger
-    - GoogleUtilities/Network
-    - GoogleUtilities/Privacy
-  - GoogleUtilities/Environment (8.1.0):
-    - GoogleUtilities/Privacy
-  - GoogleUtilities/Logger (8.1.0):
-    - GoogleUtilities/Environment
-    - GoogleUtilities/Privacy
-  - GoogleUtilities/Network (8.1.0):
-    - GoogleUtilities/Logger
-    - "GoogleUtilities/NSData+zlib"
-    - GoogleUtilities/Privacy
-    - GoogleUtilities/Reachability
-  - "GoogleUtilities/NSData+zlib (8.1.0)":
-    - GoogleUtilities/Privacy
-  - GoogleUtilities/Privacy (8.1.0)
-  - GoogleUtilities/Reachability (8.1.0):
-    - GoogleUtilities/Logger
-    - GoogleUtilities/Privacy
-  - GoogleUtilities/UserDefaults (8.1.0):
-    - GoogleUtilities/Logger
-    - GoogleUtilities/Privacy
-  - GTMAppAuth (4.1.1):
-    - AppAuth/Core (~> 1.7)
-    - GTMSessionFetcher/Core (< 4.0, >= 3.3)
-  - GTMSessionFetcher (3.5.0):
-    - GTMSessionFetcher/Full (= 3.5.0)
-  - GTMSessionFetcher/Core (3.5.0)
-  - GTMSessionFetcher/Full (3.5.0):
-    - GTMSessionFetcher/Core
-  - path_provider_foundation (0.0.1):
-    - Flutter
-    - FlutterMacOS
-  - PromisesObjC (2.4.0)
-  - url_launcher_macos (0.0.1):
-    - FlutterMacOS
+  - Sparkle (2.9.6)
 
 DEPENDENCIES:
-  - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
-  - firebase_auth (from `Flutter/ephemeral/.symlinks/plugins/firebase_auth/macos`)
-  - firebase_core (from `Flutter/ephemeral/.symlinks/plugins/firebase_core/macos`)
+  - auto_updater_macos (from `Flutter/ephemeral/.symlinks/plugins/auto_updater_macos/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
-  - google_sign_in_ios (from `Flutter/ephemeral/.symlinks/plugins/google_sign_in_ios/darwin`)
-  - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
-  - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
+  - local_notifier (from `Flutter/ephemeral/.symlinks/plugins/local_notifier/macos`)
 
 SPEC REPOS:
   trunk:
-    - AppAuth
-    - AppCheckCore
-    - Firebase
-    - FirebaseAppCheckInterop
-    - FirebaseAuth
-    - FirebaseAuthInterop
-    - FirebaseCore
-    - FirebaseCoreExtension
-    - FirebaseCoreInternal
-    - GoogleSignIn
-    - GoogleUtilities
-    - GTMAppAuth
-    - GTMSessionFetcher
-    - PromisesObjC
+    - Sparkle
 
 EXTERNAL SOURCES:
-  file_picker:
-    :path: Flutter/ephemeral/.symlinks/plugins/file_picker/macos
-  firebase_auth:
-    :path: Flutter/ephemeral/.symlinks/plugins/firebase_auth/macos
-  firebase_core:
-    :path: Flutter/ephemeral/.symlinks/plugins/firebase_core/macos
+  auto_updater_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/auto_updater_macos/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
-  google_sign_in_ios:
-    :path: Flutter/ephemeral/.symlinks/plugins/google_sign_in_ios/darwin
-  path_provider_foundation:
-    :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
-  url_launcher_macos:
-    :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
+  local_notifier:
+    :path: Flutter/ephemeral/.symlinks/plugins/local_notifier/macos
 
 SPEC CHECKSUMS:
-  AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
-  AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
-  file_picker: e716a70a9fe5fd9e09ebc922d7541464289443af
-  Firebase: d99ac19b909cd2c548339c2241ecd0d1599ab02e
-  firebase_auth: a48c22017e8a04bdd95b0641f5c59cbdbf04440c
-  firebase_core: 2af692f4818474ed52eda1ba6aeb448a6a3352af
-  FirebaseAppCheckInterop: 06fe5a3799278ae4667e6c432edd86b1030fa3df
-  FirebaseAuth: a6575e5fbf46b046c58dc211a28a5fbdd8d4c83b
-  FirebaseAuthInterop: 7087d7a4ee4bc4de019b2d0c240974ed5d89e2fd
-  FirebaseCore: efb3893e5b94f32b86e331e3bd6dadf18b66568e
-  FirebaseCoreExtension: edbd30474b5ccf04e5f001470bdf6ea616af2435
-  FirebaseCoreInternal: 9afa45b1159304c963da48addb78275ef701c6b4
-  FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  google_sign_in_ios: 7411fab6948df90490dc4620ecbcabdc3ca04017
-  GoogleSignIn: ce8c89bb9b37fb624b92e7514cc67335d1e277e4
-  GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  GTMAppAuth: f69bd07d68cd3b766125f7e072c45d7340dea0de
-  GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
-  path_provider_foundation: 0b743cbb62d8e47eab856f09262bb8c1ddcfe6ba
-  PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
-  url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
+  auto_updater_macos: 3a42f1a06be6981f1a18be37e6e7bf86aa732118
+  FlutterMacOS: c232990155153907050900a2e175c7773903ba4e
+  local_notifier: ebf072651e35ae5e47280ad52e2707375cb2ae4e
+  Sparkle: b8c9cf4ced217ffc708a1ca5f988a7ba877658db
 
-PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
+PODFILE CHECKSUM: 1e95c36afbfd1cb6423ceca4de7a8e1b256fb6ac
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0
