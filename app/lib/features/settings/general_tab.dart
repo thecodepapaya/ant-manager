@@ -214,7 +214,7 @@ class _GeneralTabState extends ConsumerState<GeneralTab> {
           ),
           PanelRow(
             title: 'Feedback',
-            hint: 'Bugs and ideas go to GitHub issues. For a bug, paste Copy diagnostics into the form.',
+            hint: 'Bugs and ideas go to GitHub issues. For a bug, copy diagnostics above and paste them into the form.',
             trailing: [
               AntButton(label: 'Report a bug', size: AntSize.sm, onPressed: () => _open(ProjectLinks.bugReport)),
               AntButton(

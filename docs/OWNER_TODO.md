@@ -38,7 +38,7 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] (GitLab self-managed: I'll run GitLab CE in Docker. Nothing needed from you.)
 
 ## Content & legal
-- [ ] Review the v1 **[PRIVACY.md](../PRIVACY.md) / [THREAT_MODEL.md](../THREAT_MODEL.md)** (rewritten 2026-11-20: "send everything" to the chosen provider, opt-in crash reports not wired yet, plaintext backups, known gaps). The `web/` site was rewritten to match them and links both on the `v1` branch (DECISIONS #125); switch those links to `main` once v1 is merged there.
+- [ ] Review the v1 **[PRIVACY.md](../PRIVACY.md) / [THREAT_MODEL.md](../THREAT_MODEL.md)** (rewritten 2026-11-20: "send everything" to the chosen provider, opt-in crash reports not wired yet, plaintext backups, known gaps). The `web/` site was rewritten to match them and links both on the `v1` branch (DECISIONS #125), as does `.github/ISSUE_TEMPLATE/config.yml` (#NEXT); switch those links to `main` once v1 is merged there.
 - [ ] **web/ site redesigned** (DECISIONS #125, branch `web-redesign`): review it, then deploy to Cloudflare Pages. Download buttons point at the GitHub Releases page; once a release exists, optionally link the artifacts directly, and drop the "unsigned" note once signing is in place.
 - [ ] Approve the **design direction** (palette from the logo, Linear-style) when I present it.
 - [ ] Provide an **SVG version of the logo** (vector source for the app icon, installers, web site and in-app branding; the current logo is raster only).
