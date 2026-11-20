@@ -188,7 +188,7 @@ class SyncService {
     final row = await _row(id);
     var ref = row.credentialRef;
     if (secret != null) {
-      ref ??= 'source:$id';
+      ref ??= 'source:$id:${newId()}'; // fresh: a restored copy keeps the id but must not share the keychain item (#121)
       await e.ports.secrets.write(ref, secret);
     }
     await (_db.update(_db.sources)..where((s) => s.id.equals(id))).write(SourcesCompanion(

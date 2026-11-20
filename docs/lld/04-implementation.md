@@ -254,7 +254,7 @@ No undo. A confirmation dialog states exactly what will be removed.
 - `<folder>/<profile>-<yyyymmddThhmmssZ>.antbackup` (zip: `manifest.json`, `db.sqlite` from `VACUUM INTO`,
   `attachments/…`), pruned to the last `backup.keep`. Restore always creates a new profile (#105); if it fails, the profile row, its
   `.sqlite` file and its `blobs/<id>/` folder are deleted (#115). Restore sets `credential_ref = NULL, enabled = 0` on every
-  source that had a credential in the restored database; saving it with a new secret re-enables it (#118).
+  source that had a credential in the restored database; saving it with a new secret re-enables it (#118) under a fresh `source:<id>:<newId>` ref, so the original profile's keychain item is untouched (#121).
 - **Readable export** (if `backup.readableExport`): `<folder>/<profile>-export/`, deleted and rewritten each run:
   `facts.json|md`, `wins.json|md` (live facts by day), `reports.json` (every snapshot version) +
   `reports/<start>_<kind>_<template-slug>.md` (latest per report), `evidence.json` (metadata + payload ids, no

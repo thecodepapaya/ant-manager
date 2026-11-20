@@ -205,7 +205,7 @@ maintained from it, and every output reads from that Narrative.
   N backups** (default 14) (#78). Warns when the last successful backup is older than a threshold.
   Backup status (last success, last error) appears in Settings; options live in profile Settings (#105).
 - **Secrets are never included.** API keys and OAuth tokens stay in the OS keychain; after a restore you sign in again
-  (restore clears every source's secret reference and disables those sources until you do, even on the same machine, #118).
+  (restore clears every source's secret reference and disables those sources until you do, even on the same machine, #118; signing in again stores a new keychain item, so the original profile keeps its own, #121).
 - **Restore:** pick a backup file, preview it (profile, date range, item counts,
   backup date), then restore into a **new profile** ("… (restored)"), never over an existing one (#105); a failed restore leaves no profile, database file or attachments
   behind (#115). Newer schema versions refuse to restore with a clear message.

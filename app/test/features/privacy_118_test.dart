@@ -184,11 +184,10 @@ void main() {
       await restoreAndSwitch();
       await h.runtime(updateSourceCmd(ghId, name: 'GitHub', config: const {'login': 'me'}, secret: 'ghp_NEW', enabled: true));
       final newRef = (await rows())[ghId]!.credentialRef!;
-      // The restored source keeps the original's id, so `source:<id>` is the same keychain item (BUG #118):
-      // the original profile's GitHub source now syncs with the restored profile's token.
+      // The restored source keeps the original id; signing in again must use a fresh keychain item (#121).
       expect(newRef, isNot(originalRef));
       expect(secrets.values[originalRef], 'ghp_ORIGINAL');
-    }, skip: bugSkip);
+    });
   });
 }
 
