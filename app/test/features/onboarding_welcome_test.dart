@@ -7,7 +7,6 @@ import 'package:ant_manager/app.dart';
 import 'package:ant_manager/engine/commands.dart';
 import 'package:ant_manager/engine/engine_handle.dart';
 import 'package:ant_manager/features/onboarding/onboarding_page.dart';
-import 'package:ant_manager/features/settings/kit.dart';
 import 'package:ant_manager/features/settings/setup_providers.dart';
 import 'package:ant_manager/features/today/today_page.dart';
 import 'package:core/core.dart' hide Provider;
@@ -71,21 +70,17 @@ void main() {
   }
 
   group('Welcome step', () {
-    testWidgets('opens first: heading, How it works stages and the three principles', (tester) async {
+    testWidgets('opens first: heading, the four stages and one principles line', (tester) async {
       final h = await boot(tester);
       expect(_railLabels(tester), ['Welcome', 'Profile', 'Identities', 'Repositories', 'Sources', 'AI model', 'First import']);
       expect(_railItem(tester, 'Welcome').selected, isTrue);
       expect(_railItem(tester, 'Profile').selected, isFalse);
       expect(find.text(_welcomeTitle), findsOneWidget);
       expect(find.text(_profileTitle), findsNothing);
-      expect(find.byWidgetPredicate((w) => w is AntSectionLabel && w.label == 'How it works'), findsOneWidget);
-      final stages = [
-        for (final r in tester.widgetList<PanelRow>(find.byType(PanelRow))) r.title,
-      ];
-      expect(stages, ['Sources', 'Evidence', 'Narrative', 'Reports and wins']);
-      for (final p in const ['Local first. ', 'Always cited. ', 'Yours to correct. ']) {
-        expect(find.textContaining(p), findsOneWidget, reason: p);
+      for (final s in const ['Sources', 'Evidence', 'Narrative', 'Reports and wins']) {
+        expect(find.text(s), findsWidgets, reason: s);
       }
+      expect(find.textContaining('Every line cites the work behind it.'), findsOneWidget);
       await killEngine(tester, h);
     });
 

@@ -57,6 +57,14 @@ class DefaultModelPicker extends ConsumerWidget {
   }
 }
 
+/// Short provider summary: key, where it runs, model count. Shared with onboarding's model step.
+String providerDetail(core.Provider p, List<Model> models) {
+  final n = models.where((m) => m.providerId == p.id).length;
+  final where = requiresConsent(p.baseUrl) ? Uri.tryParse(p.baseUrl)?.host ?? p.baseUrl : 'On this Mac';
+  final key = p.credentialRef != null ? 'Key in Keychain · ' : '';
+  return '$key$where · $n model${n == 1 ? '' : 's'} added';
+}
+
 class AiModelsTab extends ConsumerWidget {
   const AiModelsTab({super.key});
 
@@ -71,13 +79,6 @@ class AiModelsTab extends ConsumerWidget {
     ref.watch(taskRoutesProvider);
     final kinds = {for (final p in providers) p.kind};
     final urls = {for (final p in providers) p.baseUrl};
-
-    String detail(core.Provider p) {
-      final n = models.where((m) => m.providerId == p.id).length;
-      final where = requiresConsent(p.baseUrl) ? Uri.tryParse(p.baseUrl)?.host ?? p.baseUrl : 'On this Mac';
-      final key = p.credentialRef != null ? 'Key in Keychain · ' : '';
-      return '$key$where · $n model${n == 1 ? '' : 's'} added';
-    }
 
     return PageBody(
       maxWidth: t.widePage,
@@ -122,7 +123,7 @@ class AiModelsTab extends ConsumerWidget {
             PanelRow(
               titleWidth: t.space.giant * 3,
               title: p.name,
-              hint: detail(p),
+              hint: providerDetail(p, models),
               trailing: [
                 if (models.any((m) => m.providerId == p.id))
                   const AntChip(label: 'Connected', tone: AntTone.ok)

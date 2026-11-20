@@ -257,9 +257,9 @@ maintained from it, and every output reads from that Narrative.
 - **Menu bar / tray app:** keeps running when the window is closed. Handles sync, scheduled generation,
   "write your day?" nudge notifications and the quick-capture hotkey. Launch at login is optional.
 - **Quick capture:** a global hotkey opens a floating note box from anywhere (on macOS the main window shrinks to it, #101).
-- **Onboarding:** welcome (what the app is, how it works: Sources → Evidence → Narrative → Reports and wins, plus
-  local first / always cited / yours to correct, #114) → create profile → add identities → scan repos → connect optional sources → pick AI provider
-  (structured-output probe) → first import and report. Each step can be skipped. Shown once for a profile with no
+- **Onboarding:** welcome (heading, one-line subtitle, the stages Sources → Evidence → Narrative → Reports and wins
+  as one row of sidebar icons, and one line on local first / cited, #114, #137) → create profile → add identities → scan repos → connect optional sources → pick AI provider
+  (structured-output probe; added providers are listed with Manage to change or remove the key, #137) → first import and report. Each step can be skipped. Shown once for a profile with no
   identities and no sources, until finished or skipped (#105).
 - Diagnostics (#126): local rotating logs in `<data>/logs/` (`ui.log`, `engine.log`; 1 MB × 3 each) with
   structural lines only (events, kinds, ids, counts, durations, LLM route/provider kind/host/model/latency/tokens,

@@ -225,8 +225,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           _heading(
             context,
             'Your work, quietly remembered.',
-            'Ant Manager keeps a record of the work you do and turns it into honest daily, weekly and '
-                'review-ready reports, so you never have to rebuild what you did from memory.',
+            'A record of the work you do, turned into honest reports.',
           ),
           ...introBody(context),
         ];
@@ -521,6 +520,20 @@ class _ModelStep extends ConsumerWidget {
               const AntChip(label: 'Structured output verified', tone: AntTone.ok, icon: Icons.check),
             ]),
           ),
+          Gap(t.space.xl),
+        ],
+        if (providers.isNotEmpty) ...[
+          // Added providers stay editable here: change or remove the key without leaving onboarding.
+          ListPanel(children: [
+            for (final p in providers)
+              PanelRow(
+                title: p.name,
+                hint: providerDetail(p, models),
+                trailing: [
+                  AntButton(label: 'Manage', size: AntSize.sm, onPressed: () => showProviderDialog(context, existing: p)),
+                ],
+              ),
+          ]),
           Gap(t.space.xl),
           const Label('Or add another'),
           Gap(t.space.md),

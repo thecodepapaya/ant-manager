@@ -1,4 +1,4 @@
-/// The Welcome step (SPEC §10 Onboarding): what Ant Manager is and how it works.
+/// The Welcome step (SPEC §10 Onboarding): what Ant Manager is and how it works, kept sparse.
 /// The stages reuse the sidebar's icons, so the explanation maps onto the app you land in.
 library;
 
@@ -6,73 +6,44 @@ import 'package:flutter/material.dart';
 import 'package:ui/ui.dart';
 
 import '../../shell/shell_state.dart';
-import '../settings/kit.dart';
+import '../settings/kit.dart' show Gap;
 
 const _stages = [
-  (ShellSection.sources, 'Sources', 'Git repos, GitHub, GitLab, calendars, tickets and your own notes.'),
-  (ShellSection.timeline, 'Evidence', 'Every commit, review, meeting and note lands on your timeline, kept as it was.'),
-  (
-    ShellSection.narrative,
-    'Narrative',
-    'A model turns evidence into facts about what you did, each one citing its evidence.',
-  ),
-  (
-    ShellSection.reports,
-    'Reports and wins',
-    'Daily to quarterly reports and a wins list for reviews, written from those facts.',
-  ),
+  (ShellSection.sources, 'Sources'),
+  (ShellSection.timeline, 'Evidence'),
+  (ShellSection.narrative, 'Narrative'),
+  (ShellSection.reports, 'Reports and wins'),
 ];
 
-const _principles = [
-  (Icons.lock_outline_rounded, 'Local first', 'Your data stays on this computer unless you choose a cloud model.'),
-  (Icons.link_rounded, 'Always cited', 'Every line in a report links back to the work behind it.'),
-  (Icons.edit_outlined, 'Yours to correct', 'Edit or reject any fact. The model never overwrites your changes.'),
-];
-
-/// Body of the Welcome step, below the step heading.
+/// Body of the Welcome step, below the step heading: one row of stages and one line of principles.
 List<Widget> introBody(BuildContext context) {
   final t = context.tokens;
   return [
-    const AntSectionLabel('How it works'),
-    Gap(t.space.xs),
-    ListPanel(
+    Wrap(
+      spacing: t.space.md,
+      runSpacing: t.space.md,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        for (final (section, title, body) in _stages)
-          PanelRow(
-            leading: Glyph(title, icon: section.icon),
-            title: title,
-            hint: body,
-          ),
+        for (final (i, (section, label)) in _stages.indexed) ...[
+          if (i > 0) Icon(Icons.arrow_forward_rounded, size: t.icon.sm, color: t.muted),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(section.icon, size: t.icon.md, color: t.accentText),
+            SizedBox(width: t.space.sm),
+            Text(label, style: t.typo.bodyStrong.copyWith(color: t.text)),
+          ]),
+        ],
       ],
     ),
     Gap(t.space.xxxl),
-    for (final (icon, title, body) in _principles)
-      Padding(
-        padding: EdgeInsets.only(bottom: t.space.lg),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(top: t.space.xxs),
-              child: Icon(icon, size: t.icon.sm, color: t.accentText),
-            ),
-            SizedBox(width: t.space.md),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$title. ',
-                      style: t.typo.bodyStrong.copyWith(color: t.text),
-                    ),
-                    TextSpan(text: body),
-                  ],
-                ),
-                style: t.typo.body.copyWith(color: t.muted),
-              ),
-            ),
-          ],
+    Row(children: [
+      Icon(Icons.lock_outline_rounded, size: t.icon.sm, color: t.muted),
+      SizedBox(width: t.space.md),
+      Expanded(
+        child: Text(
+          'Stays on this computer unless you pick a cloud model. Every line cites the work behind it.',
+          style: t.typo.small.copyWith(color: t.muted),
         ),
       ),
+    ]),
   ];
 }
