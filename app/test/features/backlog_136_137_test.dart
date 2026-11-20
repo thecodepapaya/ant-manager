@@ -522,10 +522,11 @@ void main() {
         baseUrl: 'https://api.anthropic.com',
         protocol: ProviderProtocol.native,
         apiKey: 'sk-b',
+        headers: {'X-Team': 'team-b'},
       ));
-      expect(secrets.values.values.toSet(), {'sk-a', 'team-a', 'sk-b'});
+      expect(secrets.values.values.toSet(), {'sk-a', 'team-a', 'sk-b', 'team-b'});
       await h.runtime(removeProviderCmd(a));
-      expect(secrets.values.values.toList(), ['sk-b']);
+      expect(secrets.values.values.toSet(), {'sk-b', 'team-b'});
       final rows = await h.appDb.select(h.appDb.providers).get();
       expect(rows.map((r) => r.name), ['B']);
     });
