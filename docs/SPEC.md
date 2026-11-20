@@ -17,7 +17,7 @@ a Wins log and review documents. It's a harness: a future chat and MCP server re
 
 | Platform | Artifact | Min OS | Notes |
 |---|---|---|---|
-| macOS | Universal (arm64 + x64) `.app` in `.dmg` | 12+ (Flutter 3.47 minimum) | Sparkle auto-update |
+| macOS | Universal (arm64 + x64) `.app` in `.dmg` | 12+ (Flutter 3.50 minimum) | Sparkle auto-update |
 | Windows | Inno Setup `.exe` installer (x64) | Windows 10+ | WinSparkle auto-update |
 | Linux | AppImage (x64) | Ubuntu 22.04-class | "Update available" notice; libnotify bundled; tray via D-Bus SNI (#111) |
 
