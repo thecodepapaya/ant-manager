@@ -240,7 +240,7 @@ maintained from it, and every output reads from that Narrative.
     behind "Advanced" or appear only when relevant. Every screen has a helpful empty state. The first week is guided.
     Until there is data, a page shows one explanation, not empty controls or filters (#113).
     Timeline rows are one compact line (time left, source chip right); row actions float on hover/focus and reserve no
-    space; dialogs share one layout with a divided footer; every clickable control shows the token focus ring (#NEXT).
+    space; dialogs share one layout with a divided footer; every clickable control shows the token focus ring (#120).
   - **Spacing and padding** come from the spacing tokens on a consistent rhythm. Polish the density, alignment and
     hierarchy screen by screen, with a visual review in both themes.
   - **Model settings:** one obvious global model at the top ("Use X for everything"). The three overrides (Vision,
