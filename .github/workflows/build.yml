@@ -1,11 +1,11 @@
 # Builds UNSIGNED release installers for macOS / Windows / Linux.
-# On tags v* it also publishes a PUBLIC GitHub Release with the three files.
+# Runs only on tags v* (and then publishes a PUBLIC GitHub Release with the three files) or by hand;
+# commits only run CI tests (ci.yml).
 # See docs/RELEASE.md.
 name: Build
 
 on:
   push:
-    branches: [v1, main]
     tags: ['v*']
   workflow_dispatch:
 
