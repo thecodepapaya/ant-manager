@@ -115,6 +115,8 @@ void main() {
       await expectLater(h.runtime(listProviderModelsCmd(pid)), _noConsent());
       await expectLater(h.runtime(_resolveCmd(LlmRoute.defaultRoute)), _noConsent());
       await expectLater(h.runtime(_resolveCmd(LlmRoute.extraction)), _noConsent());
+      await expectLater(h.runtime(_resolveCmd(LlmRoute.vision)), _noConsent());
+      await expectLater(h.runtime(addModelCmd(pid, 'm-text')), _noConsent());
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(llm.paths, isEmpty);
       expect(mid, isNotEmpty);
@@ -187,7 +189,7 @@ void main() {
       expect(newRef, isNot(originalRef));
       expect(secrets.values[originalRef], 'ghp_ORIGINAL');
     }, skip: bugSkip);
-  }, skip: Process.runSync('which', ['zip']).exitCode != 0 ? 'needs zip/unzip' : null);
+  });
 }
 
 /// Stores a model row without the structured-output probe (the fake only serves /models).

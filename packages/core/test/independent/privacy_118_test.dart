@@ -162,6 +162,7 @@ void main() {
       await setProvider('https://llm.invalid/v1', consent: false);
       await expectLater(router.resolve(LlmRoute.defaultRoute), noConsent());
       await expectLater(router.resolve(LlmRoute.reports), noConsent());
+      await expectLater(router.resolve(LlmRoute.vision), noConsent());
     });
 
     test(
@@ -248,6 +249,7 @@ void main() {
       // The live profile is untouched.
       final l = await rows(live);
       expect((l['gh']!.enabled, l['gh']!.credentialRef), (true, 'source:gh'));
+      expect(secrets.values['source:gh'], token, reason: 'restore never deletes secrets');
     });
 
     test('a restored GitHub source never sends the original token, even when re-enabled', () async {
@@ -293,7 +295,8 @@ void main() {
       );
       registerCodeSources(e.sources);
       final sync = SyncService(e);
-      // What the source form does on save (secret + enabled: true).
+      // What the source form does on save (secret + enabled: true). The new ref is `source:<id>` again, the
+      // same keychain item the original profile uses; that clobbering is BUG-skipped in app/test/features/privacy_118_test.dart.
       await sync.updateSource('gh', name: 'gh', secret: 'ghp_NEW', enabled: true);
       final gh = (await rows(restored))['gh']!;
       expect(gh.enabled, isTrue);
