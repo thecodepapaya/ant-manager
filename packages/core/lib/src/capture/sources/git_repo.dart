@@ -87,7 +87,7 @@ class GitRepoSource implements WatchableSource {
         continue;
       }
       // Each changed line is at least 2 patch bytes ("+\n"), so skip `git show` when numstat already proves
-      // the patch is over the cap (#NEXT); a few very long lines can still load before the byte check.
+      // the patch is over the cap (#128); a few very long lines can still load before the byte check.
       if (c.changedLines * 2 > maxPatchBytes) {
         yield c.toObservation(null);
         continue;

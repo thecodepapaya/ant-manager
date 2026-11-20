@@ -12,7 +12,7 @@ import '../llm.dart';
 /// [allowSelfSigned] DISABLES TLS verification entirely: any certificate is accepted (expired, wrong host,
 /// unknown CA), so a man-in-the-middle can read the API key and evidence. Prefer [customCaPem].
 Dio newDio({Duration timeout = const Duration(seconds: 120), String? customCaPem, bool allowSelfSigned = false}) {
-  // No redirects: a cross-host redirect would forward the API key / custom auth headers unchecked (#NEXT).
+  // No redirects: a cross-host redirect would forward the API key / custom auth headers unchecked (#128).
   final dio = Dio(
     BaseOptions(connectTimeout: timeout, receiveTimeout: timeout, sendTimeout: timeout, followRedirects: false),
   );
@@ -75,7 +75,7 @@ Stream<String> _send(Dio dio, String method, String url, Object? body, Map<Strin
     final lines = res.data!.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter());
     if (status >= 300) {
       final text = await lines.join('\n');
-      // Redirects are not followed (#NEXT): name the target so the user can fix the base URL.
+      // Redirects are not followed (#128): name the target so the user can fix the base URL.
       if (status < 400)
         throw LlmFailure('Redirect to ${res.headers.value('location')} not followed', statusCode: status);
       throw LlmFailure(errorMessage(text), statusCode: status);

@@ -72,7 +72,7 @@ class Payloads extends Table {
   TextColumn get kind => textEnum<PayloadKind>()();
   TextColumn get externalId => text()();
   TextColumn get title => text().nullable()(); // used to re-title evidence on tombstone (§4.1)
-  // Used with title to re-time evidence on tombstone (§4.1, #NEXT). Null on rows from schema v1.
+  // Used with title to re-time evidence on tombstone (§4.1, #128). Null on rows from schema v1.
   DateTimeColumn get occurredStart => dateTime().nullable()();
   DateTimeColumn get occurredEnd => dateTime().nullable()();
   TextColumn get content => text()(); // canonical JSON

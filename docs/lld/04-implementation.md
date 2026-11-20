@@ -36,7 +36,7 @@ ingest(source, observations):            # one SQLite transaction per batch
 
 - **Canonical JSON** (sorted keys, no volatile fields such as `fetched_at`) makes hashes stable, so re-syncs are no-ops.
 - **Evidence title/time** come from its first payload. If that payload is tombstoned, the next live payload takes over
-  (title, occurred start/end and day; payloads store their own occurred times for this, #NEXT).
+  (title, occurred start/end and day; payloads store their own occurred times for this, #128).
   Evidence with no live payloads is hidden from views but kept (history).
 - **Manual attach / split / suggested attach** are engine commands that move a payload between evidence rows in one
   transaction (`cause: merge | split`), which bumps the payload revision so dependents go stale.
@@ -92,8 +92,8 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
 
 | Source | Sync (pull) | Change trigger | "Mine" filter | Payload content |
 |---|---|---|---|---|
-| **git repo** | `git log --all --since=<cursor> --format=… --numstat` per repo; cursor = last seen commit time minus 1 day (overlap is free thanks to hashes) | watcher on `.git/refs/` and `.git/logs/HEAD` → debounced sync | author or committer email ∈ identities | sha, message, author, timestamps, branches containing it, stats, **patch up to 200 KB, then stats only**; `git show` is skipped when numstat lines × 2 already exceed the cap (#NEXT) |
-| **GitHub / GHES / GitLab** | Search API for PRs/MRs updated since the cursor where you're author, reviewer or commenter; then each PR's reviews, review comments and conversation comments (`/issues/{n}/comments`, #NEXT) by you | none (poll every 15 min) | login ∈ identities | PR: title, body, state, repo, URL, merged_at, your reviews/comments; commits referenced by SHA (→ grouping) |
+| **git repo** | `git log --all --since=<cursor> --format=… --numstat` per repo; cursor = last seen commit time minus 1 day (overlap is free thanks to hashes) | watcher on `.git/refs/` and `.git/logs/HEAD` → debounced sync | author or committer email ∈ identities | sha, message, author, timestamps, branches containing it, stats, **patch up to 200 KB, then stats only**; `git show` is skipped when numstat lines × 2 already exceed the cap (#128) |
+| **GitHub / GHES / GitLab** | Search API for PRs/MRs updated since the cursor where you're author, reviewer or commenter; then each PR's reviews, review comments and conversation comments (`/issues/{n}/comments`, #128) by you | none (poll every 15 min) | login ∈ identities | PR: title, body, state, repo, URL, merged_at, your reviews/comments; commits referenced by SHA (→ grouping) |
 | **GitHub / GHES issues** (#106) | `GET /issues?filter=created` and `filter=subscribed` (`state=all&since=<cursor>`; commenting, assignment and mentions subscribe you; `filter=all` would be every visible issue), all pages, entries with `pull_request` dropped; then your comments and, if closed, the issue (`closed_by`). Own cursor scope `issue` | none (same poll) | you opened, closed or commented | issue: title, body, state, repo, URL, labels, closed_by, roles, your comments |
 | **GitLab issues** (#106) | `GET /issues?scope=created_by_me` updated after the cursor, plus your `GET /events` (`target_type=issue&action=closed`; `action=commented` on an Issue noteable) since the cursor's day; then your non-system notes. Own cursor scope `issue` | none (same poll) | you opened, closed or commented | as GitHub issue, minus stateReason and comment URLs |
 | **Google Calendar** | `events.list` with `syncToken` (incremental by design) | none (poll every 15 min) | events where you're not `declined` | title, start/end, attendees count, organizer, description, iCalUID (→ grouping) |
@@ -105,7 +105,7 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
   connected GitHub/GHES/GitLab source, that source covers the repo; otherwise the UI offers to connect that host.
 - **Initial import:** the last **30 days** when a source is added .
 - **Polling intervals** are constants in v1, not settings .
-- **Source sync HTTP** uses one shared Dio with 60 s connect/send/receive timeouts (#NEXT). GitHub lists at most 250
+- **Source sync HTTP** uses one shared Dio with 60 s connect/send/receive timeouts (#128). GitHub lists at most 250
   commits per PR; larger PRs are accepted as truncated.
 - **Sync service (#102):** a source is due 15 min after its last success (ICS 60 min), watched sources included as a
   backstop; at most one pending sync job per source. Status (`lastSuccessAt`, `lastError`) lives on the source's
