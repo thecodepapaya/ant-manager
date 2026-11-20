@@ -48,7 +48,9 @@ class AntEngine {
   })  : ingestor = Ingestor(db, utcOffset: utcOffset),
         deps = DependencyRecorder(db),
         staleness = StalenessService(db),
-        recompute = RecomputeWorker(db),
+        // Reports regenerate lazily and their staleness is computed (LLD 04 §4.2): queued
+        // snapshot rows are only acknowledged, so they don't pile up (#NEXT).
+        recompute = RecomputeWorker(db)..on(EntityType.reportSnapshot, (_) async {}),
         jobs = JobQueue(db, clock: ports.clock),
         structured = StructuredOutput(router),
         _utcOffset = utcOffset;
@@ -208,9 +210,11 @@ class AntEngine {
       (db.update(db.workstreams)..where((w) => w.id.equals(id)))
           .write(WorkstreamsCompanion(title: Value(title), userTouched: const Value(true)));
 
-  /// Moves a fact into [workstreamId] (null = none). Membership isn't fact content: no revision bump.
+  /// Moves a fact into [workstreamId] (null = none). Membership isn't fact content, but a model-owned
+  /// fact becomes `confirmed` (like setWinStatus) so the assigner never moves it back (#NEXT).
   Future<void> moveFactToWorkstream(String factId, String? workstreamId) => db.transaction(() async {
         final f = await _fact(factId);
+        if (!f.origin.isUserTouched) await _writeFact(f, origin: FactOrigin.confirmed, by: 'user');
         await (db.update(db.facts)..where((x) => x.id.equals(factId)))
             .write(FactsCompanion(workstreamId: Value(workstreamId)));
         for (final id in {f.workstreamId, workstreamId}.nonNulls) {

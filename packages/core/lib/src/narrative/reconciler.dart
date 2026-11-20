@@ -63,8 +63,9 @@ class FactReconciler {
         case UpdateFact():
           final f = _target(facts, op.factId, r, 'update');
           if (f == null) continue;
+          // No citations given: keep the current ones, which must still be in the input too (#NEXT).
           final cites = op.citations.isEmpty ? await writer.citedPayloads(f.id) : op.citations;
-          if (op.citations.isNotEmpty && !_citationsOk(op.citations, input, r, 'update')) continue;
+          if (!_citationsOk(cites, input, r, 'update')) continue;
           opTouched.add(f.id);
           if (isProtected(f)) {
             await writer.propose(f, {

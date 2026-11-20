@@ -77,20 +77,24 @@ class TimeAllocator {
     }
 
     final names = {for (final p in await db.select(db.projects).get()) p.id: p.name};
-    final existing =
-        await (db.select(db.facts)..where(
-              (f) => f.periodStart.equals(day) & f.type.equalsValue(FactType.timeAllocation) & f.retired.equals(false),
-            ))
-            .get();
-    final seen = <(String?, String)>{};
-    for (final f in existing) {
-      final key = (f.projectId, detailsOf(f)['basis'] as String? ?? '');
+    final all = await (db.select(
+      db.facts,
+    )..where((f) => f.periodStart.equals(day) & f.type.equalsValue(FactType.timeAllocation))).get();
+    String basisOf(Fact f) => detailsOf(f)['basis'] as String? ?? '';
+    // A (project, basis) the user rejected is never re-created (#NEXT); its key counts as seen.
+    final seen = <(String?, String)>{
+      for (final f in all)
+        if (f.retired && f.winStatus == WinStatus.rejected) (f.projectId, basisOf(f)),
+    };
+    for (final f in all.where((f) => !f.retired)) {
+      final key = (f.projectId, basisOf(f));
       final w = wanted[key];
       if (w == null || !seen.add(key)) {
-        // No longer measured/estimated (or a duplicate): retire, or ask the user if they touched it.
+        // No longer measured/estimated (or a duplicate or rejected key): retire, or ask the user if they touched it.
         if (isProtected(f)) {
           if (f.reviewState != ReviewState.needsReview) {
-            await writer.propose(f, {'op': 'retire', 'retire': true, 'reason': 'no time recorded any more'});
+            final reason = w == null ? 'no time recorded any more' : 'duplicate or rejected time fact';
+            await writer.propose(f, {'op': 'retire', 'retire': true, 'reason': reason});
           }
         } else {
           await writer.update(f, retired: true);

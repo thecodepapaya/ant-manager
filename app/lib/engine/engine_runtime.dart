@@ -409,8 +409,9 @@ class EngineRuntime {
       var worked = false;
       try {
         if (!(lane == JobLane.io && paused)) worked = await engine.jobs.runOne(lane);
-        // Recompute shares the IO loop; handlers are registered by core's narrative layer.
-        if (lane == JobLane.io) worked = await engine.recompute.drain() > 0 || worked;
+        // Recompute calls models, so it shares the LLM lane (one model call at a time, #NEXT);
+        // handlers are registered by core's narrative layer.
+        if (lane == JobLane.llm) worked = await engine.recompute.drain() > 0 || worked;
       } catch (e, st) {
         Log.error('engine.loop', e, st, {'lane': lane});
       }
