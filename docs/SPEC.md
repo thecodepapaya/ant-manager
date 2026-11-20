@@ -176,7 +176,7 @@ maintained from it, and every output reads from that Narrative.
   regenerated, shows "facts changed since lock", can be unlocked). Version history is kept. A report is **out of date**
   when any input under it changed (transitively, down to payloads) or a new fact appeared in its period (#104).
 - **Generation:** automatic on a configurable schedule (e.g. daily at 18:00, weekly on Monday 09:00) when the tray app
-  is running, plus on demand. Scheduled runs use the period kind's default built-in template (#108). Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79).
+  is running, plus on demand. Scheduled runs use the period kind's default built-in template (#108). Missed runs **catch up once** on next launch: only the latest due run, not every missed one (#79). Schedule times are local wall time on each day, using the profile offset valid on that day (so 18:00 stays 18:00 across a DST change, #NEXT).
 - Every claim in a report links to the **facts and evidence** behind it (Markdown footnotes `[^fN]: <statement> (fact:<id>)`, #108).
 - **Wins = a view** over Outcome facts + starred evidence, plus model-suggested wins you accept or reject. Filterable
   by period and project. Starred evidence counts as having a win only once an accepted Outcome fact cites it (#115).

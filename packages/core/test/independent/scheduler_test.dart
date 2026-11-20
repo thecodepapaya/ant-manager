@@ -50,7 +50,7 @@ void main() {
   ];
 
   group('ScheduleRule.latestDue', () {
-    DateTime? due(ScheduleRule r, DateTime now, [Duration off = Duration.zero]) => r.latestDue(now, off);
+    DateTime? due(ScheduleRule r, DateTime now, [Duration off = Duration.zero]) => r.latestDue(now, (_) => off);
 
     test('daily weekdays 18:00: weekends fall back to Friday; exact boundary counts', () {
       const r = ScheduleRule(hour: 18, weekdays: [1, 2, 3, 4, 5]);
