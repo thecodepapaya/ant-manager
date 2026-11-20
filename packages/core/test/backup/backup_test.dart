@@ -155,7 +155,7 @@ void main() {
     );
     final corrupt = await rewrite((m) => m, corrupt: true);
     await expectLater(
-      BackupService.restore(corrupt, p.join(tmp.path, 'c.sqlite'), currentSchemaVersion: 1),
+      BackupService.restore(corrupt, p.join(tmp.path, 'c.sqlite'), currentSchemaVersion: fx.db.schemaVersion),
       throwsA(isA<BackupException>().having((e) => e.message, 'message', contains('checksum'))),
     );
   });

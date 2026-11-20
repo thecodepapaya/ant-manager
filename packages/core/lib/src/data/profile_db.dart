@@ -72,6 +72,9 @@ class Payloads extends Table {
   TextColumn get kind => textEnum<PayloadKind>()();
   TextColumn get externalId => text()();
   TextColumn get title => text().nullable()(); // used to re-title evidence on tombstone (§4.1)
+  // Used with title to re-time evidence on tombstone (§4.1, #NEXT). Null on rows from schema v1.
+  DateTimeColumn get occurredStart => dateTime().nullable()();
+  DateTimeColumn get occurredEnd => dateTime().nullable()();
   TextColumn get content => text()(); // canonical JSON
   TextColumn get contentHash => text()();
   /// Exact-identity grouping key (iCal UID, commit SHA). Null = never auto-grouped.
@@ -295,7 +298,7 @@ class ProfileDb extends _$ProfileDb {
   ProfileDb(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -303,6 +306,12 @@ class ProfileDb extends _$ProfileDb {
       await m.createAll();
       for (final sql in profileDbExtraSql) {
         await customStatement(sql);
+      }
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(payloads, payloads.occurredStart);
+        await m.addColumn(payloads, payloads.occurredEnd);
       }
     },
     beforeOpen: (details) async {

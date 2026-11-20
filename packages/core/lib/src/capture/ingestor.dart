@@ -70,6 +70,8 @@ class Ingestor {
         contentHash: hash,
         groupKey: Value(o.groupKey),
         title: Value(o.title),
+        occurredStart: Value(o.occurredStart.toUtc()),
+        occurredEnd: Value(o.occurredEnd?.toUtc()),
       ));
       await _revision(payloadId, 1, json, hash, now);
       r.created++;
@@ -100,6 +102,8 @@ class Ingestor {
       tombstonedAt: const Value(null),
       groupKey: Value(groupKey),
       title: Value(o.title),
+      occurredStart: Value(o.occurredStart.toUtc()),
+      occurredEnd: Value(o.occurredEnd?.toUtc()),
     ));
     await _revision(existing.id, rev, json, hash, now);
     // §4.1: evidence title/time come from its first live payload (a rescheduled meeting moves).
@@ -120,7 +124,7 @@ class Ingestor {
     r.updated++;
   }
 
-  /// §4.1: evidence title follows its earliest live payload once the first one is tombstoned.
+  /// §4.1: evidence title and time follow its earliest live payload once the first one is tombstoned.
   Future<void> _promoteNextLivePayload(String evidenceId) async {
     final next = await (db.select(db.payloads)
           ..where((p) => p.evidenceId.equals(evidenceId) & p.tombstonedAt.isNull() & p.title.isNotNull())
@@ -128,8 +132,14 @@ class Ingestor {
           ..limit(1))
         .getSingleOrNull();
     if (next == null) return; // no live payloads: evidence hidden from views, kept for history
-    await (db.update(db.evidences)..where((e) => e.id.equals(evidenceId)))
-        .write(EvidencesCompanion(title: Value(next.title!), updatedAt: Value(DateTime.now().toUtc())));
+    final start = next.occurredStart; // null on rows from schema v1: title only
+    await (db.update(db.evidences)..where((e) => e.id.equals(evidenceId))).write(EvidencesCompanion(
+      title: Value(next.title!),
+      occurredStart: start == null ? const Value.absent() : Value(start),
+      occurredEnd: start == null ? const Value.absent() : Value(next.occurredEnd),
+      day: start == null ? const Value.absent() : Value(dayOf(start, utcOffset(start))),
+      updatedAt: Value(DateTime.now().toUtc()),
+    ));
   }
 
   Future<void> _revision(String payloadId, int rev, String json, String hash, DateTime at) =>

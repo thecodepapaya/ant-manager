@@ -30,7 +30,10 @@ class SourceSyncResult {
 /// source-management commands the app calls.
 class SyncService {
   SyncService(this.e, {Dio? http, this.batchSize = 200, this.debounce = const Duration(seconds: 5)})
-      : http = http ?? Dio();
+      : http = http ?? Dio(BaseOptions(connectTimeout: _timeout, receiveTimeout: _timeout, sendTimeout: _timeout));
+
+  /// Per-request timeouts for source HTTP, so one unresponsive server can't hold the IO lane (#NEXT).
+  static const _timeout = Duration(seconds: 60);
 
   final AntEngine e;
   final Dio http;

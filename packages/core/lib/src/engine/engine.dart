@@ -107,6 +107,7 @@ class AntEngine {
         content: content,
         contentHash: sha256Hex(content),
         title: Value(text.split('\n').first),
+        occurredStart: Value(at.toUtc()),
       ));
       for (final path in attachmentPaths) {
         final bytes = await ports.blobs.get(path);

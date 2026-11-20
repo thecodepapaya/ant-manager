@@ -6,13 +6,16 @@ import 'package:dio/io.dart';
 
 import '../llm.dart';
 
-/// Dio configured for one provider: timeout plus optional custom CA / self-signed TLS (#15).
+/// Dio configured for one provider: timeout, no redirects, plus optional custom CA / self-signed TLS (#15).
 ///
 /// [customCaPem] adds a trusted root; certificate validation (chain, expiry, hostname) stays on.
 /// [allowSelfSigned] DISABLES TLS verification entirely: any certificate is accepted (expired, wrong host,
 /// unknown CA), so a man-in-the-middle can read the API key and evidence. Prefer [customCaPem].
 Dio newDio({Duration timeout = const Duration(seconds: 120), String? customCaPem, bool allowSelfSigned = false}) {
-  final dio = Dio(BaseOptions(connectTimeout: timeout, receiveTimeout: timeout, sendTimeout: timeout));
+  // No redirects: a cross-host redirect would forward the API key / custom auth headers unchecked (#NEXT).
+  final dio = Dio(
+    BaseOptions(connectTimeout: timeout, receiveTimeout: timeout, sendTimeout: timeout, followRedirects: false),
+  );
   dio.httpClientAdapter = IOHttpClientAdapter(
     createHttpClient: () {
       final context = SecurityContext(withTrustedRoots: true);
@@ -70,7 +73,7 @@ Stream<String> _send(Dio dio, String method, String url, Object? body, Map<Strin
     );
     final status = res.statusCode ?? 0;
     final lines = res.data!.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter());
-    if (status >= 400) {
+    if (status >= 300) { // 3xx too: redirects are not followed
       final text = await lines.join('\n');
       throw LlmFailure(errorMessage(text), statusCode: status);
     }
