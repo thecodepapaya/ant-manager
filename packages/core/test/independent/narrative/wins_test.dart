@@ -40,7 +40,10 @@ void main() {
     expect((await h.fact('f1')).winStatus, WinStatus.accepted);
   });
 
-  test('non-outcome or retired facts do not count as the win', () async {
+  test('a decision or retired outcome is not the existing-outcome shortcut; model answers fact_id null → new fact',
+      () async {
+    // The harness's default win answer has fact_id: null, so this only covers the no-reuse path;
+    // reuse via fact_id (#119) is covered in fixes_119_test.dart.
     await h.insertFact('d', [p1], type: FactType.decision);
     await h.insertFact('r', [p1], retired: true);
     final id = await wins.starEvidence(e1);
@@ -48,6 +51,18 @@ void main() {
     expect(h.router.of('win'), hasLength(1));
     expect((await h.fact('d')).winStatus, WinStatus.none);
   });
+
+  for (final bad in ['d', 'r']) {
+    test('a decision or retired outcome id returned as fact_id ($bad) is still not reused', () async {
+      await h.insertFact('d', [p1], type: FactType.decision);
+      await h.insertFact('r', [p1], retired: true);
+      h.router.responders['win'] = (_) => {'fact_id': bad, 'statement': 'Shipped it.', 'citations': [p1]};
+      final id = await wins.starEvidence(e1);
+      expect(id, isNot(anyOf('d', 'r')));
+      expect(((await h.fact('d')).type, (await h.fact('d')).winStatus), (FactType.decision, WinStatus.none));
+      expect(((await h.fact('r')).retired, (await h.fact('r')).winStatus), (true, WinStatus.none));
+    });
+  }
 
   test('no outcome → one model call → userCreated + accepted with valid citations only', () async {
     h.router.responders['win'] = (_) => {

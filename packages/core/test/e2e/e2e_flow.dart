@@ -488,8 +488,30 @@ void defineE2eFlow(String name, {required Future<E2eEndpoint> Function() endpoin
     });
 
     test('7. star evidence → accepted win; tools return sensible data', () async {
+      final noteIds = (await (db.select(db.payloads)..where((x) => x.evidenceId.equals(noteEvidence))).get())
+          .map((x) => x.id);
+      final noteFacts = (await (db.select(db.facts).join([
+        innerJoin(db.citations, db.citations.factId.equalsExp(db.facts.id)),
+      ])..where(db.citations.payloadId.isIn(noteIds) & db.facts.retired.equals(false))).get())
+          .map((r) => r.readTable(db.facts).id)
+          .toSet();
+      final factCount = (await db.select(db.facts).get()).length;
       final factId = await WinService(NarrativeContext.of(e)).starEvidence(noteEvidence);
+      if (!live) {
+        // #119: the fake model returns the note's existing invisible-work fact id, so it becomes the win.
+        expect(noteFacts, hasLength(1), reason: 'the fake extraction wrote one fact for the note');
+        expect(factId, noteFacts.single);
+        expect((await db.select(db.facts).get()).length, factCount, reason: 'no duplicate fact');
+        final reused = await (db.select(db.facts)..where((f) => f.id.equals(factId))).getSingle();
+        expect(
+          (reused.statement, reused.origin, reused.importance),
+          ('Unblocked a teammate on the refund flow.', FactOrigin.confirmed, 1.0),
+        );
+        final cited = (await (db.select(db.citations)..where((c) => c.factId.equals(factId))).get()).map((c) => c.payloadId);
+        expect(cited, containsAll(noteIds));
+      }
       await settle();
+      if (!live) expect((await db.select(db.facts).get()).length, factCount, reason: 'the re-run adds no fact');
       final win = await (db.select(db.facts)..where((f) => f.id.equals(factId))).getSingle();
       expect(win.type, FactType.outcome);
       expect(win.winStatus, WinStatus.accepted);
