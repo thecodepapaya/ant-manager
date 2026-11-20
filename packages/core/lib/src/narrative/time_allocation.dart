@@ -81,7 +81,7 @@ class TimeAllocator {
       db.facts,
     )..where((f) => f.periodStart.equals(day) & f.type.equalsValue(FactType.timeAllocation))).get();
     String basisOf(Fact f) => detailsOf(f)['basis'] as String? ?? '';
-    // A (project, basis) the user rejected is never re-created (#NEXT); its key counts as seen.
+    // A (project, basis) the user rejected is never re-created (#131); its key counts as seen.
     final seen = <(String?, String)>{
       for (final f in all)
         if (f.retired && f.winStatus == WinStatus.rejected) (f.projectId, basisOf(f)),

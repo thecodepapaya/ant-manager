@@ -83,7 +83,7 @@ SELECT EXISTS (
 **RecomputeWorker:** drains the queue (de-duplicated by entity, oldest first), debounced by about 30 s so a burst of
 sync changes becomes one recompute per day. It dispatches by type: `day` → importance → enrichment → fact extraction →
 time facts → workstreams. `reportSnapshot` → acknowledged with no work: its staleness is computed and reports
-regenerate lazily (invariant 6, #NEXT). The worker runs on the LLM lane (§4.11).
+regenerate lazily (invariant 6, #131). The worker runs on the LLM lane (§4.11).
 **Model calls never run inside a transaction (#103):** each stage reads its inputs, calls the model, then writes in a
 short transaction that first re-checks the inputs (payload revisions; for extraction the day's input fingerprint). If
 they moved, the result is discarded and the day re-queued. The worker deletes the queue rows only **after** the
@@ -122,7 +122,7 @@ handler's writes have committed, so a crash leaves the work queued; stages are i
   `[{evidence_id, score: 0..1, reason}]`. The input is title + kind + short content excerpt per item.
 - **Precedence when stored:** user per-item (star = 1.0, hide = 0) > CurationRule (highest priority match) > model.
   The model never overwrites `set_by = user | rule`; every importance write also checks `set_by <> user` in its
-  `WHERE`, so a user override committed meanwhile wins (#NEXT).
+  `WHERE`, so a user override committed meanwhile wins (#131).
 - **Neutral default** 0.5 until scored.
 
 ## 4.5 Enrichment (every payload kind, #91)
@@ -161,7 +161,7 @@ ordered citations → statement → type → importance.
 
 **FactReconciler rules (enforce invariants, one transaction per day):**
 1. Drop any op whose citations reference payloads not in the input (logged as an extraction error, counted for evals).
-   An `update` with no citations keeps the fact's current ones, which must pass the same check (#NEXT).
+   An `update` with no citations keeps the fact's current ones, which must pass the same check (#131).
 2. `create` → new Fact (origin `inferred`, revision 1) + FactRevision + Citations pinned to current payload revisions.
    `suggest_win` → `win_status = suggested` (unless the same statement was rejected before for these citations).
 3. `update`/`retire` on a model-owned fact (`origin = inferred`) → apply, bump revision, append FactRevision.
@@ -187,14 +187,14 @@ Time facts are computed in code, so they're reproducible and defensible:
   `timezone` database (`latest_10y`); unknown names fall back to the system offset (#109).
 - Output: up to **two** `Time allocation` facts per project per day, one per basis (#100), `details = {minutes, basis:
   measured|estimated}`, citing the payloads used. Weekly and longer periods sum these. A (project, basis) whose fact
-  the user rejected is never re-created for that day (#NEXT).
+  the user rejected is never re-created for that day (#131).
 
 ## 4.8 Workstream assignment
 
 After a day's extraction, new facts without a workstream go to the Extraction route with the active workstreams
 (last 30 days: id, title, summary). Structured output: per fact, an existing workstream id **or** a new title. Users can
 rename, merge or move facts between workstreams (user changes are never overwritten). Moving a model-owned fact
-(including "Remove from workstream") makes it `confirmed`, so the assigner never moves it back (#NEXT). Workstream span updates from its
+(including "Remove from workstream") makes it `confirmed`, so the assigner never moves it back (#131). Workstream span updates from its
 facts; the same call refreshes an existing workstream's summary (`new_summary` on an assignment to it, by id or
 by a reused title, ignored for user-touched workstreams, #109, #115). A workstream created in the same batch with a
 blank summary takes the first later non-blank one (#116). A workstream with no live facts has a null span and is not active (#110).
@@ -226,7 +226,7 @@ blank summary takes the first later non-blank one (#116). A workstream with no l
 
 - `win_status = suggested` comes from extraction (§4.6). Accept/reject is a user command (user-touched from then on).
 - **Star an evidence item:** if an Outcome fact already cites one of its payloads → set that fact `accepted`
-  (importance 1, #NEXT). Otherwise,
+  (importance 1, #131). Otherwise,
   enqueue a one-off extraction for that evidence that must produce an Outcome fact, created as `accepted` with
   origin `user-created`.
   That call (`win` schema: `fact_id|null`, `statement`, `citations`) also lists the live model-owned facts citing the
@@ -238,7 +238,7 @@ blank summary takes the first later non-blank one (#116). A workstream with no l
 
 - **Job table** with `state ∈ queued | running | done | failed`, `run_after`, `attempts`, `lease_until`.
 - **One worker loop** in the engine isolate with two lanes: **IO** (syncs, backups) and **LLM** (one model call at a time,
-  so a local model isn't swamped: scheduled reports and the recompute drain, #NEXT). A job leased but not finished when the app dies is re-queued when `lease_until` passes.
+  so a local model isn't swamped: scheduled reports and the recompute drain, #131). A job leased but not finished when the app dies is re-queued when `lease_until` passes.
 - **Retries:** exponential backoff (1 min, 5 min, 30 min), then `failed` and shown in Settings .
 - **Scheduler:** per profile, a list of `{kind, rule}` (daily 18:00 weekdays, weekly Mon 09:00, monthly 1st 09:00,
   quarterly first day 09:00, backup 02:00, nudge weekdays 18:05, #105). Editing a schedule sets `lastRunAt = now`, so it

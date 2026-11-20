@@ -63,7 +63,7 @@ class FactReconciler {
         case UpdateFact():
           final f = _target(facts, op.factId, r, 'update');
           if (f == null) continue;
-          // No citations given: keep the current ones, which must still be in the input too (#NEXT).
+          // No citations given: keep the current ones, which must still be in the input too (#131).
           final cites = op.citations.isEmpty ? await writer.citedPayloads(f.id) : op.citations;
           if (!_citationsOk(cites, input, r, 'update')) continue;
           opTouched.add(f.id);

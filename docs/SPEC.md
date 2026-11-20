@@ -174,7 +174,7 @@ maintained from it, and every output reads from that Narrative.
   Time allocation, grouped into **Workstreams** (#65). Every fact is labelled *model-inferred* or *user-confirmed*; time is *measured* (calendar) or
   *estimated*; "unknown" is allowed. Updated **incrementally** as evidence arrives. User-touched facts are never
   overwritten by the model. A rejected fact (time facts too) is never re-created, and moving a fact into or out of a
-  workstream confirms it (#NEXT).
+  workstream confirms it (#131).
 - **Reports** cover **daily, weekly, monthly, quarterly and custom** ranges. Each report queries the Narrative for its
   period and renders it with a template. Reports are **not editable**. **Lock** freezes a report as a snapshot (never
   regenerated, shows "facts changed since lock", can be unlocked). Version history is kept. A report is **out of date**

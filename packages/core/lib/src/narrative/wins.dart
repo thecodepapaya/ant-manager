@@ -69,7 +69,7 @@ it is the same piece of work, not merely related.''';
         ..orderBy([OrderingTerm.desc(db.facts.importance)])
         ..limit(1);
       final f = (await q.getSingleOrNull())?.readTable(db.facts);
-      // Same as the other star paths: the win gets importance 1 (#NEXT).
+      // Same as the other star paths: the win gets importance 1 (#131).
       if (f != null && (f.winStatus != WinStatus.accepted || f.importance != 1.0)) {
         await writer.acceptWin(f, importance: 1.0);
       }

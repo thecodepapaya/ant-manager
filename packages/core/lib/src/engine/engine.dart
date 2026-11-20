@@ -49,7 +49,7 @@ class AntEngine {
         deps = DependencyRecorder(db),
         staleness = StalenessService(db),
         // Reports regenerate lazily and their staleness is computed (LLD 04 §4.2): queued
-        // snapshot rows are only acknowledged, so they don't pile up (#NEXT).
+        // snapshot rows are only acknowledged, so they don't pile up (#131).
         recompute = RecomputeWorker(db)..on(EntityType.reportSnapshot, (_) async {}),
         jobs = JobQueue(db, clock: ports.clock),
         structured = StructuredOutput(router),
@@ -211,7 +211,7 @@ class AntEngine {
           .write(WorkstreamsCompanion(title: Value(title), userTouched: const Value(true)));
 
   /// Moves a fact into [workstreamId] (null = none). Membership isn't fact content, but a model-owned
-  /// fact becomes `confirmed` (like setWinStatus) so the assigner never moves it back (#NEXT).
+  /// fact becomes `confirmed` (like setWinStatus) so the assigner never moves it back (#131).
   Future<void> moveFactToWorkstream(String factId, String? workstreamId) => db.transaction(() async {
         final f = await _fact(factId);
         if (!f.origin.isUserTouched) await _writeFact(f, origin: FactOrigin.confirmed, by: 'user');
