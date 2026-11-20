@@ -62,10 +62,17 @@ class DesktopShell {
 
   Future<void> _initTray() async {
     final icon = tray.TrayIcon.create();
-    if (icon == null) return; // No tray on this desktop (e.g. GNOME without AppIndicator).
+    if (icon == null)
+      return; // No tray on this desktop (e.g. GNOME without AppIndicator).
     _trayIcon = icon
-      ..icon = tray.ImageAsset.fromAsset('assets/tray/tray_icon.png')
-      ..isIconTemplate = true
+      // macOS tints a black template icon for the menu bar; Windows/Linux show it as is, so they get the
+      // coloured tile, which reads on light and dark taskbars (#123).
+      ..icon = tray.ImageAsset.fromAsset(
+        Platform.isMacOS
+            ? 'assets/tray/tray_icon.png'
+            : 'assets/tray/tray_icon_color.png',
+      )
+      ..isIconTemplate = Platform.isMacOS
       ..setTooltip('Ant Manager')
       ..setContextMenuTrigger(tray.ContextMenuTrigger.clicked)
       ..setVisible(true);
@@ -80,17 +87,26 @@ class DesktopShell {
   void _rebuildMenu() {
     final icon = _trayIcon;
     if (icon == null) return;
-    final profiles = _container.read(profilesProvider).value ?? const <Profile>[];
+    final profiles =
+        _container.read(profilesProvider).value ?? const <Profile>[];
     final activeId = _container.read(engineProvider).value?.profileId;
     final paused = _container.read(pausedProvider).value ?? false;
 
     final menu = tray.Menu.create()!;
-    void item(String label, VoidCallback onClick, {bool? checked, tray.Menu? into}) {
+    void item(
+      String label,
+      VoidCallback onClick, {
+      bool? checked,
+      tray.Menu? into,
+    }) {
       final mi = tray.MenuItem.createWithLabelAndType(
         label,
         checked == null ? tray.MenuItemType.normal : tray.MenuItemType.checkbox,
       )!;
-      if (checked != null) mi.state = checked ? tray.MenuItemState.checked : tray.MenuItemState.unchecked;
+      if (checked != null)
+        mi.state = checked
+            ? tray.MenuItemState.checked
+            : tray.MenuItemState.unchecked;
       mi.addListener((e) {
         if (e is tray.MenuItemClickedEvent) onClick();
       });
@@ -103,16 +119,32 @@ class DesktopShell {
     if (profiles.length > 1) {
       final sub = tray.Menu.create()!;
       for (final p in profiles) {
-        item(p.name, () => unawaited(_container.read(engineProvider.notifier).switchProfile(p.id)),
-            checked: p.id == activeId, into: sub);
+        item(
+          p.name,
+          () => unawaited(
+            _container.read(engineProvider.notifier).switchProfile(p.id),
+          ),
+          checked: p.id == activeId,
+          into: sub,
+        );
       }
-      final parent = tray.MenuItem.createWithLabelAndType('Profile', tray.MenuItemType.submenu)!..submenu = sub;
+      final parent = tray.MenuItem.createWithLabelAndType(
+        'Profile',
+        tray.MenuItemType.submenu,
+      )!..submenu = sub;
       menu.addItem(parent);
     }
     item('Sync now', () => unawaited(_syncNow()));
-    item('Pause collection', () => unawaited(_setPaused(!paused)), checked: paused);
+    item(
+      'Pause collection',
+      () => unawaited(_setPaused(!paused)),
+      checked: paused,
+    );
     menu.addSeparator();
-    item('Settings…', () => unawaited(showMain(section: ShellSection.settings)));
+    item(
+      'Settings…',
+      () => unawaited(showMain(section: ShellSection.settings)),
+    );
     item('Quit Ant Manager', () => unawaited(quit()));
     icon.setContextMenu(menu);
   }
@@ -132,7 +164,10 @@ class DesktopShell {
   Future<void> _initHotKey() async {
     await hotKeyManager.unregisterAll(); // leftovers after a hot restart
     try {
-      await hotKeyManager.register(quickCaptureHotKey, keyDownHandler: (_) => unawaited(openQuickCapture()));
+      await hotKeyManager.register(
+        quickCaptureHotKey,
+        keyDownHandler: (_) => unawaited(openQuickCapture()),
+      );
     } on PlatformException catch (e) {
       debugPrint('Quick-capture hotkey unavailable: $e');
     }
@@ -141,8 +176,10 @@ class DesktopShell {
   // ---------- window ----------
 
   Future<void> showMain({ShellSection? section}) async {
-    if (_container.read(quickCaptureModeProvider)) await closeQuickCapture(restoreVisibility: false);
-    if (section != null) _container.read(shellSectionProvider.notifier).select(section);
+    if (_container.read(quickCaptureModeProvider))
+      await closeQuickCapture(restoreVisibility: false);
+    if (section != null)
+      _container.read(shellSectionProvider.notifier).select(section);
     _window
       ..show()
       ..focus();
