@@ -75,7 +75,10 @@ class DesktopShell {
       ..isIconTemplate = Platform.isMacOS
       ..setTooltip('Ant Manager')
       ..setContextMenuTrigger(tray.ContextMenuTrigger.clicked)
-      ..setVisible(true);
+      ..setVisible(true)
+      // nativeapi wires the icon's click handling (and so the menu trigger) only once the icon
+      // has a listener; without one, clicking it does nothing (#140).
+      ..addListener((_) {});
     _rebuildMenu();
     // Rebuild when the inputs of the menu change.
     _subs

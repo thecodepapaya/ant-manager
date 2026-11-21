@@ -9,4 +9,11 @@ Owner notes from local runs. Each fix still follows the working rules (DECISIONS
 - [x] **Remove / change the AI key after adding it.** Once an OpenRouter key is saved in the onboarding AI-model step there's no way to undo or remove it.
 
 ## Menu bar / tray
-- [ ] **Menu-bar icon does nothing when clicked** (macOS local run): no menu, so no Quit, Sync now or Open. Fix the click handler / context menu and cover it in the smoke test.
+- [x] **Menu-bar icon does nothing when clicked** (macOS local run): fixed in #140 (the icon had no listener, so nativeapi never wired clicks). **Owner to confirm** the menu opens with Open, Quick note, Sync now, Pause, Settings and Quit; a smoke test can't click the menu bar.
+
+## Waiting on the owner
+- [ ] **Firebase:** configured but not initialized (DECISIONS #138). Decide what it's for; then wire it (skip Linux). See OWNER_TODO.
+
+## Known trade-offs (accepted, revisit if they bite)
+- Removing a provider when the keychain delete fails removes the provider but leaves its old key in the keychain (#139).
+- Search fields appear only above 8 entries; plain substring match, no fuzzy search (#136).
