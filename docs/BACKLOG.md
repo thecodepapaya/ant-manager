@@ -17,3 +17,4 @@ Owner notes from local runs. Each fix still follows the working rules (DECISIONS
 ## Known trade-offs (accepted, revisit if they bite)
 - Removing a provider when the keychain delete fails removes the provider but leaves its old key in the keychain (#139).
 - Search fields appear only above 8 entries; plain substring match, no fuzzy search (#136).
+- If the tray menu is rebuilt (profile, engine or pause change) while it is open on macOS, its items stop responding until it is reopened (sarvam, #140). Rare; not guarded.
