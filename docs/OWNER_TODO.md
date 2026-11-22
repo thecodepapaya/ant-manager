@@ -34,7 +34,7 @@ None of these block development; placeholders are used until each is done. Tick 
 - [ ] Create a **Sentry project** (free tier is fine) and give me the DSN. Reports stay opt-in in the app.
 
 ## Testing infrastructure
-- [ ] **Click the menu-bar icon** (macOS) and check the menu opens and each item works (DECISIONS #140); on Windows/Linux too when you smoke-test installers.
+- [ ] **Click the menu-bar icon** (macOS) and check the menu opens and each item works (DECISIONS #140). Then, with the menu open, pause or switch profile from the main window (e.g. a global shortcut), close the menu, reopen it: items should respond and show the new state (#141); on Windows/Linux too when you smoke-test installers.
 - [ ] **GitHub Enterprise Server** trial licence (or access to a real GHES instance) for self-hosted testing.
 - [ ] Test accounts: Linear workspace, Jira Cloud site, an Outlook / M365 account (for its ICS link) and a Google account with sample calendar data.
 - [ ] **Smoke-test the unsigned installers** from a CI build on a real Windows 10/11 PC and a Linux desktop (install, launch, tray icon). CI builds them but can't run them. On Linux also check a token saves (needs gnome-keyring or KWallet running) and the tray icon on GNOME (AppIndicator extension).

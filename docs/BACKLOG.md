@@ -17,3 +17,4 @@ Owner notes from local runs. Each fix still follows the working rules (DECISIONS
 ## Known trade-offs (accepted, revisit if they bite)
 - Removing a provider when the keychain delete fails removes the provider but leaves its old key in the keychain (#139).
 - Search fields appear only above 8 entries; plain substring match, no fuzzy search (#136).
+- The tray defers rebuilds while its menu is open (#141). If macOS ever skips a menu-closed event, the menu stops refreshing until relaunch; no timeout guard.

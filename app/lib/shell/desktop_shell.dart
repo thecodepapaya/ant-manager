@@ -91,6 +91,7 @@ class DesktopShell {
   // that arrives while it's open waits for it to close (#141).
   var _menuOpen = false;
   var _rebuildPending = false;
+  tray.Menu? _menu;
 
   void _rebuildMenu() {
     final icon = _trayIcon;
@@ -105,8 +106,10 @@ class DesktopShell {
     final activeId = _container.read(engineProvider).value?.profileId;
     final paused = _container.read(pausedProvider).value ?? false;
 
-    final menu = tray.Menu.create()!
+    late final tray.Menu menu;
+    menu = tray.Menu.create()!
       ..addListener((e) {
+        if (!identical(menu, _menu)) return; // a replaced menu's late events don't count
         if (e is tray.MenuOpenedEvent) _menuOpen = true;
         if (e is tray.MenuClosedEvent) {
           _menuOpen = false;
@@ -167,6 +170,7 @@ class DesktopShell {
       () => unawaited(showMain(section: ShellSection.settings)),
     );
     item('Quit Ant Manager', () => unawaited(quit()));
+    _menu = menu;
     icon.setContextMenu(menu);
   }
 
