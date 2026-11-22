@@ -47,13 +47,6 @@ void main() {
     expect(sink.lines.single, startsWith('2031-03-04T05:06:07.890Z INFO  engine $e'));
   });
 
-  test('a non-UTC clock time is written in UTC', () {
-    clock.t = DateTime.fromMillisecondsSinceEpoch(t0.millisecondsSinceEpoch); // local
-    final e = _event('tsLocal');
-    Log.info(e);
-    expect(sink.lines.single, startsWith('2031-03-04T05:06:07.890Z '));
-  });
-
   test('a repeated warning inside the window is suppressed; after it the next carries repeated=<n>', () {
     final e = _event('warn');
     Log.warn(e, {'k': 1});

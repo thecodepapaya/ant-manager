@@ -105,7 +105,58 @@ void main() {
       ]);
     });
   });
+
+  group('lane loop shares the lane with report runs (#141)', () {
+    test('a report run waits while the LLM lane loop is running a job', () async {
+      final h = await EngineHandle.start(EngineConfig(
+        dataDir: dir.path,
+        timeZone: 'UTC',
+        inMemory: true,
+        idlePoll: const Duration(milliseconds: 50),
+      ));
+      addTearDown(h.shutdown);
+      await h.runtime(_registerBlockingLlmJobCmd());
+      expect(await h.runtime(_reportWaitsForLoopJobCmd()), [
+        'job started',
+        'report not done while job runs',
+        'released',
+        'report done',
+      ]);
+    });
+  });
 }
+
+// Engine-isolate globals: the commands below run there.
+var _jobStarted = false;
+Completer<void>? _jobGate;
+
+EngineCommand<void> _registerBlockingLlmJobCmd() => (rt) async {
+      rt.engine.jobs.register('test.block', JobLane.llm, (_) async {
+        _jobStarted = true;
+        await (_jobGate = Completer<void>()).future;
+      });
+      await rt.engine.jobs.enqueue('test.block');
+    };
+
+EngineCommand<List<String>> _reportWaitsForLoopJobCmd() => (rt) async {
+      final log = <String>[];
+      final end = DateTime.now().add(const Duration(seconds: 10));
+      while (!_jobStarted && DateTime.now().isBefore(end)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      log.add(_jobStarted ? 'job started' : 'job never started');
+      var settled = false;
+      final report = generateReportCmd('no-such-report')(rt).then<void>((_) {}, onError: (_) {}).whenComplete(() {
+        settled = true;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      log.add(settled ? 'report done while job runs' : 'report not done while job runs');
+      log.add('released');
+      _jobGate?.complete();
+      await report.timeout(const Duration(seconds: 10));
+      log.add(settled ? 'report done' : 'report still pending');
+      return log;
+    };
 
 EngineCommand<List<String>> _laneOrderCmd() => (rt) async {
       final log = <String>[];
