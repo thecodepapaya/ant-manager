@@ -268,7 +268,7 @@ maintained from it, and every output reads from that Narrative.
   "Copy diagnostics" copies versions, setup shape (kinds, flags, counts), schema versions, job counts and the last
   200 log lines; "Open folder" opens `logs/`.
 - About (#127): Settings → General shows the app version, "Open source · Apache 2.0" and links to GitHub,
-  Report a bug and Request a feature (GitHub issue forms in `.github/ISSUE_TEMPLATE/`); the website links them too.
+  Report a bug and Request a feature (GitHub issue forms in `.github/ISSUE_TEMPLATE/`); the website (`https://ant-manager.thecodepapaya.dev/`, #142) links them too.
 - **English only** in v1 (#87); no localization framework.
 
 ## 11. Repo layout

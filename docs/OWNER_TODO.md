@@ -42,7 +42,7 @@ None of these block development; placeholders are used until each is done. Tick 
 
 ## Content & legal
 - [ ] Review the v1 **[PRIVACY.md](../PRIVACY.md) / [THREAT_MODEL.md](../THREAT_MODEL.md)** (rewritten 2026-11-20: "send everything" to the chosen provider, opt-in crash reports not wired yet, plaintext backups, known gaps). The `web/` site and `.github/ISSUE_TEMPLATE/config.yml` link both on `main` (DECISIONS #125, #127, #134).
-- [ ] **web/ site redesigned** (DECISIONS #125, on `main`): review it, confirm the domain (`ant-manager.thecodepapaya.dev` assumed), then deploy to Cloudflare Pages. Download buttons point at the GitHub Releases page; once a release exists, optionally link the artifacts directly, and drop the "unsigned" note once signing is in place.
+- [ ] **web/ site redesigned** (DECISIONS #125, on `main`): review it, then deploy to Cloudflare Pages and add the custom domain `ant-manager.thecodepapaya.dev` (confirmed, DECISIONS #142; Pages → Custom domains, which adds the DNS record if `thecodepapaya.dev` is on Cloudflare). Download buttons point at the GitHub Releases page; once a release exists, optionally link the artifacts directly, and drop the "unsigned" note once signing is in place.
 - [ ] Approve the **design direction** (palette from the logo, Linear-style) when I present it.
 - [x] ~~Provide an **SVG version of the logo** (vector source for the app icon, installers, web site and in-app branding; the current logo is raster only).~~ Traced to SVG (DECISIONS #123).
 - [x] ~~Share **ideas / sketches for the menu-bar logo** (silhouette, single ant vs. abstract mark, filled vs. outline) so I can draft options.~~ Done: single-ant `ant.svg` (#123).
