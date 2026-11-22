@@ -4,7 +4,7 @@ Guidance for coding agents in this repo.
 
 ## Layout
 - `docs/`: v1 design. `SPEC.md` = what (authoritative); `DECISIONS.md` = numbered why-log (append only, mark superseded
-  rows `⟶ see #N`); `lld/` = low-level design, step status in `lld/README.md`; `OWNER_TODO.md` = owner-only external tasks.
+  rows `⟶ see #N`); `lld/` = low-level design, step status in `lld/README.md`; `OWNER_TODO.md` = owner-only external tasks. `BACKLOG.md` = owner's fix list for the next cycle.
 - `app/`, `packages/core`, `packages/ui`: v1 code (Dart pub workspace).
 - `web/` + `wrangler.json`: Cloudflare Pages site; don't move.
 
@@ -23,5 +23,5 @@ Guidance for coding agents in this repo.
   (DeepSeek v4.1 flash, read-only) verifies them.
 - Record every decision in DECISIONS + SPEC + the relevant LLD doc (+ OWNER_TODO if external).
 - Explain tradeoffs briefly before asking. Keep responses concise.
-- Git: agents work on short branches merged into `v1`; push allowed; tagged releases are public and unsigned.
+- Git: `main` is the source of truth; work happens on `v1.1` (agents branch from it and merge back); push to `v1.1` allowed, never to `main`; tagged releases are public and unsigned (#134).
 

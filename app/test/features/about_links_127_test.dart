@@ -225,7 +225,7 @@ void main() {
       expect(doc['blank_issues_enabled'], isFalse);
       final links = (doc['contact_links'] as YamlList).cast<YamlMap>();
       expect(links, hasLength(1));
-      expect(links.single['url'], '$_repo/blob/v1/PRIVACY.md');
+      expect(links.single['url'], '$_repo/blob/main/PRIVACY.md');
       expect(File('${_root()}/PRIVACY.md').existsSync(), isTrue);
     });
   });

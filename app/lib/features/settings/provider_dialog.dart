@@ -407,8 +407,10 @@ class _ProviderDialogState extends ConsumerState<ProviderDialog> {
             label: 'Remove provider',
             variant: AntButtonVariant.danger,
             onPressed: () async {
-              await runCmd(context, ref, removeProviderCmd(_id!));
-              if (context.mounted) Navigator.of(context).pop();
+              // Stays open on failure (runCmd shows the error), #139.
+              if (await runCmd(context, ref, removeProviderCmd(_id!)) != null && context.mounted) {
+                Navigator.of(context).pop();
+              }
             },
           ),
       ],

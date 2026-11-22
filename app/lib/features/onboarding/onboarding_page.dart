@@ -55,6 +55,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   String _manualKind = 'email';
   bool _showManual = false;
   bool _identitiesReady = false;
+  final _peopleQuery = TextEditingController();
+  bool _showAllPeople = false;
 
   @override
   void initState() {
@@ -85,6 +87,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   void dispose() {
     _name.dispose();
     _manualValue.dispose();
+    _peopleQuery.dispose();
     _scan.dispose();
     super.dispose();
   }
@@ -113,12 +116,15 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             for (final (k, v) in _manual) {
               await h.runtime(addIdentityCmd(k, v));
             }
-            _scan.autoSelect({..._picked, for (final (k, v) in _manual) if (k == 'email') v.toLowerCase()});
+            // Pre-tick repos only on the first visit, so coming Back keeps the user's repo ticks (#139).
+            if (!_maxReached.contains(_Step.repos)) {
+              _scan.autoSelect({..._picked, for (final (k, v) in _manual) if (k == 'email') v.toLowerCase()});
+            }
           case _Step.repos:
             await _scan.addSelected(ref.read(sourcesProvider).value ?? const []);
           default:
         }
-      } else if (_step == _Step.identities) {
+      } else if (_step == _Step.identities && !_maxReached.contains(_Step.repos)) {
         _scan.autoSelect(const {});
       }
       await _go(_Step.values[_step.index + 1]);
@@ -222,8 +228,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           _heading(
             context,
             'Your work, quietly remembered.',
-            'Ant Manager keeps a record of the work you do and turns it into honest daily, weekly and '
-                'review-ready reports, so you never have to rebuild what you did from memory.',
+            'A record of the work you do, turned into honest reports.',
           ),
           ...introBody(context),
         ];
@@ -239,17 +244,32 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         ];
       case _Step.identities:
         final authors = _scan.authors();
+        final people = authors.where((a) => !a.$1.contains('[bot]')).toList();
+        final query = _peopleQuery.text;
+        final matches = [for (final a in people) if (matchesQuery(query, [a.$1, a.$2])) a];
+        // Ticks live in _picked, so people hidden by the search or the cap stay ticked.
+        final capped = query.trim().isEmpty && !_showAllPeople;
+        final shown = capped ? matches.take(listSearchThreshold) : matches;
         return [
           _heading(context, 'Which of these are you?',
               'We found these people in your repos. Evidence from the ones you tick counts as yours.'),
+          if (_identitiesReady && people.length > listSearchThreshold)
+            ListSearchField(
+              key: const Key('onboarding-people-search'),
+              controller: _peopleQuery,
+              placeholder: 'Search people',
+              onChanged: (_) => setState(() {}),
+            ),
           ListenableBuilder(
             listenable: _scan,
             builder: (context, _) => ListPanel(children: [
               if (!_identitiesReady)
                 const PanelRow(title: 'Looking through your repos…')
               else if (authors.isEmpty && _manual.isEmpty)
-                const PanelRow(title: 'No commit authors found', hint: 'Add the email you commit with below.'),
-              for (final (email, name, repos) in authors.where((a) => !a.$1.contains('[bot]')).take(8))
+                const PanelRow(title: 'No commit authors found', hint: 'Add the email you commit with below.')
+              else if (matches.isEmpty && people.isNotEmpty)
+                const PanelRow(title: 'No matches', hint: 'Try a different name or email.'),
+              for (final (email, name, repos) in shown)
                 PanelRow(
                   dense: true,
                   onTap: () => setState(() => _picked.contains(email) ? _picked.remove(email) : _picked.add(email)),
@@ -279,6 +299,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 ),
             ]),
           ),
+          if (capped && matches.length > listSearchThreshold) ...[
+            Gap(t.space.md),
+            Row(children: [
+              AntButton.ghost(
+                label: 'Show all ${matches.length} people',
+                icon: Icons.expand_more,
+                onPressed: () => setState(() => _showAllPeople = true),
+              ),
+            ]),
+          ],
           Gap(t.space.md),
           if (!_showManual)
             Row(children: [
@@ -493,6 +523,20 @@ class _ModelStep extends ConsumerWidget {
               const AntChip(label: 'Structured output verified', tone: AntTone.ok, icon: Icons.check),
             ]),
           ),
+          Gap(t.space.xl),
+        ],
+        if (providers.isNotEmpty) ...[
+          // Added providers stay editable here: change or remove the key without leaving onboarding.
+          ListPanel(children: [
+            for (final p in providers)
+              PanelRow(
+                title: p.name,
+                hint: providerDetail(p, models),
+                trailing: [
+                  AntButton(label: 'Manage', size: AntSize.sm, onPressed: () => showProviderDialog(context, existing: p)),
+                ],
+              ),
+          ]),
           Gap(t.space.xl),
           const Label('Or add another'),
           Gap(t.space.md),

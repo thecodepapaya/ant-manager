@@ -15,6 +15,9 @@ abstract final class Log {
   /// Tags every line with the isolate that wrote it (`ui` or `engine`).
   static String isolate = 'engine';
 
+  /// Line timestamps and the [repeatWindow]; tests swap it (#141).
+  static Clock clock = const SystemClock();
+
   static void info(String event, [Map<String, Object?> fields = const {}]) => _write(LogLevel.info, event, fields);
 
   static void warn(String event, [Map<String, Object?> fields = const {}]) => _write(LogLevel.warn, event, fields);
@@ -42,7 +45,7 @@ abstract final class Log {
     final s = sink;
     if (s == null) return;
     try {
-      final now = DateTime.now().toUtc();
+      final now = clock.now().toUtc();
       var out = fields;
       if (level != LogLevel.info) {
         final key = formatLogLine(DateTime.utc(0), level, isolate, event, {

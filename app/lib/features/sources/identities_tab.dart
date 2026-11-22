@@ -67,6 +67,7 @@ class IdentitiesTab extends ConsumerStatefulWidget {
 
 class _IdentitiesTabState extends ConsumerState<IdentitiesTab> {
   final _value = TextEditingController();
+  final _query = TextEditingController();
   String _kind = 'email';
   List<IdentitySuggestion>? _suggestions;
 
@@ -88,6 +89,7 @@ class _IdentitiesTabState extends ConsumerState<IdentitiesTab> {
   @override
   void dispose() {
     _value.dispose();
+    _query.dispose();
     super.dispose();
   }
 
@@ -101,6 +103,11 @@ class _IdentitiesTabState extends ConsumerState<IdentitiesTab> {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final ids = ref.watch(identitiesProvider).value ?? const <Identity>[];
+    final suggestions = _suggestions;
+    final matches = [
+      for (final s in suggestions ?? const <IdentitySuggestion>[])
+        if (matchesQuery(_query.text, [s.$2, s.$3])) s,
+    ];
     return PageBody(
       maxWidth: t.narrowPage,
       children: [
@@ -155,13 +162,22 @@ class _IdentitiesTabState extends ConsumerState<IdentitiesTab> {
         Label('Suggested',
             trailing: Text('From your repos and connected accounts', style: t.typo.small.copyWith(color: t.muted))),
         Gap(t.space.md),
+        if ((suggestions?.length ?? 0) > listSearchThreshold)
+          ListSearchField(
+            key: const Key('identities-suggested-search'),
+            controller: _query,
+            placeholder: 'Search people',
+            onChanged: (_) => setState(() {}),
+          ),
         ListPanel(children: [
-          if (_suggestions == null)
+          if (suggestions == null)
             const PanelRow(title: 'Looking at your repos…')
-          else if (_suggestions!.isEmpty)
+          else if (suggestions.isEmpty)
             const PanelRow(title: 'No suggestions', hint: 'Add repos or accounts in Sources to get suggestions.')
+          else if (matches.isEmpty)
+            const PanelRow(title: 'No matches', hint: 'Try a different name, email or username.')
           else
-            for (final (kind, value, label, where) in _suggestions!)
+            for (final (kind, value, label, where) in matches)
               PanelRow(
                 dense: true,
                 title: label,

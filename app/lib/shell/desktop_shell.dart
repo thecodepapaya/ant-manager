@@ -75,7 +75,10 @@ class DesktopShell {
       ..isIconTemplate = Platform.isMacOS
       ..setTooltip('Ant Manager')
       ..setContextMenuTrigger(tray.ContextMenuTrigger.clicked)
-      ..setVisible(true);
+      ..setVisible(true)
+      // nativeapi wires the icon's click handling (and so the menu trigger) only once the icon
+      // has a listener; without one, clicking it does nothing (#140).
+      ..addListener((_) {});
     _rebuildMenu();
     // Rebuild when the inputs of the menu change.
     _subs
@@ -84,15 +87,36 @@ class DesktopShell {
       ..add(_container.listen(pausedProvider, (_, _) => _rebuildMenu()));
   }
 
+  // Replacing the menu while macOS shows it leaves the open copy's items dead, so a rebuild
+  // that arrives while it's open waits for it to close (#141).
+  var _menuOpen = false;
+  var _rebuildPending = false;
+  tray.Menu? _menu;
+
   void _rebuildMenu() {
     final icon = _trayIcon;
     if (icon == null) return;
+    if (_menuOpen) {
+      _rebuildPending = true;
+      return;
+    }
+    _rebuildPending = false;
     final profiles =
         _container.read(profilesProvider).value ?? const <Profile>[];
     final activeId = _container.read(engineProvider).value?.profileId;
     final paused = _container.read(pausedProvider).value ?? false;
 
-    final menu = tray.Menu.create()!;
+    late final tray.Menu menu;
+    menu = tray.Menu.create()!
+      ..addListener((e) {
+        if (!identical(menu, _menu)) return; // a replaced menu's late events don't count
+        if (e is tray.MenuOpenedEvent) _menuOpen = true;
+        if (e is tray.MenuClosedEvent) {
+          _menuOpen = false;
+          // Next turn, so a click on an item of this menu is handled first.
+          if (_rebuildPending) Timer.run(_rebuildMenu);
+        }
+      });
     void item(
       String label,
       VoidCallback onClick, {
@@ -146,6 +170,7 @@ class DesktopShell {
       () => unawaited(showMain(section: ShellSection.settings)),
     );
     item('Quit Ant Manager', () => unawaited(quit()));
+    _menu = menu;
     icon.setContextMenu(menu);
   }
 

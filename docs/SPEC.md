@@ -61,6 +61,7 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
   catch up when you switch to them.
 - Each profile holds several **identities** (emails, GitHub/GitLab usernames, Jira/Linear accounts).
   These are suggested automatically from scanned repos and connected accounts and decide which evidence is "mine".
+  Long suggestion lists (> 8) get a search field matching name or email (#136).
 - Each profile has **one time zone** (defaults to the system's) that defines day boundaries for evidence, facts and
   reports (#87), resolved with a bundled IANA tz database (#109).
 
@@ -82,7 +83,8 @@ idempotent and incremental. Details: [lld/03-class-design.md §3.4](./lld/03-cla
 | Recognition | — | — | Praise and kudos: a screenshot (quick-capture region or drag-drop) + **optional link to the original message** + who/where/date. Text extracted by the image-understanding model. Treated as ordinary evidence (star it to make it a win). No Slack/Teams APIs in v1. |
 
 - **Git setup:** scan watched root folders (e.g. `~/Projects`), list repos showing recent activity by your identities,
-  tick to include. New repos under watched roots are suggested automatically. Manual add also works.
+  tick to include. New repos under watched roots are suggested automatically. Manual add also works. With more than
+  8 repos the picker (and the Sources grid) gets a search field matching repo name or path; ticks survive filtering (#136).
 - **Git detection:** PATH, Homebrew, Xcode CLT, Git for Windows default paths. Detects the macOS `/usr/bin/git` stub
   without triggering it. If git is missing, show a friendly install screen. Reads never run the repo's configured
   commands (`--no-textconv --no-ext-diff`, `log.showSignature=false`, #118).
@@ -255,9 +257,9 @@ maintained from it, and every output reads from that Narrative.
 - **Menu bar / tray app:** keeps running when the window is closed. Handles sync, scheduled generation,
   "write your day?" nudge notifications and the quick-capture hotkey. Launch at login is optional.
 - **Quick capture:** a global hotkey opens a floating note box from anywhere (on macOS the main window shrinks to it, #101).
-- **Onboarding:** welcome (what the app is, how it works: Sources → Evidence → Narrative → Reports and wins, plus
-  local first / always cited / yours to correct, #114) → create profile → add identities → scan repos → connect optional sources → pick AI provider
-  (structured-output probe) → first import and report. Each step can be skipped. Shown once for a profile with no
+- **Onboarding:** welcome (heading, one-line subtitle, the stages Sources → Evidence → Narrative → Reports and wins
+  as one row of sidebar icons, and one line on local first / cited, #114, #137) → create profile → add identities → scan repos → connect optional sources → pick AI provider
+  (structured-output probe; added providers are listed with Manage to change or remove the key, #137) → first import and report. Each step can be skipped. Shown once for a profile with no
   identities and no sources, until finished or skipped (#105).
 - Diagnostics (#126): local rotating logs in `<data>/logs/` (`ui.log`, `engine.log`; 1 MB × 3 each) with
   structural lines only (events, kinds, ids, counts, durations, LLM route/provider kind/host/model/latency/tokens,
@@ -266,7 +268,7 @@ maintained from it, and every output reads from that Narrative.
   "Copy diagnostics" copies versions, setup shape (kinds, flags, counts), schema versions, job counts and the last
   200 log lines; "Open folder" opens `logs/`.
 - About (#127): Settings → General shows the app version, "Open source · Apache 2.0" and links to GitHub,
-  Report a bug and Request a feature (GitHub issue forms in `.github/ISSUE_TEMPLATE/`); the website links them too.
+  Report a bug and Request a feature (GitHub issue forms in `.github/ISSUE_TEMPLATE/`); the website (`https://ant-manager.thecodepapaya.dev/`, #142) links them too.
 - **English only** in v1 (#87); no localization framework.
 
 ## 11. Repo layout

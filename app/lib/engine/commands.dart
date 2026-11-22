@@ -148,11 +148,14 @@ EngineCommand<String> ensureReportCmd(PeriodKind kind, String start, String end,
 /// Generates a new snapshot (runs the Reports model to completion). Returns the snapshot id.
 EngineCommand<String> generateReportCmd(String reportId, {String? styleInstruction}) => (rt) async {
       String? id;
-      await for (final e in rt.reports.generate(reportId, styleInstruction: styleInstruction)) {
-        if (e is ReportDone) id = e.snapshot?.id;
-      }
+      // Waits for any scheduled model call to finish first (#141).
+      await rt.onLlmLane(() async {
+        await for (final e in rt.reports.generate(reportId, styleInstruction: styleInstruction)) {
+          if (e is ReportDone) id = e.snapshot?.id;
+        }
+      });
       if (id == null) throw StateError('Report generation produced no snapshot');
-      return id;
+      return id!; // checked above; set inside the closure, so not promoted
     };
 
 EngineCommand<void> lockReportCmd(String reportId) => (rt) => rt.engine.lockReport(reportId);

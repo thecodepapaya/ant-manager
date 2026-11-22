@@ -5,7 +5,7 @@ come later (checklist at the bottom).
 
 ## Cut a release
 
-1. On `v1` (or `main`), set `version:` in `app/pubspec.yaml` to `X.Y.Z+N` (bump the `+N` build number every release).
+1. On `main` (after `v1.1` is merged), set `version:` in `app/pubspec.yaml` to `X.Y.Z+N` (bump the `+N` build number every release).
 2. Commit and wait for CI to pass.
 3. Tag and push:
    ```sh

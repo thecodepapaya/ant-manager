@@ -150,17 +150,38 @@ class SourceTile extends StatelessWidget {
   }
 }
 
-class _SourcesTab extends ConsumerWidget {
+class _SourcesTab extends ConsumerStatefulWidget {
   const _SourcesTab();
+  @override
+  ConsumerState<_SourcesTab> createState() => _SourcesTabState();
+}
+
+class _SourcesTabState extends ConsumerState<_SourcesTab> {
+  final _query = TextEditingController();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final t = context.tokens;
     final all = ref.watch(sourcesProvider);
     final sources = [for (final s in all.value ?? const <SourceStatus>[]) if (isConnector(s.row.kind)) s];
     if (all.isLoading && sources.isEmpty) return const SizedBox.shrink();
+    // Each git repo is its own card, so many repos make a long grid: search by name or path/host.
+    final shown = [for (final s in sources) if (matchesQuery(_query.text, [s.row.name, _sourceHost(s.row)])) s];
     return PageBody(
       children: [
+        if (sources.length > listSearchThreshold)
+          ListSearchField(
+            key: const Key('sources-search'),
+            controller: _query,
+            placeholder: 'Search sources',
+            onChanged: (_) => setState(() {}),
+          ),
         if (sources.isEmpty)
           AntCard(
             child: AntEmptyState(
@@ -171,10 +192,12 @@ class _SourcesTab extends ConsumerWidget {
               action: AntButton.primary(label: 'Add source', icon: Icons.add, onPressed: () => _addSource(context)),
             ),
           )
+        else if (shown.isEmpty)
+          const ListPanel(children: [PanelRow(title: 'No matches', hint: 'Try a different name or path.')])
         else
           TileGrid(
             minWidth: t.gridMinTile,
-            children: [for (final s in sources) _SourceCard(s)],
+            children: [for (final s in shown) _SourceCard(s)],
           ),
         Gap(t.space.xl),
         const _TranscriptPanel(),
@@ -191,26 +214,27 @@ String ago(DateTime at) {
   return '${d.inDays} d ago';
 }
 
+/// Where a source points: repo path, host or account (card subtitle; also matched by the search).
+String _sourceHost(SourceRow r) {
+  final c = jsonDecode(r.config) as Map<String, Object?>;
+  String h(String? url, String fallback) => url == null ? fallback : (Uri.tryParse(url)?.host ?? url);
+  return switch (r.kind) {
+    SourceKind.gitRepo => tildePath((c['path'] as String?) ?? ''),
+    SourceKind.github => 'github.com${c['login'] == null ? '' : ' · @${c['login']}'}',
+    SourceKind.githubEnterprise => h(c['apiBaseUrl'] as String?, 'GitHub Enterprise'),
+    SourceKind.gitlab => h(c['baseUrl'] as String?, 'gitlab.com'),
+    SourceKind.googleCalendar => 'Google account',
+    SourceKind.appleCalendar => 'Calendar.app · macOS',
+    SourceKind.ics => h(c['url'] as String?, 'ICS feed'),
+    SourceKind.linear => 'linear.app',
+    SourceKind.jira => h(c['siteUrl'] as String?, 'Jira Cloud'),
+    _ => '',
+  };
+}
+
 class _SourceCard extends ConsumerWidget {
   const _SourceCard(this.s);
   final SourceStatus s;
-
-  String _host(SourceRow r) {
-    final c = jsonDecode(r.config) as Map<String, Object?>;
-    String h(String? url, String fallback) => url == null ? fallback : (Uri.tryParse(url)?.host ?? url);
-    return switch (r.kind) {
-      SourceKind.gitRepo => tildePath((c['path'] as String?) ?? ''),
-      SourceKind.github => 'github.com${c['login'] == null ? '' : ' · @${c['login']}'}',
-      SourceKind.githubEnterprise => h(c['apiBaseUrl'] as String?, 'GitHub Enterprise'),
-      SourceKind.gitlab => h(c['baseUrl'] as String?, 'gitlab.com'),
-      SourceKind.googleCalendar => 'Google account',
-      SourceKind.appleCalendar => 'Calendar.app · macOS',
-      SourceKind.ics => h(c['url'] as String?, 'ICS feed'),
-      SourceKind.linear => 'linear.app',
-      SourceKind.jira => h(c['siteUrl'] as String?, 'Jira Cloud'),
-      _ => '',
-    };
-  }
 
   String _detail(SourceKind k) => switch (k) {
         SourceKind.gitRepo => 'Commits on every branch by your identities',
@@ -248,7 +272,7 @@ class _SourceCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.typo.bodyStrong.copyWith(color: t.text)),
-                    Text(_host(r), maxLines: 1, overflow: TextOverflow.ellipsis, style: t.typo.caption.copyWith(color: t.muted)),
+                    Text(_sourceHost(r), maxLines: 1, overflow: TextOverflow.ellipsis, style: t.typo.caption.copyWith(color: t.muted)),
                   ],
                 ),
               ),

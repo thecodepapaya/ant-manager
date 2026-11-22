@@ -12,7 +12,7 @@ class LaunchAtLogin {
     launchAtStartup.setup(
       appName: 'Ant Manager',
       appPath: Platform.resolvedExecutable,
-      packageName: 'dev.antmanager.ant_manager',
+      packageName: 'dev.thecodepapaya.antmanager',
     );
   }
 
