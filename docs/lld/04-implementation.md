@@ -238,7 +238,7 @@ blank summary takes the first later non-blank one (#116). A workstream with no l
 
 - **Job table** with `state ∈ queued | running | done | failed`, `run_after`, `attempts`, `lease_until`.
 - **One worker loop** in the engine isolate with two lanes: **IO** (syncs, backups) and **LLM** (one model call at a time,
-  so a local model isn't swamped: scheduled reports and the recompute drain, #131). A job leased but not finished when the app dies is re-queued when `lease_until` passes.
+  so a local model isn't swamped: scheduled reports, the recompute drain and on-demand report runs, which wait their turn through `EngineRuntime.onLlmLane`, #131, #141). A job leased but not finished when the app dies is re-queued when `lease_until` passes.
 - **Retries:** exponential backoff (1 min, 5 min, 30 min), then `failed` and shown in Settings .
 - **Scheduler:** per profile, a list of `{kind, rule}` (daily 18:00 weekdays, weekly Mon 09:00, monthly 1st 09:00,
   quarterly first day 09:00, backup 02:00, nudge weekdays 18:05, #105). Editing a schedule sets `lastRunAt = now`, so it

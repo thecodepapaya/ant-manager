@@ -87,15 +87,33 @@ class DesktopShell {
       ..add(_container.listen(pausedProvider, (_, _) => _rebuildMenu()));
   }
 
+  // Replacing the menu while macOS shows it leaves the open copy's items dead, so a rebuild
+  // that arrives while it's open waits for it to close (#141).
+  var _menuOpen = false;
+  var _rebuildPending = false;
+
   void _rebuildMenu() {
     final icon = _trayIcon;
     if (icon == null) return;
+    if (_menuOpen) {
+      _rebuildPending = true;
+      return;
+    }
+    _rebuildPending = false;
     final profiles =
         _container.read(profilesProvider).value ?? const <Profile>[];
     final activeId = _container.read(engineProvider).value?.profileId;
     final paused = _container.read(pausedProvider).value ?? false;
 
-    final menu = tray.Menu.create()!;
+    final menu = tray.Menu.create()!
+      ..addListener((e) {
+        if (e is tray.MenuOpenedEvent) _menuOpen = true;
+        if (e is tray.MenuClosedEvent) {
+          _menuOpen = false;
+          // Next turn, so a click on an item of this menu is handled first.
+          if (_rebuildPending) Timer.run(_rebuildMenu);
+        }
+      });
     void item(
       String label,
       VoidCallback onClick, {

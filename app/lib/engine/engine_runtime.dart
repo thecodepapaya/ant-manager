@@ -122,6 +122,15 @@ class EngineRuntime {
 
   var _stopped = false;
   Completer<void>? _wake;
+  Future<void> _llmTail = Future.value();
+
+  /// Runs [f] on the LLM lane: after the model work already running or queued here, before the next.
+  /// The lane loop and on-demand report runs both go through it, so one model call at a time (#141).
+  Future<T> onLlmLane<T>(Future<T> Function() f) {
+    final run = _llmTail.then((_) => f());
+    _llmTail = run.then<void>((_) {}, onError: (_) {});
+    return run;
+  }
   final _loops = <Future<void>>[];
   final _stopWaiters = <Completer<void>>[];
 
@@ -408,10 +417,15 @@ class EngineRuntime {
     while (!_stopped) {
       var worked = false;
       try {
-        if (!(lane == JobLane.io && paused)) worked = await engine.jobs.runOne(lane);
-        // Recompute calls models, so it shares the LLM lane (one model call at a time, #131);
-        // handlers are registered by core's narrative layer.
-        if (lane == JobLane.llm) worked = await engine.recompute.drain() > 0 || worked;
+        if (lane == JobLane.io) {
+          if (!paused) worked = await engine.jobs.runOne(lane);
+        } else {
+          // Recompute calls models, so it shares the LLM lane (one model call at a time, #131);
+          // handlers are registered by core's narrative layer.
+          worked = await onLlmLane(
+            () async => await engine.jobs.runOne(lane) | (await engine.recompute.drain() > 0),
+          );
+        }
       } catch (e, st) {
         Log.error('engine.loop', e, st, {'lane': lane});
       }
